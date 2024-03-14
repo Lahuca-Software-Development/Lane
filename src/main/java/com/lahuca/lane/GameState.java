@@ -16,59 +16,38 @@
 package com.lahuca.lane;
 
 import java.util.HashMap;
-import java.util.Map;
 
 /**
- * Represents a game state with properties.
+ * Interface representing a game state.
  */
-public record GameState(String name, boolean isJoinable, boolean isPlayable, Map<String, GameStateProperty> properties) {
-
-
-	/**
-	 * Constructs a new GameState with the specified name, joinable, and spectatable flags.
-	 *
-	 * @param name         the name of this game state
-	 * @param isJoinable   flag indicating if this game state is joinable
-	 * @param isPlayable flag indicating if this game state is playable
-	 */
-	public GameState(String name, boolean isJoinable, boolean isPlayable) {
-		this(name, isJoinable, isPlayable, new HashMap<>());
-	}
+public interface GameState {
 
 	/**
 	 * Gets the name of this game state.
 	 *
 	 * @return the name of this game state
 	 */
-	public String getName() {
-		return name;
-	}
+	String getName();
 
 	/**
 	 * Checks if this game state is joinable.
 	 *
 	 * @return true if this game state is joinable, false otherwise
 	 */
-	public boolean isJoinable() {
-		return isJoinable;
-	}
+	boolean isJoinable();
 
 	/**
 	 * Checks if this game state is playable.
 	 *
-	 * @return true if this game is playable, false otherwise
+	 * @return true if this game state is playable, false otherwise
 	 */
-	public boolean isPlayable() {
-		return isPlayable;
-	}
+	boolean isPlayable();
 
 	/**
 	 * Gets the properties associated with this game state.
 	 *
 	 * @return the properties associated with this game state
 	 */
-	public Map<String, GameStateProperty> getProperties() {
-		return properties;
-	}
+	HashMap<String, GameStateProperty> getProperties();
 
 }

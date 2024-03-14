@@ -16,55 +16,30 @@
 package com.lahuca.lane;
 
 /**
- * This class contains information about any additional properties that are set in the game state.
- * These properties can be game instance dependent and are expected to be non-existent at any time.
+ * Interface representing a game state property.
  */
-public record GameStateProperty(String id, Object value, Object extraData) {
-
-	/**
-	 * Constructs a new GameStateProperty with the specified ID.
-	 *
-	 * @param id the unique identifier for this property
-	 */
-	public GameStateProperty(String id) {
-		this(id, null, null);
-	}
-
-	/**
-	 * Constructs a new GameStateProperty with the specified ID and value.
-	 *
-	 * @param id    the unique identifier for this property
-	 * @param value the initial value for this property
-	 */
-	public GameStateProperty(String id, Object value) {
-		this(id, value, null);
-	}
+public interface GameStateProperty {
 
 	/**
 	 * Gets the ID of this property.
 	 *
 	 * @return the ID of this property
 	 */
-	public String getId() {
-		return id;
-	}
+	String getId();
 
 	/**
 	 * Gets the value of this property.
 	 *
 	 * @return the value of this property
 	 */
-	public Object getValue() {
-		return value;
-	}
+	Object getValue();
 
 	/**
 	 * Gets the extra data associated with this property.
 	 *
 	 * @return the extra data associated with this property
 	 */
-	public Object getExtraData() {
-		return extraData;
-	}
+	Object getExtraData();
+
 
 }
