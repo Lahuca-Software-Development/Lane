@@ -15,5 +15,10 @@
  */
 package com.lahuca.lanecontroller;
 
-public class dada {
+/**
+ * This is the main class for operations on the controller side of the Lane system.
+ */
+public class Controller {
+
+
 }

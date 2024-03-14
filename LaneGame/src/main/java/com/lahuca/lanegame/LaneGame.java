@@ -7,7 +7,7 @@
  * <a href="mailto:info@lahuca.com">info@lahuca.com</a>
  * KvK (Chamber of Commerce): 76521621
  * <br>
- * This file is originally created for Lane on 13-3-2024 at 21:31 UTC+1.
+ * This file is originally created for Lane on 14-3-2024 at 12:44 UTC+1.
  * <br>
  * Lahuca Software Development owns all rights regarding the code.
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
@@ -15,5 +15,9 @@
  */
 package com.lahuca.lanegame;
 
-public class eea {
+public abstract class LaneGame extends GameInfo {
+
+	public abstract void onStartup();
+	public abstract void
+
 }
