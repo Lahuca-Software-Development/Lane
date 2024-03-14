@@ -18,6 +18,6 @@ package com.lahuca.lanegame;
 public abstract class LaneGame extends GameInfo {
 
 	public abstract void onStartup();
-	public abstract void
+	public abstract void onJoin();
 
 }

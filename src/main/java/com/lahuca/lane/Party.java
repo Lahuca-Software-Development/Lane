@@ -17,23 +17,9 @@ package com.lahuca.lane;
 
 import java.util.UUID;
 
-public class Party {
+public interface Party {
 
-	private final UUID owner;
-	private final long creationTimestamp;
-	private UUID[] players;
-
-	public Party(UUID owner) {
-		this.owner = owner;
-		this.creationTimestamp = System.currentTimeMillis();
-	}
-
-	public UUID getOwner() {
-		return owner;
-	}
-
-	public long getCreationTimestamp() {
-		return creationTimestamp;
-	}
+	UUID getOwner();
+	long getCreationTimestamp();
 
 }

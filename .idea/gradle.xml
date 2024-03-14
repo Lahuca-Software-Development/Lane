@@ -10,6 +10,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/LaneController" />
+            <option value="$PROJECT_DIR$/LaneController/LaneControllerVelocity" />
             <option value="$PROJECT_DIR$/LaneGame" />
           </set>
         </option>

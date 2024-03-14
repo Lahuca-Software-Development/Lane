@@ -15,11 +15,14 @@
  */
 package com.lahuca.lane;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface LanePlayer {
 
 	UUID getUuid();
 	String getName();
+	String getDisplayName();
+	Optional<Party> getParty();
 
 }
