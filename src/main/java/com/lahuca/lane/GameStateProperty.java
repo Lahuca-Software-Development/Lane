@@ -19,16 +19,7 @@ package com.lahuca.lane;
  * This class contains information about any additional properties that are set in the game state.
  * These properties can be game instance dependent and are expected to be non-existent at any time.
  */
-public class GameStateProperty {
-
-	/** The unique identifier for this property. */
-	private final String id;
-
-	/** The value of this property. */
-	private Object value;
-
-	/** Additional data associated with this property. */
-	private Object extraData;
+public record GameStateProperty(String id, Object value, Object extraData) {
 
 	/**
 	 * Constructs a new GameStateProperty with the specified ID.
@@ -36,7 +27,7 @@ public class GameStateProperty {
 	 * @param id the unique identifier for this property
 	 */
 	public GameStateProperty(String id) {
-		this.id = id;
+		this(id, null, null);
 	}
 
 	/**
@@ -46,21 +37,7 @@ public class GameStateProperty {
 	 * @param value the initial value for this property
 	 */
 	public GameStateProperty(String id, Object value) {
-		this.id = id;
-		this.value = value;
-	}
-
-	/**
-	 * Constructs a new GameStateProperty with the specified ID, value, and extra data.
-	 *
-	 * @param id        the unique identifier for this property
-	 * @param value     the initial value for this property
-	 * @param extraData additional data associated with this property
-	 */
-	public GameStateProperty(String id, Object value, Object extraData) {
-		this.id = id;
-		this.value = value;
-		this.extraData = extraData;
+		this(id, value, null);
 	}
 
 	/**
@@ -82,30 +59,12 @@ public class GameStateProperty {
 	}
 
 	/**
-	 * Sets the value of this property.
-	 *
-	 * @param value the new value for this property
-	 */
-	public void setValue(Object value) {
-		this.value = value;
-	}
-
-	/**
 	 * Gets the extra data associated with this property.
 	 *
 	 * @return the extra data associated with this property
 	 */
 	public Object getExtraData() {
 		return extraData;
-	}
-
-	/**
-	 * Sets the extra data associated with this property.
-	 *
-	 * @param extraData the new extra data for this property
-	 */
-	public void setExtraData(Object extraData) {
-		this.extraData = extraData;
 	}
 
 }

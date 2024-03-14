@@ -21,19 +21,8 @@ import java.util.Map;
 /**
  * Represents a game state with properties.
  */
-public class GameState {
+public record GameState(String name, boolean isJoinable, boolean isPlayable, Map<String, GameStateProperty> properties) {
 
-	/** The name of the game. */
-	private final String name;
-
-	/** Flag indicating if this game is joinable. */
-	private boolean isJoinable;
-
-	/** Flag indicating if this game is playable. */
-	private boolean isPlayable;
-
-	/** The properties associated with this game state. */
-	private final Map<String, GameStateProperty> properties;
 
 	/**
 	 * Constructs a new GameState with the specified name, joinable, and spectatable flags.
@@ -43,10 +32,7 @@ public class GameState {
 	 * @param isPlayable flag indicating if this game state is playable
 	 */
 	public GameState(String name, boolean isJoinable, boolean isPlayable) {
-		this.name = name;
-		this.isJoinable = isJoinable;
-		this.isPlayable = isPlayable;
-		this.properties = new HashMap<>();
+		this(name, isJoinable, isPlayable, new HashMap<>());
 	}
 
 	/**
@@ -68,30 +54,12 @@ public class GameState {
 	}
 
 	/**
-	 * Sets whether this game state is joinable.
-	 *
-	 * @param joinable true to set this game state as joinable, false otherwise
-	 */
-	public void setJoinable(boolean joinable) {
-		isJoinable = joinable;
-	}
-
-	/**
 	 * Checks if this game state is playable.
 	 *
 	 * @return true if this game is playable, false otherwise
 	 */
 	public boolean isPlayable() {
 		return isPlayable;
-	}
-
-	/**
-	 * Sets whether this game state is playable.
-	 *
-	 * @param playable true to set this game as playable, false otherwise
-	 */
-	public void setPlayable(boolean playable) {
-		isPlayable = playable;
 	}
 
 	/**
@@ -102,4 +70,5 @@ public class GameState {
 	public Map<String, GameStateProperty> getProperties() {
 		return properties;
 	}
+
 }
