@@ -16,7 +16,7 @@
 package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LanePlayer;
-import com.lahuca.lane.Party;
+import com.lahuca.lane.LaneParty;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -26,7 +26,7 @@ public class ControllerPlayer implements LanePlayer {
 	private UUID uuid;
 	private String name;
 	private String displayName;
-	private Party party;
+	private ControllerParty controllerParty;
 
 	public ControllerPlayer(UUID uuid, String name, String displayName) {
 		this.uuid = uuid;
@@ -50,8 +50,8 @@ public class ControllerPlayer implements LanePlayer {
 	}
 
 	@Override
-	public Optional<Party> getParty() {
-		return Optional.empty();
+	public Optional<LaneParty> getParty() {
+		return Optional.ofNullable(controllerParty);
 	}
 
 }

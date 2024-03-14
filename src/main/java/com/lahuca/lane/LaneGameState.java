@@ -20,7 +20,7 @@ import java.util.HashMap;
 /**
  * Interface representing a game state.
  */
-public interface GameState {
+public interface LaneGameState {
 
 	/**
 	 * Gets the name of this game state.
@@ -48,6 +48,6 @@ public interface GameState {
 	 *
 	 * @return the properties associated with this game state
 	 */
-	HashMap<String, GameStateProperty> getProperties();
+	HashMap<String, ? extends LaneStateProperty> getProperties();
 
 }

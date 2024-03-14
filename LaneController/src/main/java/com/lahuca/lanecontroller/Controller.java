@@ -15,8 +15,6 @@
  */
 package com.lahuca.lanecontroller;
 
-import com.lahuca.lane.Party;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -35,14 +33,14 @@ public class Controller {
 	}
 
 	public void endGame(ControllerGame controllerGame) {
-
+		games.remove(controllerGame);
 	}
 
 	public void joinPlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
 		players.add(controllerPlayer);
 	}
 
-	public void partyWarp(Party party, ControllerGame controllerGame) {
+	public void partyWarp(ControllerParty controllerParty, ControllerGame controllerGame) {
 
 	}
 
@@ -60,5 +58,9 @@ public class Controller {
 
 	public Set<ControllerPlayer> getPlayers() {
 		return players;
+	}
+
+	public Set<ControllerGame> getGames() {
+		return games;
 	}
 }

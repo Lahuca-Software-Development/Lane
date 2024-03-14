@@ -18,7 +18,7 @@ package com.lahuca.lane;
 /**
  * Interface representing a game state property.
  */
-public interface GameStateProperty {
+public interface LaneStateProperty {
 
 	/**
 	 * Gets the ID of this property.

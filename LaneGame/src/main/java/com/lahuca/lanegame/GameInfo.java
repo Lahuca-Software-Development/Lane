@@ -15,12 +15,22 @@
  */
 package com.lahuca.lanegame;
 
+import java.util.Set;
 import java.util.UUID;
 
 public class GameInfo {
 
-	UUID gameId;
-	String serverId;
+	private UUID gameId;
+	private String serverId;
+	private String name;
+	private GameState gameState;
+	private Set<GamePlayer> players;
 
-
+	public GameInfo(UUID gameId, String serverId, String name, GameState gameState, Set<GamePlayer> players) {
+		this.gameId = gameId;
+		this.serverId = serverId;
+		this.name = name;
+		this.gameState = gameState;
+		this.players = players;
+	}
 }

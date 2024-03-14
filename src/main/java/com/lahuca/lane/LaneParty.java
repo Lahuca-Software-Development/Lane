@@ -15,11 +15,38 @@
  */
 package com.lahuca.lane;
 
+import java.util.Set;
 import java.util.UUID;
 
-public interface Party {
+public interface LaneParty {
 
+	/**
+	 * Gets owner of this party.
+	 *
+	 * @return The owner's uuid of this party
+	 */
 	UUID getOwner();
+
+	/**
+	 * Gets uuids of users in this party
+	 *
+	 * @return All users uuid
+	 */
+	Set<UUID> getPlayers();
+
+	/**
+	 * Gets uuids of requested players to this party
+	 *
+	 * @return All requested users uuid
+	 */
+	Set<UUID> getRequested();
+
+
+	/**
+	 * Gets a time stamp when this party was created
+	 *
+	 * @return The time stamp where was this party created
+	 */
 	long getCreationTimestamp();
 
 }
