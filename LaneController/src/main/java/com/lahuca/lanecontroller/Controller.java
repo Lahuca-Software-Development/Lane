@@ -15,18 +15,24 @@
  */
 package com.lahuca.lanecontroller;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * This is the main class for operations on the controller side of the Lane system.
  */
 public class Controller {
 
-	private final Set<ControllerPlayer> players = new HashSet<>();
-	private final Set<ControllerGame> games = new HashSet<>();
+	private static Controller instance;
+
+	private final Set<ControllerPlayer> players;
+	private final Set<ControllerGame> games;
+
+	public Controller() {
+		instance = this;
+
+		players = new HashSet<>();
+		games = new HashSet<>();
+	}
 
 	public void registerGame(ControllerGame controllerGame) {
 		games.add(controllerGame);
@@ -40,13 +46,23 @@ public class Controller {
 		players.add(controllerPlayer);
 	}
 
+	public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
+		players.remove(controllerPlayer);
+	}
+
+
 	public void partyWarp(ControllerParty controllerParty, ControllerGame controllerGame) {
 
 	}
 
 	public void spectateGame(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-
+		controllerPlayer.setPlayerState(new ControllerPlayerState("Spectating", new HashMap<>()));
 	}
+
+	public Optional<ControllerPlayer> getPlayerByName(String name) {
+		return players.stream().filter(player -> player.getName().equals(name)).findFirst();
+	}
+
 
 	public Optional<ControllerPlayer> getPlayer(UUID uuid) {
 		return players.stream().filter(player -> player.getUuid().equals(uuid)).findFirst();
@@ -62,5 +78,9 @@ public class Controller {
 
 	public Set<ControllerGame> getGames() {
 		return games;
+	}
+
+	public static Controller getInstance() {
+		return instance;
 	}
 }

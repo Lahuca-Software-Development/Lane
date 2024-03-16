@@ -13,7 +13,7 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lahucacontrollervelocity;
+package com.lahuca.lanecontrollervelocity;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
@@ -27,11 +27,14 @@ import java.util.logging.Logger;
 		url = "https://lahuca.com", description = "I did it!", authors = {"Lahuca Software Development (Laurenshup)", "_Neko1"})
 public class VelocityController {
 
+	private static VelocityController instance;
+
 	private final ProxyServer server;
 	private final Logger logger;
 
 	@Inject
 	public VelocityController(ProxyServer server, Logger logger) {
+		instance = this;
 		this.server = server;
 		this.logger = logger;
 
@@ -41,5 +44,17 @@ public class VelocityController {
 	@Subscribe
 	public void onJoin(PostLoginEvent event) {
 
+	}
+
+	public ProxyServer getServer() {
+		return server;
+	}
+
+	public Logger getLogger() {
+		return logger;
+	}
+
+	public static VelocityController getInstance() {
+		return instance;
 	}
 }

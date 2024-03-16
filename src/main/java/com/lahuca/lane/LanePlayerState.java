@@ -24,5 +24,5 @@ public interface LanePlayerState {
      *
      * @return the properties associated with this player state
      */
-    HashMap<String, LaneStateProperty> getProperties();
+    HashMap<String, ? extends LaneStateProperty> getProperties();
 }
