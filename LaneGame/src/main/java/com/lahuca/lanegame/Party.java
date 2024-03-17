@@ -1,6 +1,7 @@
 package com.lahuca.lanegame;
 
 import com.lahuca.lane.LaneParty;
+import com.lahuca.lane.LanePlayer;
 
 import java.util.Set;
 import java.util.UUID;
@@ -13,11 +14,11 @@ import java.util.UUID;
 public class Party implements LaneParty {
 
     private UUID owner;
-    private Set<UUID> players;
+    private Set<LanePlayer> players;
     private Set<UUID> requested;
     private long creationStamp;
 
-    public Party(UUID owner, Set<UUID> players, Set<UUID> requested, long creationStamp) {
+    public Party(UUID owner, Set<LanePlayer> players, Set<UUID> requested, long creationStamp) {
         this.owner = owner;
         this.players = players;
         this.requested = requested;
@@ -30,17 +31,17 @@ public class Party implements LaneParty {
     }
 
     @Override
-    public Set<UUID> getPlayers() {
+    public long getCreationTimestamp() {
+        return creationStamp;
+    }
+
+    @Override
+    public Set<LanePlayer> getPlayers() {
         return players;
     }
 
     @Override
     public Set<UUID> getRequested() {
         return requested;
-    }
-
-    @Override
-    public long getCreationTimestamp() {
-        return creationStamp;
     }
 }

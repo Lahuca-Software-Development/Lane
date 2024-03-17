@@ -6,7 +6,6 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -67,15 +66,5 @@ public class FriendCommand implements SimpleCommand {
         } else {
             //Send help message
         }
-    }
-
-    @Override
-    public List<String> suggest(Invocation invocation) {
-        return SimpleCommand.super.suggest(invocation);
-    }
-
-    @Override
-    public boolean hasPermission(Invocation invocation) {
-        return invocation.source() instanceof Player;
     }
 }

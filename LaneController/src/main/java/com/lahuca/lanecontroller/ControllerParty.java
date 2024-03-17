@@ -1,6 +1,7 @@
 package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LaneParty;
+import com.lahuca.lane.LanePlayer;
 
 import java.util.Set;
 import java.util.UUID;
@@ -11,16 +12,34 @@ import java.util.UUID;
  **/
 public class ControllerParty implements LaneParty {
 
-    private UUID owner;
-    private Set<UUID> players;
+    private final UUID owner;
+    private Set<LanePlayer> players;
     private Set<UUID> requested;
     private long creationStamp;
 
-    public ControllerParty(UUID owner, Set<UUID> players, Set<UUID> requested, long creationStamp) {
+    public ControllerParty(UUID owner, Set<LanePlayer> players, Set<UUID> requested, long creationStamp) {
         this.owner = owner;
         this.players = players;
         this.requested = requested;
         this.creationStamp = creationStamp;
+    }
+
+    public void sendRequest(ControllerPlayer controllerPlayer) {
+        requested.add(controllerPlayer.getUuid());
+    }
+
+    public void removePlayer(ControllerPlayer controllerPlayer) {
+        players.remove(controllerPlayer);
+    }
+
+    public void disband() {
+        players.clear();
+        requested.clear();
+        creationStamp = -1;
+    }
+
+    public boolean contains(UUID uuid) {
+        return getPlayers().stream().anyMatch(lanePlayer -> lanePlayer.getUuid().equals(uuid));
     }
 
     @Override
@@ -29,7 +48,7 @@ public class ControllerParty implements LaneParty {
     }
 
     @Override
-    public Set<UUID> getPlayers() {
+    public Set<LanePlayer> getPlayers() {
         return players;
     }
 

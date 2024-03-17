@@ -24,6 +24,6 @@ public interface LanePlayer {
 	String getName();
 	String getDisplayName();
 	LanePlayerState getState();
-	Optional<LaneParty> getParty();
+	Optional<? extends LaneParty> getParty();
 
 }
