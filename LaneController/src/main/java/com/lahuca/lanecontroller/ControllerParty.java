@@ -12,9 +12,9 @@ import java.util.UUID;
  **/
 public class ControllerParty implements LaneParty {
 
-    private final UUID owner;
-    private Set<LanePlayer> players;
-    private Set<UUID> requested;
+    private UUID owner;
+    private final Set<LanePlayer> players;
+    private final Set<UUID> requested;
     private long creationStamp;
 
     public ControllerParty(UUID owner, Set<LanePlayer> players, Set<UUID> requested, long creationStamp) {
@@ -24,9 +24,14 @@ public class ControllerParty implements LaneParty {
         this.creationStamp = creationStamp;
     }
 
+    public void addPlayer(ControllerPlayer controllerPlayer) {
+        players.add(controllerPlayer);
+    }
+
     public void sendRequest(ControllerPlayer controllerPlayer) {
         requested.add(controllerPlayer.getUuid());
     }
+
 
     public void removePlayer(ControllerPlayer controllerPlayer) {
         players.remove(controllerPlayer);
@@ -40,6 +45,10 @@ public class ControllerParty implements LaneParty {
 
     public boolean contains(UUID uuid) {
         return getPlayers().stream().anyMatch(lanePlayer -> lanePlayer.getUuid().equals(uuid));
+    }
+
+    public void setOwner(UUID owner) {
+        this.owner = owner;
     }
 
     @Override
