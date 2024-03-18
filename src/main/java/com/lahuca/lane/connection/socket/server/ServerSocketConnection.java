@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class ServerSocketConnection implements Connection {
@@ -32,7 +34,13 @@ public class ServerSocketConnection implements Connection {
 	private ServerSocket socket = null;
 	private Consumer<InputPacket> input = null;
 	private final Gson gson;
-	private final HashMap<Long, ClientSocket> clients = new HashMap<>();
+	private final HashMap<String, ClientSocket> clients = new HashMap<>();
+	private final HashSet<ClientSocket> unassignedClients = new HashSet<>();
+	private final BiConsumer<String, ClientSocket> assignId = (id, client) -> {
+		if(!unassignedClients.contains(client)) return;
+		clients.put(id, client);
+		unassignedClients.remove(client);
+	};
 
 	public ServerSocketConnection(int port, Gson gson) {
 		this.port = port;
@@ -50,8 +58,7 @@ public class ServerSocketConnection implements Connection {
 		while(socket != null && !socket.isClosed() && socket.isBound()) {
 			try {
 				Socket client = socket.accept();
-				long id = System.currentTimeMillis();
-				clients.put(id, new ClientSocket(this, client, input, gson, id));
+				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId));
 			} catch (IOException e) {
 				// TODO What to do? Couldn't open?
 				throw new RuntimeException(e);
@@ -60,8 +67,8 @@ public class ServerSocketConnection implements Connection {
 	}
 
 	@Override
-	public void sendPacket(Packet packet, long destination) {
-		if(destination == 0) {
+	public void sendPacket(Packet packet, String destination) {
+		if(destination == null) {
 			// TODO Sending to controller? Controller to controller?
 			return;
 		}
@@ -75,6 +82,7 @@ public class ServerSocketConnection implements Connection {
 		if(socket.isClosed() || !socket.isBound()) return;
 		// TODO Send close to clients
 		clients.values().forEach(ClientSocket::close);
+		unassignedClients.forEach(ClientSocket::close);
 		socket.close();
 	}
 

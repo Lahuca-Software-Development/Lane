@@ -18,6 +18,7 @@ package com.lahuca.lane.connection.socket.server;
 import com.google.gson.Gson;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.socket.SocketConnectPacket;
 import com.lahuca.lane.connection.socket.SocketTransfer;
 
 import java.io.BufferedReader;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class ClientSocket {
@@ -35,14 +37,15 @@ public class ClientSocket {
 	private final BufferedReader in;
 	private final Consumer<InputPacket> input;
 	private final Gson gson;
-	private final long id;
+	private String id = null;
+	private final BiConsumer<String, ClientSocket> assignId;
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
-						Gson gson, long id) throws IOException {
+						Gson gson, BiConsumer<String, ClientSocket> assignId) throws IOException {
 		this.connection = connection;
 		out = new PrintWriter(socket.getOutputStream(), true);
 		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		this.id = id;
+		this.assignId = assignId;
 		this.socket = socket;
 		this.input = input;
 		this.gson = gson;
@@ -66,18 +69,24 @@ public class ClientSocket {
 		SocketTransfer transfer = gson.fromJson(line, SocketTransfer.class);
 		Packet.getPacket(transfer.typeId()).ifPresent(packetClass -> {
 			Packet packet = gson.fromJson(transfer.data(), packetClass);
-			if(transfer.to() != 0) {
+			if(transfer.to() != null) {
 				// This packet should not reach the controller, but a different client.
 				connection.sendPacket(packet, transfer.to());
 			} else {
-				input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));
+				if(packet instanceof SocketConnectPacket socketConnect) {
+					id = socketConnect.getClientId();
+					assignId.accept(id, this);
+				} else {
+					input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));
+				}
 			}
 		}); // TODO What if the type is not registered? Parse to unknown object? Or Parse to JSONObject?
 	}
 
 	public void sendPacket(Packet packet) {
+		if(id == null) return; // TODO Wait for id announcement first
 		String packetString = gson.toJson(packet);
-		SocketTransfer outputPacket = new SocketTransfer(packet.getPacketId(), packetString, 0,
+		SocketTransfer outputPacket = new SocketTransfer(packet.getPacketId(), packetString, null,
 				id, System.currentTimeMillis());
 		// TODO Add cryptography
 		out.println(gson.toJson(outputPacket));

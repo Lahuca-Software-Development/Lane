@@ -19,19 +19,25 @@ import com.lahuca.lane.connection.Packet;
 
 public class SocketConnectPacket extends Packet {
 
-	private final long clientId;
+	public static final String packetId = "socketConnect";
 
-	public SocketConnectPacket(long clientId) {
+	static {
+		Packet.registerPacket(packetId, SocketConnectPacket.class);
+	}
+
+	private final String clientId;
+
+	public SocketConnectPacket(String clientId) {
 		this.clientId = clientId;
 	}
 
-	public long getClientId() {
+	public String getClientId() {
 		return clientId;
 	}
 
 	@Override
 	public String getPacketId() {
-		return "socketConnect";
+		return packetId;
 	}
 
 }
