@@ -1,5 +1,6 @@
 package com.lahuca.lane;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -8,9 +9,7 @@ import java.util.UUID;
  **/
 public interface LaneRelationship {
 
-    LanePlayer getOne();
-    LanePlayer getTwo();
-
-    UUID getRequest();
+    Set<LanePlayer> getPlayers();
+    Set<UUID> getRequested();
 
 }

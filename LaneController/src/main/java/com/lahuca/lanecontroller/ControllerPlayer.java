@@ -15,11 +15,13 @@
  */
 package com.lahuca.lanecontroller;
 
-import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 public class ControllerPlayer implements LanePlayer {
 
@@ -121,7 +123,7 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     @Override
-    public Optional<LaneParty> getParty() {
+    public Optional<ControllerParty> getParty() {
         return Optional.ofNullable(controllerParty);
     }
 
