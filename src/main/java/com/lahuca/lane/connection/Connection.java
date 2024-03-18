@@ -22,6 +22,6 @@ public interface Connection {
 
 	void initialise(Consumer<InputPacket> input) throws IOException;
 	void stop() throws IOException;
-	void sendPacket(Packet packet, long destination);
+	void sendPacket(Packet packet, String destination);
 
 }

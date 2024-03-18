@@ -15,4 +15,4 @@
  */
 package com.lahuca.lane.connection;
 
-public record InputPacket(Packet packet, long from, long receivedAt, long sentAt) { }
+public record InputPacket(Packet packet, String from, long receivedAt, long sentAt) { }

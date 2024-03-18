@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 
 public class ClientSocketConnection implements Connection {
 
+	private final String id;
 	private final String ip;
 	private final int port;
 	private Socket socket = null;
@@ -38,9 +39,9 @@ public class ClientSocketConnection implements Connection {
 	private final Gson gson;
 	private PrintWriter out;
 	private BufferedReader in;
-	private Long id = null;
 
-	public ClientSocketConnection(String ip, int port, Gson gson) {
+	public ClientSocketConnection(String id, String ip, int port, Gson gson) {
+		this.id = id;
 		this.ip = ip;
 		this.port = port;
 		this.gson = gson;
@@ -53,6 +54,7 @@ public class ClientSocketConnection implements Connection {
 		out = new PrintWriter(socket.getOutputStream(), true);
 		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		new Thread(this::listenForInput).start(); // TODO Maybe store thread somewhere?
+		sendPacket(new SocketConnectPacket(id), null);
 	}
 
 	private void listenForInput() {
@@ -70,22 +72,17 @@ public class ClientSocketConnection implements Connection {
 	private void readInput(String line) {
 		// TODO Add cryptography
 		SocketTransfer transfer = gson.fromJson(line, SocketTransfer.class);
-		if(transfer.to() != 0) return; // TODO Not meant for the controller? Strange
+		if(!transfer.to().equals(id)) return; // TODO Not meant for the client? Strange
 		Packet.getPacket(transfer.typeId()).ifPresent(packetClass -> {
 			Packet packet = gson.fromJson(transfer.data(), packetClass);
-			if(packet instanceof SocketConnectPacket socketConnectPacket) {
-				// Special message between sockets.
-				id = socketConnectPacket.getClientId();
-			} else {
-				input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));
-			}
+			input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));
 		}); // TODO What if the type is not registered? Parse to unknown object? Or Parse to JSONObject?
 	}
 
 	@Override
-	public void sendPacket(Packet packet, long destination) {
-		if(id == null) return; // TODO We will have to wait to receive our id.
-		if(destination == id) {
+	public void sendPacket(Packet packet, String destination) {
+		// TODO Maybe add function to make it async?
+		if(destination != null && destination.equals(id)) {
 			// TODO Sending to itself?
 			return;
 		}

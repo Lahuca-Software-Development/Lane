@@ -15,4 +15,4 @@
  */
 package com.lahuca.lane.connection.socket;
 
-public record SocketTransfer(String typeId, String data, long from, long to, long sentAt) { }
+public record SocketTransfer(String typeId, String data, String from, String to, long sentAt) { }

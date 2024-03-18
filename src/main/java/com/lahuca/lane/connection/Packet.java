@@ -18,18 +18,18 @@ package com.lahuca.lane.connection;
 import java.util.HashMap;
 import java.util.Optional;
 
-public abstract class Packet {
+public interface Packet {
 
-	public static final HashMap<String, Class<? extends Packet>> packetTypes = new HashMap<>();
+	HashMap<String, Class<? extends Packet>> packetTypes = new HashMap<>();
 
-	public static void registerPacket(String typeId, Class<? extends Packet> classType) {
+	static void registerPacket(String typeId, Class<? extends Packet> classType) {
 		packetTypes.put(typeId, classType);
 	}
 
-	public static Optional<Class<? extends Packet>> getPacket(String typeId) {
+	static Optional<Class<? extends Packet>> getPacket(String typeId) {
 		return Optional.ofNullable(packetTypes.get(typeId));
 	}
 
-	public abstract String getPacketId();
+	String getPacketId();
 
 }

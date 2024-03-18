@@ -15,9 +15,12 @@
  */
 package com.lahuca.lanegame;
 
+import org.bukkit.plugin.java.JavaPlugin;
+
 public abstract class LaneGame extends GameInfo {
 
 	public abstract void onStartup();
 	public abstract void onJoin();
+	public abstract JavaPlugin getOwner();
 
 }
