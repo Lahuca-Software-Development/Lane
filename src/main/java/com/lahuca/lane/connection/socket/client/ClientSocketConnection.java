@@ -81,6 +81,7 @@ public class ClientSocketConnection implements Connection {
 
 	@Override
 	public void sendPacket(Packet packet, String destination) {
+		// TODO Maybe add function to make it async?
 		if(destination != null && destination.equals(id)) {
 			// TODO Sending to itself?
 			return;

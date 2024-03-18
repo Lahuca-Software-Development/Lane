@@ -20,17 +20,28 @@ import java.util.UUID;
 
 public class GameInfo {
 
-	private UUID gameId;
-	private String serverId;
+	private final UUID gameId;
 	private String name;
 	private GameState gameState;
 	private Set<GamePlayer> players;
 
-	public GameInfo(UUID gameId, String serverId, String name, GameState gameState, Set<GamePlayer> players) {
+	public GameInfo(UUID gameId, String name, GameState gameState, Set<GamePlayer> players) {
 		this.gameId = gameId;
-		this.serverId = serverId;
 		this.name = name;
 		this.gameState = gameState;
 		this.players = players;
 	}
+
+	public UUID getGameId() {
+		return gameId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public GameState getGameState() {
+		return gameState;
+	}
+
 }

@@ -15,6 +15,11 @@
  */
 package com.lahuca.lanecontroller;
 
+import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
+
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -24,14 +29,31 @@ public class Controller {
 
 	private static Controller instance;
 
+	public static Controller getInstance() {
+		return instance;
+	}
+
+	private final Connection connection;
+
 	private final Set<ControllerPlayer> players;
-	private final Set<ControllerGame> games;
+	private final HashMap<UUID, ControllerGame> games;
 
-	public Controller() {
+	public Controller(Connection connection) throws IOException {
 		instance = this;
-
 		players = new HashSet<>();
 		games = new HashSet<>();
+
+		this.connection = connection;
+		connection.initialise(input -> {
+			Packet packet = input.packet();
+			if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
+				// TODO
+			}
+		});
+	}
+
+	public Connection getConnection() {
+		return connection;
 	}
 
 	public void registerGame(ControllerGame controllerGame) {
@@ -80,7 +102,5 @@ public class Controller {
 		return games;
 	}
 
-	public static Controller getInstance() {
-		return instance;
-	}
+
 }
