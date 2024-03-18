@@ -74,7 +74,7 @@ public class ClientSocket {
 				connection.sendPacket(packet, transfer.to());
 			} else {
 				if(packet instanceof SocketConnectPacket socketConnect) {
-					id = socketConnect.getClientId();
+					id = socketConnect.clientId();
 					assignId.accept(id, this);
 				} else {
 					input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));

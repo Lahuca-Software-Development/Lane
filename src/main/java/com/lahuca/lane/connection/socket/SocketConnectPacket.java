@@ -17,7 +17,7 @@ package com.lahuca.lane.connection.socket;
 
 import com.lahuca.lane.connection.Packet;
 
-public class SocketConnectPacket extends Packet {
+public record SocketConnectPacket(String clientId) implements Packet {
 
 	public static final String packetId = "socketConnect";
 
@@ -25,19 +25,10 @@ public class SocketConnectPacket extends Packet {
 		Packet.registerPacket(packetId, SocketConnectPacket.class);
 	}
 
-	private final String clientId;
-
-	public SocketConnectPacket(String clientId) {
-		this.clientId = clientId;
-	}
-
-	public String getClientId() {
-		return clientId;
-	}
-
 	@Override
 	public String getPacketId() {
 		return packetId;
 	}
+
 
 }
