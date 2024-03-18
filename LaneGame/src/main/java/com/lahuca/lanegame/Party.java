@@ -16,7 +16,7 @@ public class Party implements LaneParty {
     private UUID owner;
     private Set<LanePlayer> players;
     private Set<UUID> requested;
-    private long creationStamp;
+    private final long creationStamp;
 
     public Party(UUID owner, Set<LanePlayer> players, Set<UUID> requested, long creationStamp) {
         this.owner = owner;

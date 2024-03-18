@@ -30,9 +30,11 @@ public class ControllerPlayer implements LanePlayer {
     private final UUID uuid;
     private final String name;
     private String displayName;
+    private String language;
 
     private ControllerPlayerState playerState;
     private ControllerParty controllerParty;
+
 
     public ControllerPlayer(UUID uuid, String name, String displayName, ControllerParty controllerParty, ControllerPlayerState playerState) {
         this.uuid = uuid;
@@ -102,7 +104,12 @@ public class ControllerPlayer implements LanePlayer {
         this.controllerParty = controllerParty;
     }
 
-	@Override
+    @Override
+    public String getLanguage() {
+        return language;
+    }
+
+    @Override
     public UUID getUuid() {
         return uuid;
     }
@@ -126,5 +133,4 @@ public class ControllerPlayer implements LanePlayer {
     public Optional<ControllerParty> getParty() {
         return Optional.ofNullable(controllerParty);
     }
-
 }

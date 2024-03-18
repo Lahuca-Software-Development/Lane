@@ -23,7 +23,7 @@ public interface LanePlayer {
 	UUID getUuid();
 	String getName();
 	String getDisplayName();
+	String getLanguage();
 	LanePlayerState getState();
 	Optional<? extends LaneParty> getParty();
-
 }

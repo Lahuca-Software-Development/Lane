@@ -36,6 +36,7 @@ public class PartyCommand implements SimpleCommand {
              * /party <Player> - Sends a request to the player
              * /party info - Sends an information about the party
              * /party accept <Player> - Accepts the request from the given player
+             * /party deny <Player> - Denies the request from the given player
              * /party disband - Disbands the party
              * /party kick <Player> - Kicks the player from the party
              * /party warp - Sends all players to the leader's server
@@ -89,6 +90,25 @@ public class PartyCommand implements SimpleCommand {
                 }
 
                 optionalPlayer.ifPresent(controllerParty::addPlayer);
+                //TODO: send message that he accepted it
+            });
+        } else if(args[0].equalsIgnoreCase("deny")) {
+            if(args.length < 2) {
+                //TODO: send help message
+                // /party deny <Player>
+                return;
+            }
+
+            String inviter = args[1];
+
+            Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
+                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                    //TODO: send a message that he is not requested to join his party
+                    return;
+                }
+
+                optionalPlayer.ifPresent(controllerParty::removeRequest);
+                //TODO: send message that he denied it
             });
         } else if(args[0].equalsIgnoreCase("leader")) {
             if(args.length < 2) {

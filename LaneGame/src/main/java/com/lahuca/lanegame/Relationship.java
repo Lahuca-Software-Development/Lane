@@ -3,6 +3,7 @@ package com.lahuca.lanegame;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LaneRelationship;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -11,41 +12,22 @@ import java.util.UUID;
  **/
 public class Relationship implements LaneRelationship {
 
-    private LanePlayer one;
-    private LanePlayer two;
+    private Set<LanePlayer> players;
+    private Set<UUID> requested;
 
-    private UUID request;
+    public Relationship(Set<LanePlayer> players, Set<UUID> requested) {
+        this.players = players;
+        this.requested = requested;
+    }
 
-    public Relationship(LanePlayer one, LanePlayer two, UUID request) {
-        this.one = one;
-        this.two = two;
-        this.request = request;
+
+    @Override
+    public Set<LanePlayer> getPlayers() {
+        return players;
     }
 
     @Override
-    public LanePlayer getOne() {
-        return one;
-    }
-
-    @Override
-    public LanePlayer getTwo() {
-        return two;
-    }
-
-    @Override
-    public UUID getRequest() {
-        return request;
-    }
-
-    public void setOne(LanePlayer one) {
-        this.one = one;
-    }
-
-    public void setTwo(LanePlayer two) {
-        this.two = two;
-    }
-
-    public void setRequest(UUID request) {
-        this.request = request;
+    public Set<UUID> getRequested() {
+        return requested;
     }
 }

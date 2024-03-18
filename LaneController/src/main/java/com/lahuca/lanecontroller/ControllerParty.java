@@ -32,6 +32,9 @@ public class ControllerParty implements LaneParty {
         requested.add(controllerPlayer.getUuid());
     }
 
+    public void removeRequest(ControllerPlayer controllerPlayer) {
+        requested.remove(controllerPlayer.getUuid());
+    }
 
     public void removePlayer(ControllerPlayer controllerPlayer) {
         players.remove(controllerPlayer);
