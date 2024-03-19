@@ -64,7 +64,6 @@ public class ControllerParty implements LaneParty {
         return players;
     }
 
-    @Override
     public Set<UUID> getRequested() {
         return requested;
     }

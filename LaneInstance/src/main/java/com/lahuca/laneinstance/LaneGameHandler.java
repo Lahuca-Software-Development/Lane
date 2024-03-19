@@ -17,56 +17,88 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
+import com.lahuca.lane.connection.packet.RequestPartyPacket;
+import com.lahuca.lane.connection.packet.RequestRelationshipPacket;
+import com.lahuca.lane.records.PartyRecord;
+import com.lahuca.lane.records.RelationshipRecord;
 import org.bukkit.entity.Player;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class LaneGameHandler {
 
-	private static LaneGameHandler instance;
+    private static LaneGameHandler instance;
 
-	public static void start(Connection connection) throws IOException {
-		if(instance != null) return;
-		instance = new LaneGameHandler(connection);
-	}
+    public static void start(Connection connection) throws IOException {
+        if(instance != null) return;
+        instance = new LaneGameHandler(connection);
+    }
 
-	public static LaneGameHandler getInstance() {
-		return instance;
-	}
+    public static LaneGameHandler getInstance() {
+        return instance;
+    }
 
-	private final Connection connection;
-	private final Consumer<Player> join, quit;
+    private final Connection connection;
+    private final Consumer<Player> join, quit;
 
-	private final HashMap<UUID, LaneGame> games = new HashMap<>(); // All registered games on this game server
 
-	public LaneGameHandler(Connection connection) throws IOException {
-		this.connection = connection;
-		connection.initialise(input -> {
+    private final HashMap<UUID, LaneGame> games = new HashMap<>(); // All registered games on this game server
 
-		});
-		join = null;
-		quit = null;
-	}
+    private final HashMap<Long, CompletableFuture<?>> requestablePackets = new HashMap<>();
 
-	public Connection getConnection() {
-		return connection;
-	}
+    public LaneGameHandler(Connection connection) throws IOException {
+        this.connection = connection;
 
-	public Consumer<Player> getJoin() {
-		return join;
-	}
+        connection.initialise(input -> {
+            if(input.packet() instanceof RequestPartyPacket requestPartyPacket) {
+                CompletableFuture<PartyRecord> future = (CompletableFuture<PartyRecord>) requestablePackets.get(requestPartyPacket.getRequestId());
+                future.complete(requestPartyPacket.getData());
+            }
+        });
 
-	public Consumer<Player> getQuit() {
-		return quit;
-	}
+        join = null;
+        quit = null;
+    }
 
-	public void registerGame(LaneGame game) {
-		if(games.containsKey(game.getGameId())) return; // TODO Already a game with said id.
-		games.put(game.getGameId(), game);
-		connection.sendPacket(new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState()), null);
-	}
+    public Connection getConnection() {
+        return connection;
+    }
 
+    public Consumer<Player> getJoin() {
+        return join;
+    }
+
+    public Consumer<Player> getQuit() {
+        return quit;
+    }
+
+    public void registerGame(LaneGame game) {
+        if(games.containsKey(game.getGameId())) return; // TODO Already a game with said id.
+        games.put(game.getGameId(), game);
+        connection.sendPacket(new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState()), null);
+    }
+
+    public CompletableFuture<RelationshipRecord> getRelationship(UUID uuid) {
+        long id = System.currentTimeMillis();
+
+        CompletableFuture<RelationshipRecord> completableFuture = new CompletableFuture<>();
+        requestablePackets.put(id, completableFuture);
+
+        connection.sendPacket(new RequestRelationshipPacket(id, uuid, null), null);
+        return completableFuture;
+    }
+
+    public CompletableFuture<PartyRecord> getParty(UUID uuid) {
+        long id = System.currentTimeMillis();
+
+        CompletableFuture<PartyRecord> completableFuture = new CompletableFuture<>();
+        requestablePackets.put(id, completableFuture);
+
+        connection.sendPacket(new RequestPartyPacket(id, uuid, null), null);
+        return completableFuture;
+    }
 }

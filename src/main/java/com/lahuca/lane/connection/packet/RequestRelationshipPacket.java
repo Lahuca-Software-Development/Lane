@@ -2,7 +2,7 @@ package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.RequestablePacket;
-import com.lahuca.lane.records.PartyRecord;
+import com.lahuca.lane.records.RelationshipRecord;
 
 import java.util.UUID;
 
@@ -10,10 +10,9 @@ import java.util.UUID;
  * @author _Neko1
  * @date 19.03.2024
  **/
+public record RequestRelationshipPacket(long requestId, UUID dataId,  RelationshipRecord relationshipRecord) implements RequestablePacket<RelationshipRecord> {
 
-public record RequestPartyPacket(long requestId, UUID dataId, PartyRecord data) implements RequestablePacket<PartyRecord> {
-
-    public static final String packetId = "requestParty";
+    public static final String packetId = "requestRelationship";
 
     static {
         Packet.registerPacket(packetId, RequestPartyPacket.class);
@@ -35,7 +34,7 @@ public record RequestPartyPacket(long requestId, UUID dataId, PartyRecord data) 
     }
 
     @Override
-    public PartyRecord getData() {
-        return data;
+    public RelationshipRecord getData() {
+        return relationshipRecord;
     }
 }
