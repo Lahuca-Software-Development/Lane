@@ -18,6 +18,9 @@ package com.lahuca.lanecontroller;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
+import com.lahuca.lane.connection.packet.PlayerJoinGamePacket;
+import com.lahuca.lane.connection.packet.PlayerQuitGamePacket;
+import com.lahuca.lane.connection.packet.RequestPartyPacket;
 
 import java.io.IOException;
 import java.util.*;
@@ -53,6 +56,14 @@ public class Controller {
 									gameStatusUpdate.name(), gameStatusUpdate.state()));
 				}
 				// TODO
+			} else if(packet instanceof PlayerJoinGamePacket playerJoinGamePacket) {
+				players.add((ControllerPlayer) playerJoinGamePacket.player());
+			} else if(packet instanceof PlayerQuitGamePacket playerQuitGamePacket) {
+				players.remove((ControllerPlayer) playerQuitGamePacket.player());
+			} else if(packet instanceof RequestPartyPacket requestPartyPacket) {
+				getPlayer(requestPartyPacket.inviter()).flatMap(ControllerPlayer::getParty).ifPresent(party -> {
+					getPlayer(requestPartyPacket.requested().getUuid()).ifPresent(party::sendRequest);
+				});
 			}
 		});
 	}
@@ -100,15 +111,15 @@ public class Controller {
 	}
 
 	public Optional<ControllerGame> getGame(UUID uuid) {
-		return games.stream().filter(game -> game.getGameId().equals(uuid)).findFirst();
+		return Optional.ofNullable(games.get(uuid));
 	}
 
 	public Set<ControllerPlayer> getPlayers() {
 		return players;
 	}
 
-	public Set<ControllerGame> getGames() {
-		return games;
+	public Collection<ControllerGame> getGames() {
+		return games.values();
 	}
 
 
