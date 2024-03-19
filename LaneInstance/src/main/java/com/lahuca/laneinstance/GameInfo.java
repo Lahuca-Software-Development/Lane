@@ -16,23 +16,22 @@
 package com.lahuca.laneinstance;
 
 import java.util.Set;
-import java.util.UUID;
 
 public class GameInfo {
 
-	private final UUID gameId;
+	private final long gameId;
 	private String name;
 	private GameState gameState;
 	private Set<GamePlayer> players;
 
-	public GameInfo(UUID gameId, String name, GameState gameState, Set<GamePlayer> players) {
+	public GameInfo(long gameId, String name, GameState gameState, Set<GamePlayer> players) {
 		this.gameId = gameId;
 		this.name = name;
 		this.gameState = gameState;
 		this.players = players;
 	}
 
-	public UUID getGameId() {
+	public long getGameId() {
 		return gameId;
 	}
 

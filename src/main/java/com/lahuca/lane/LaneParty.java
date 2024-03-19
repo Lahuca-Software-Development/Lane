@@ -19,6 +19,15 @@ import java.util.UUID;
 
 public interface LaneParty extends LaneRelationship {
 
+
+	/**
+	 * Gets party id.
+	 *
+	 * @return The party id
+	 */
+	long getPartyId();
+
+
 	/**
 	 * Gets owner of this party.
 	 *

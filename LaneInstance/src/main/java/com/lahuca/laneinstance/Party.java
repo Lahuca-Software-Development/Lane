@@ -13,14 +13,21 @@ import java.util.UUID;
 
 public class Party implements LaneParty {
 
+    private final long partyId;
     private UUID owner;
     private Set<LanePlayer> players;
     private final long creationStamp;
 
-    public Party(UUID owner, Set<LanePlayer> players, long creationStamp) {
+    public Party(long partyId, UUID owner, Set<LanePlayer> players, long creationStamp) {
+        this.partyId = partyId;
         this.owner = owner;
         this.players = players;
         this.creationStamp = creationStamp;
+    }
+
+    @Override
+    public long getPartyId() {
+        return partyId;
     }
 
     @Override

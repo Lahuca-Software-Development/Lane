@@ -2,27 +2,25 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LaneGameState;
 
-import java.util.UUID;
-
 /**
  * @author _Neko1
  * @date 14.03.2024
  **/
 public class ControllerGame {
 
-    private final UUID gameId;
+    private final long gameId;
     private String serverId;
     private String name;
     private LaneGameState state;
 
-    public ControllerGame(UUID gameId, String serverId, String name, LaneGameState state) {
+    public ControllerGame(long gameId, String serverId, String name, LaneGameState state) {
         this.gameId = gameId;
         this.serverId = serverId;
         this.name = name;
         this.state = state;
     }
 
-    public UUID getGameId() {
+    public long getGameId() {
         return gameId;
     }
 

@@ -27,6 +27,9 @@ public class ControllerPlayer implements LanePlayer {
 
     private final UUID uuid;
     private final String name;
+
+    private long gameId;
+
     private String displayName;
     private String language;
 
@@ -45,7 +48,7 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     /**
-     * Retrieves the set of relationships associated with this controller.
+     * Retrieves relationship associated with this controller.
      *
      * @return The set of ControllerRelationship objects.
      */
@@ -78,6 +81,16 @@ public class ControllerPlayer implements LanePlayer {
      */
     public void setParty(ControllerParty controllerParty) {
         this.controllerParty = controllerParty;
+    }
+
+
+    public void setGameId(long gameId) {
+        this.gameId = gameId;
+    }
+
+    @Override
+    public long getGameId() {
+        return gameId;
     }
 
     @Override

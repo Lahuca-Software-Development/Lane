@@ -51,6 +51,10 @@ public class PartyCommand implements SimpleCommand {
         if(args[0].equalsIgnoreCase("disband")) {
             playerParty.ifPresent(ControllerParty::disband);
             //TODO: Send message that party was disbanded
+        }
+        if(args[0].equalsIgnoreCase("warp")) {
+            playerParty.ifPresent(party -> optionalPlayer.ifPresent(controllerPlayer -> Controller.getInstance().partyWarp(party, controllerPlayer.getGameId())));
+            //TODO: Send message that party was warped
         } else if(args[0].equalsIgnoreCase("kick")) {
             if(args.length < 2) {
                 //TODO: send help message
@@ -84,7 +88,7 @@ public class PartyCommand implements SimpleCommand {
             String inviter = args[1];
 
             Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
-                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                if(!controllerParty.getInvited().contains(player.getUniqueId())) {
                     //TODO: send a message that he is not requested to join his party
                     return;
                 }
@@ -102,7 +106,7 @@ public class PartyCommand implements SimpleCommand {
             String inviter = args[1];
 
             Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
-                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                if(!controllerParty.getInvited().contains(player.getUniqueId())) {
                     //TODO: send a message that he is not requested to join his party
                     return;
                 }

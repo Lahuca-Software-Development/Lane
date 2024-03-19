@@ -1,9 +1,9 @@
 package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LaneParty;
-import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.records.PartyRecord;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -13,46 +13,62 @@ import java.util.UUID;
  **/
 public class ControllerParty implements LaneParty {
 
+    private final long partyId;
     private UUID owner;
-    private final Set<LanePlayer> players;
-    private final Set<UUID> requested;
+
+    private final Set<UUID> players;
+    private final Set<UUID> invited;
     private long creationStamp;
 
-    public ControllerParty(UUID owner, Set<LanePlayer> players, Set<UUID> requested, long creationStamp) {
+    public ControllerParty(long partyId, UUID owner) {
+        this.partyId = partyId;
         this.owner = owner;
-        this.players = players;
-        this.requested = requested;
-        this.creationStamp = creationStamp;
+        this.players = new HashSet<>();
+        this.invited = new HashSet<>();
+        this.creationStamp = System.currentTimeMillis();
     }
 
     public void addPlayer(ControllerPlayer controllerPlayer) {
-        players.add(controllerPlayer);
+        players.add(controllerPlayer.getUuid());
+    }
+
+    public void addPlayer(UUID uuid) {
+        players.add(uuid);
     }
 
     public void sendRequest(ControllerPlayer controllerPlayer) {
-        requested.add(controllerPlayer.getUuid());
+        invited.add(controllerPlayer.getUuid());
     }
 
     public void removeRequest(ControllerPlayer controllerPlayer) {
-        requested.remove(controllerPlayer.getUuid());
+        invited.remove(controllerPlayer.getUuid());
     }
 
     public void removePlayer(ControllerPlayer controllerPlayer) {
-        players.remove(controllerPlayer);
+        players.remove(controllerPlayer.getUuid());
     }
 
     public void disband() {
         players.clear();
-        requested.clear();
+        invited.clear();
         creationStamp = -1;
     }
 
     public boolean contains(UUID uuid) {
-        return players().stream().anyMatch(lanePlayer -> lanePlayer.getUuid().equals(uuid));
+        return players().stream().anyMatch(player -> player.equals(uuid));
     }
 
     public void setOwner(UUID owner) {
         this.owner = owner;
+    }
+
+    @Override
+    public long getPartyId() {
+        return partyId;
+    }
+
+    public long getCreationStamp() {
+        return creationStamp;
     }
 
     @Override
@@ -61,12 +77,12 @@ public class ControllerParty implements LaneParty {
     }
 
     @Override
-    public Set<LanePlayer> players() {
+    public Set<UUID> players() {
         return players;
     }
 
-    public Set<UUID> getRequested() {
-        return requested;
+    public Set<UUID> getInvited() {
+        return invited;
     }
 
     @Override

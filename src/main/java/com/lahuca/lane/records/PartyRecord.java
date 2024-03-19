@@ -1,7 +1,5 @@
 package com.lahuca.lane.records;
 
-import com.lahuca.lane.LanePlayer;
-
 import java.util.Set;
 import java.util.UUID;
 
@@ -10,5 +8,5 @@ import java.util.UUID;
  * @date 19.03.2024
  **/
 
-public record PartyRecord(UUID owner, Set<LanePlayer> players, long creationStamp) {
+public record PartyRecord(UUID owner, Set<UUID> players, long creationStamp) {
 }

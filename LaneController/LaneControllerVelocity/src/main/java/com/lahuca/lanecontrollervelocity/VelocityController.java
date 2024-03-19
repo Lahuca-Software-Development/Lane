@@ -15,46 +15,68 @@
  */
 package com.lahuca.lanecontrollervelocity;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.inject.Inject;
+import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
+import com.lahuca.lanecontroller.Controller;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
 
+import java.io.IOException;
 import java.util.logging.Logger;
 
 @Plugin(id = "lanecontrollervelocity", name = "Lane Controller Velocity", version = "1.0",
-		url = "https://lahuca.com", description = "I did it!", authors = {"Lahuca Software Development (Laurenshup)", "_Neko1"})
+        url = "https://lahuca.com", description = "I did it!", authors = {"Lahuca Software Development (Laurenshup)", "_Neko1"})
 public class VelocityController {
 
-	private static VelocityController instance;
+    private static VelocityController instance;
 
-	private final ProxyServer server;
-	private final Logger logger;
+    public static final int port = 776;
+    public static final Gson gson = new GsonBuilder().create();
 
-	@Inject
-	public VelocityController(ProxyServer server, Logger logger) {
-		instance = this;
-		this.server = server;
-		this.logger = logger;
+    private final ProxyServer server;
+    private final Logger logger;
 
-		logger.info("Hello there! I made my first plugin with Velocity.");
-	}
+    private final Connection connection;
 
-	@Subscribe
-	public void onJoin(PostLoginEvent event) {
+    @Inject
+    public VelocityController(ProxyServer server, Logger logger) {
+        instance = this;
+        this.server = server;
+        this.logger = logger;
 
-	}
+        connection = new ServerSocketConnection(port, gson);
 
-	public ProxyServer getServer() {
-		return server;
-	}
+        try {
+            new Controller(connection, (uuid, controllerGame) ->
+                    server.getServer(controllerGame.getName()).ifPresent(registeredServer ->
+                    server.getPlayer(uuid).ifPresent(player -> player.createConnectionRequest(registeredServer))));
+        } catch(IOException e) {
+            //TODO: Handle that exception
+            e.printStackTrace();
+        }
 
-	public Logger getLogger() {
-		return logger;
-	}
+        logger.info("Hello there! I made my first plugin with Velocity.");
+    }
 
-	public static VelocityController getInstance() {
-		return instance;
-	}
+    @Subscribe
+    public void onJoin(PostLoginEvent event) {
+
+    }
+
+    public ProxyServer getServer() {
+        return server;
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
+
+    public static VelocityController getInstance() {
+        return instance;
+    }
 }

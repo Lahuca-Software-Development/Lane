@@ -16,4 +16,8 @@ public record ControllerRelationship(Set<LanePlayer> players, Set<UUID> requeste
     public RelationshipRecord convertToRecord() {
         return new RelationshipRecord(players);
     }
+
+    public void removePlayer(ControllerPlayer controllerPlayer) {
+        players.remove(controllerPlayer);
+    }
 }

@@ -4,15 +4,13 @@ import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.ResponsePacket;
 import com.lahuca.lane.records.PartyRecord;
 
-import java.util.UUID;
-
 /**
  * @author _Neko1
  * @date 19.03.2024
  **/
 public class PartyPacket {
 
-    public record Request(long requestId, UUID partyId) implements Packet {
+    public record Request(long requestId, long partyId) implements Packet {
 
         public static final String packetId = "requestParty";
 

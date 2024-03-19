@@ -36,13 +36,19 @@ public class Controller {
     }
 
     private final Connection connection;
+    private final PlayerMethods playerMethods;
 
     private final Set<ControllerPlayer> players;
-    private final HashMap<UUID, ControllerGame> games = new HashMap<>();
+    private final Set<ControllerParty> parties;
+    private final HashMap<Long, ControllerGame> games = new HashMap<>();
 
-    public Controller(Connection connection) throws IOException {
+    public Controller(Connection connection, PlayerMethods playerMethods) throws IOException {
         instance = this;
+
         players = new HashSet<>();
+        parties = new HashSet<>();
+
+        this.playerMethods = playerMethods;
 
         this.connection = connection;
         connection.initialise(input -> {
@@ -56,8 +62,7 @@ public class Controller {
                 }
                 // TODO
             } else if(packet instanceof PartyPacket.Request requestPacket) {
-                getPlayer(requestPacket.partyId()).flatMap(ControllerPlayer::getParty).ifPresent(party ->
-                        connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
+                getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
             } else if(packet instanceof RelationshipPacket.Request requestPacket) {
                 getPlayer(requestPacket.relationshipId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
                         connection.sendPacket(new RelationshipPacket.Response(requestPacket.requestId(), relationship.convertToRecord()), input.from()));
@@ -77,21 +82,30 @@ public class Controller {
         endGame(controllerGame.getGameId());
     }
 
-    public void endGame(UUID uuid) {
-        games.remove(uuid);
+    public void endGame(long id) {
+        games.remove(id);
     }
 
     public void joinPlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
         players.add(controllerPlayer);
+        controllerPlayer.setGameId(controllerGame.getGameId());
     }
 
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
         players.remove(controllerPlayer);
     }
 
+    public void creteParty(ControllerPlayer owner, ControllerPlayer invited) {
+        ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
+        controllerParty.sendRequest(invited);
+    }
 
     public void partyWarp(ControllerParty controllerParty, ControllerGame controllerGame) {
+        controllerParty.players().forEach(player -> playerMethods.joinServer(player, controllerGame));
+    }
 
+    public void partyWarp(ControllerParty controllerParty, long gameId) {
+        getGame(gameId).ifPresent(game -> partyWarp(controllerParty, game));
     }
 
     public void spectateGame(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
@@ -102,13 +116,16 @@ public class Controller {
         return players.stream().filter(player -> player.getName().equals(name)).findFirst();
     }
 
-
     public Optional<ControllerPlayer> getPlayer(UUID uuid) {
         return players.stream().filter(player -> player.getUuid().equals(uuid)).findFirst();
     }
 
-    public Optional<ControllerGame> getGame(UUID uuid) {
-        return Optional.ofNullable(games.get(uuid));
+    public Optional<ControllerParty> getParty(long id) {
+        return parties.stream().filter(party -> party.getPartyId() == id).findFirst();
+    }
+
+    public Optional<ControllerGame> getGame(long id) {
+        return Optional.ofNullable(games.get(id));
     }
 
     public Set<ControllerPlayer> getPlayers() {
@@ -118,6 +135,4 @@ public class Controller {
     public Collection<ControllerGame> getGames() {
         return games.values();
     }
-
-
 }
