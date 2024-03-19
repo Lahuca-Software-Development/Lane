@@ -36,17 +36,22 @@ public class Controller {
 	private final Connection connection;
 
 	private final Set<ControllerPlayer> players;
-	private final HashMap<UUID, ControllerGame> games;
+	private final HashMap<UUID, ControllerGame> games = new HashMap<>();
 
 	public Controller(Connection connection) throws IOException {
 		instance = this;
 		players = new HashSet<>();
-		games = new HashSet<>();
 
 		this.connection = connection;
 		connection.initialise(input -> {
 			Packet packet = input.packet();
 			if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
+				if(!games.containsKey(gameStatusUpdate.gameId())) {
+					// A new game has been created, yeey!
+					games.put(gameStatusUpdate.gameId(),
+							new ControllerGame(gameStatusUpdate.gameId(), input.from(),
+									gameStatusUpdate.name(), gameStatusUpdate.state()));
+				}
 				// TODO
 			}
 		});
