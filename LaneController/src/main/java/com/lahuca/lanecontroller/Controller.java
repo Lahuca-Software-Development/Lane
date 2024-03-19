@@ -18,7 +18,6 @@ package com.lahuca.lanecontroller;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
-import com.lahuca.lane.connection.packet.RequestPartyPacket;
 
 import java.io.IOException;
 import java.util.*;

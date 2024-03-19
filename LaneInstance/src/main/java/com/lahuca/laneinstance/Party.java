@@ -2,7 +2,6 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.LanePlayer;
-import com.lahuca.lane.connection.packet.RequestPartyPacket;
 
 import java.util.Set;
 import java.util.UUID;

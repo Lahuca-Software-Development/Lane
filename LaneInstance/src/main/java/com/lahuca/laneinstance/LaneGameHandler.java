@@ -17,8 +17,8 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
-import com.lahuca.lane.connection.packet.RequestPartyPacket;
-import com.lahuca.lane.connection.packet.RequestRelationshipPacket;
+import com.lahuca.lane.connection.packet.PartyPacket;
+import com.lahuca.lane.connection.packet.RelationshipPacket;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.RelationshipRecord;
 import org.bukkit.entity.Player;
@@ -54,9 +54,12 @@ public class LaneGameHandler {
         this.connection = connection;
 
         connection.initialise(input -> {
-            if(input.packet() instanceof RequestPartyPacket requestPartyPacket) {
-                CompletableFuture<PartyRecord> future = (CompletableFuture<PartyRecord>) requestablePackets.get(requestPartyPacket.getRequestId());
-                future.complete(requestPartyPacket.getData());
+            if(input.packet() instanceof PartyPacket.Response responsePacket) {
+                CompletableFuture<PartyRecord> future = (CompletableFuture<PartyRecord>) requestablePackets.get(responsePacket.getRequestId());
+                future.complete(responsePacket.getData());
+            } else if(input.packet() instanceof RelationshipPacket.Response responsePacket) {
+                CompletableFuture<RelationshipRecord> future = (CompletableFuture<RelationshipRecord>) requestablePackets.get(responsePacket.getRequestId());
+                future.complete(responsePacket.getData());
             }
         });
 
@@ -88,7 +91,7 @@ public class LaneGameHandler {
         CompletableFuture<RelationshipRecord> completableFuture = new CompletableFuture<>();
         requestablePackets.put(id, completableFuture);
 
-        connection.sendPacket(new RequestRelationshipPacket(id, uuid, null), null);
+        connection.sendPacket(new RelationshipPacket.Request(id, uuid), null);
         return completableFuture;
     }
 
@@ -98,7 +101,7 @@ public class LaneGameHandler {
         CompletableFuture<PartyRecord> completableFuture = new CompletableFuture<>();
         requestablePackets.put(id, completableFuture);
 
-        connection.sendPacket(new RequestPartyPacket(id, uuid, null), null);
+        connection.sendPacket(new PartyPacket.Request(id, uuid), null);
         return completableFuture;
     }
 }
