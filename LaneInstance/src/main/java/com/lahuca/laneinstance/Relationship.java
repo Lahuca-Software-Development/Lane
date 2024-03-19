@@ -1,9 +1,9 @@
 package com.lahuca.laneinstance;
 
-import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LaneRelationship;
 
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * @author _Neko1
@@ -11,15 +11,14 @@ import java.util.Set;
  **/
 public class Relationship implements LaneRelationship {
 
-    private Set<LanePlayer> players;
+    private final Set<UUID> players;
 
-    public Relationship(Set<LanePlayer> players) {
+    public Relationship(Set<UUID> players) {
         this.players = players;
     }
 
-
     @Override
-    public Set<LanePlayer> players() {
+    public Set<UUID> players() {
         return players;
     }
 }

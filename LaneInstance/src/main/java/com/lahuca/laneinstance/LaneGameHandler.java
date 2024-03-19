@@ -25,7 +25,6 @@ import org.bukkit.entity.Player;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
@@ -46,8 +45,7 @@ public class LaneGameHandler {
     private final Consumer<Player> join, quit;
 
 
-    private final HashMap<UUID, LaneGame> games = new HashMap<>(); // All registered games on this game server
-
+    private final HashMap<Long, LaneGame> games = new HashMap<>(); // All registered games on this game server
     private final HashMap<Long, CompletableFuture<?>> requestablePackets = new HashMap<>();
 
     public LaneGameHandler(Connection connection) throws IOException {
@@ -85,23 +83,23 @@ public class LaneGameHandler {
         connection.sendPacket(new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState()), null);
     }
 
-    public CompletableFuture<RelationshipRecord> getRelationship(UUID uuid) {
+    public CompletableFuture<RelationshipRecord> getRelationship(long relationshipId) {
         long id = System.currentTimeMillis();
 
         CompletableFuture<RelationshipRecord> completableFuture = new CompletableFuture<>();
         requestablePackets.put(id, completableFuture);
 
-        connection.sendPacket(new RelationshipPacket.Request(id, uuid), null);
+        connection.sendPacket(new RelationshipPacket.Request(id, relationshipId), null);
         return completableFuture;
     }
 
-    public CompletableFuture<PartyRecord> getParty(UUID uuid) {
+    public CompletableFuture<PartyRecord> getParty(long partyId) {
         long id = System.currentTimeMillis();
 
         CompletableFuture<PartyRecord> completableFuture = new CompletableFuture<>();
         requestablePackets.put(id, completableFuture);
 
-        connection.sendPacket(new PartyPacket.Request(id, uuid), null);
+        connection.sendPacket(new PartyPacket.Request(id, partyId), null);
         return completableFuture;
     }
 }

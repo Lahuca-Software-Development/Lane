@@ -158,7 +158,7 @@ public class PartyCommand implements SimpleCommand {
 
         if(args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("leader"))) {
             List<String> partyMembers = new ArrayList<>();
-            controllerParty.ifPresent(party -> party.players().forEach(partyPlayer -> partyMembers.add(partyPlayer.getName())));
+            controllerParty.ifPresent(party -> party.players().forEach(partyPlayer -> partyMembers.add(partyPlayer.toString())));//TODO: fix the message its just UUID for now
 
             if(args[1].isEmpty()) {
                 return partyMembers;

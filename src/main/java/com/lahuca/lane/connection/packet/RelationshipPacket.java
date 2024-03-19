@@ -12,7 +12,7 @@ import java.util.UUID;
  **/
 public class RelationshipPacket {
 
-    public record Request(long requestId, UUID relationshipId) implements Packet {
+    public record Request(long requestId, UUID playerId) implements Packet {
 
         public static final String packetId = "requestRelationship";
 

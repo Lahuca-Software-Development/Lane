@@ -64,7 +64,7 @@ public class Controller {
             } else if(packet instanceof PartyPacket.Request requestPacket) {
                 getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
             } else if(packet instanceof RelationshipPacket.Request requestPacket) {
-                getPlayer(requestPacket.relationshipId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
+                getPlayer(requestPacket.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
                         connection.sendPacket(new RelationshipPacket.Response(requestPacket.requestId(), relationship.convertToRecord()), input.from()));
             }
         });

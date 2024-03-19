@@ -16,8 +16,11 @@ public class GamePlayer implements LanePlayer {
     private final UUID uuid;
     private final String name;
     private String displayName;
+    private long gameId;
     private Party party;
     private String language;
+
+    private Relationship relationship;
 
     public GamePlayer(UUID uuid, String name, String displayName) {
         this.uuid = uuid;
@@ -32,6 +35,15 @@ public class GamePlayer implements LanePlayer {
     @Override
     public String getLanguage() {
         return language;
+    }
+
+    public void setGameId(long gameId) {
+        this.gameId = gameId;
+    }
+
+    @Override
+    public long getGameId() {
+        return gameId;
     }
 
     @Override

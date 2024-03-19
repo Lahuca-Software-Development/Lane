@@ -59,7 +59,7 @@ public class FriendCommand implements SimpleCommand {
             optionalPlayer.ifPresent(controllerPlayer -> Controller.getInstance().getPlayerByName(name).ifPresent(controllerPlayer::removeRelationship));
         } else if(args[0].equalsIgnoreCase("list")) {
             optionalPlayer.flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
-                    relationship.players().forEach(friend -> player.sendMessage(Component.text("Friend: " + friend.getName()))));
+                    relationship.players().forEach(friend -> player.sendMessage(Component.text("Friend: " + friend.toString()))));//TODO: fix for now its just uuid
         } else {
             //Send help message
         }
