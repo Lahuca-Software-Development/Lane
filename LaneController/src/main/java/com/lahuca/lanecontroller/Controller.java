@@ -62,11 +62,15 @@ public class Controller {
 	}
 
 	public void registerGame(ControllerGame controllerGame) {
-		games.add(controllerGame);
+		games.put(controllerGame.getGameId(), controllerGame);
 	}
 
 	public void endGame(ControllerGame controllerGame) {
-		games.remove(controllerGame);
+		endGame(controllerGame.getGameId());
+	}
+
+	public void endGame(UUID uuid) {
+		games.remove(uuid);
 	}
 
 	public void joinPlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {

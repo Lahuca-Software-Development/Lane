@@ -15,7 +15,7 @@ public class GameState implements LaneGameState {
     private final String name;
     private boolean joinable;
     private boolean playable;
-    private HashMap<String, StateProperty> properties;
+    private final HashMap<String, StateProperty> properties;
 
     public GameState(String name, boolean joinable, boolean playable, HashMap<String, StateProperty> properties) {
         this.name = name;

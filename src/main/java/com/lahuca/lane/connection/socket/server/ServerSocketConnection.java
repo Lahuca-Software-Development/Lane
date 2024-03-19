@@ -72,6 +72,7 @@ public class ServerSocketConnection implements Connection {
 			// TODO Sending to controller? Controller to controller?
 			return;
 		}
+
 		ClientSocket client = clients.get(destination);
 		if(client != null) client.sendPacket(packet);
 	}

@@ -30,6 +30,20 @@ public class PartyCommand implements SimpleCommand {
         Optional<ControllerParty> playerParty = optionalPlayer.flatMap(ControllerPlayer::getParty);
 
         if(args.length == 0) {
+
+            /*
+             *
+             * /party <Player> - Sends a request to the player
+             * /party info - Sends an information about the party
+             * /party accept <Player> - Accepts the request from the given player
+             * /party deny <Player> - Denies the request from the given player
+             * /party disband - Disbands the party
+             * /party kick <Player> - Kicks the player from the party
+             * /party warp - Sends all players to the leader's server
+             * /party leader <Player> - Passes the leader to the given player [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+             *
+             */
+
             //TODO: Send help message
             return;
         }
@@ -57,8 +71,70 @@ public class PartyCommand implements SimpleCommand {
                 //TODO: Send message that player was kicked
             });
         } else if(args[0].equalsIgnoreCase("info")) {
+            //Displays the information about the party: members, ?
             //TODO: Edit the message
             playerParty.ifPresent(party -> player.sendPlainMessage(party.toString()));
+        } else if(args[0].equalsIgnoreCase("accept")) {
+            if(args.length < 2) {
+                //TODO: send help message
+                // /party accept <Player>
+                return;
+            }
+
+            String inviter = args[1];
+
+            Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
+                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                    //TODO: send a message that he is not requested to join his party
+                    return;
+                }
+
+                optionalPlayer.ifPresent(controllerParty::addPlayer);
+                //TODO: send message that he accepted it
+            });
+        } else if(args[0].equalsIgnoreCase("deny")) {
+            if(args.length < 2) {
+                //TODO: send help message
+                // /party deny <Player>
+                return;
+            }
+
+            String inviter = args[1];
+
+            Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
+                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                    //TODO: send a message that he is not requested to join his party
+                    return;
+                }
+
+                optionalPlayer.ifPresent(controllerParty::removeRequest);
+                //TODO: send message that he denied it
+            });
+        } else if(args[0].equalsIgnoreCase("leader")) {
+            if(args.length < 2) {
+                //TODO: send help message
+                // /party leader <Player>
+                return;
+            }
+
+            playerParty.ifPresent(party -> {
+                if(!party.getOwner().equals(player.getUniqueId())) {
+                    //TODO: send message that only owner can do this
+                    return;
+                }
+
+                String newLeader = args[1];
+                Optional<Player> leader = VelocityController.getInstance().getServer().getPlayer(newLeader);
+
+                leader.ifPresent(leaderPlayer -> {
+                    if(!party.contains(leaderPlayer.getUniqueId())) {
+                        //TODO: send message that player is not in the party
+                        return;
+                    }
+
+                    party.setOwner(leaderPlayer.getUniqueId());
+                });
+            });
         } else {
             // /party <Player> - Will send invitation
             String name = args[0];
@@ -76,7 +152,7 @@ public class PartyCommand implements SimpleCommand {
         Optional<ControllerParty> controllerParty = Controller.getInstance().getPlayer(player.getUniqueId()).flatMap(ControllerPlayer::getParty);
         String[] args = invocation.arguments();
 
-        if(args.length == 2 && args[0].equalsIgnoreCase("kick")) {
+        if(args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("leader"))) {
             List<String> partyMembers = new ArrayList<>();
             controllerParty.ifPresent(party -> party.getPlayers().forEach(partyPlayer -> partyMembers.add(partyPlayer.getName())));
 
