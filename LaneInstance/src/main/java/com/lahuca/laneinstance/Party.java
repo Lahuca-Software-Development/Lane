@@ -1,4 +1,4 @@
-package com.lahuca.lanegame;
+package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.LanePlayer;

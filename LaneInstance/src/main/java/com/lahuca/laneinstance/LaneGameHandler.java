@@ -13,7 +13,7 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lanegame;
+package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;

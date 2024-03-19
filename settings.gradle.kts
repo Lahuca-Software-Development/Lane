@@ -1,5 +1,7 @@
 rootProject.name = "Lane"
 include("LaneController")
-include("LaneGame")
+include("LaneInstance")
 include("LaneController:LaneControllerVelocity")
 findProject(":LaneController:LaneControllerVelocity")?.name = "LaneControllerVelocity"
+include("LaneInstance:LaneInstanceSpigot")
+findProject(":LaneInstance:LaneInstanceSpigot")?.name = "LaneInstanceSpigot"

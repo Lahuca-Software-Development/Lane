@@ -11,7 +11,8 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/LaneController" />
             <option value="$PROJECT_DIR$/LaneController/LaneControllerVelocity" />
-            <option value="$PROJECT_DIR$/LaneGame" />
+            <option value="$PROJECT_DIR$/LaneInstance" />
+            <option value="$PROJECT_DIR$/LaneInstance/LaneInstanceSpigot" />
           </set>
         </option>
       </GradleProjectSettings>

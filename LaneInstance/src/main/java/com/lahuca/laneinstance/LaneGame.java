@@ -13,7 +13,7 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lanegame;
+package com.lahuca.laneinstance;
 
 import org.bukkit.plugin.java.JavaPlugin;
 
