@@ -2,6 +2,7 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.LanePlayer;
+import com.lahuca.lane.records.PartyRecord;
 
 import java.util.Set;
 import java.util.UUID;
@@ -47,7 +48,7 @@ public class ControllerParty implements LaneParty {
     }
 
     public boolean contains(UUID uuid) {
-        return getPlayers().stream().anyMatch(lanePlayer -> lanePlayer.getUuid().equals(uuid));
+        return players().stream().anyMatch(lanePlayer -> lanePlayer.getUuid().equals(uuid));
     }
 
     public void setOwner(UUID owner) {
@@ -60,7 +61,7 @@ public class ControllerParty implements LaneParty {
     }
 
     @Override
-    public Set<LanePlayer> getPlayers() {
+    public Set<LanePlayer> players() {
         return players;
     }
 
@@ -71,5 +72,9 @@ public class ControllerParty implements LaneParty {
     @Override
     public long getCreationTimestamp() {
         return creationStamp;
+    }
+
+    public PartyRecord convertToRecord() {
+        return new PartyRecord(owner, players, creationStamp);
     }
 }

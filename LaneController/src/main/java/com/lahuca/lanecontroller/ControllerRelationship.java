@@ -2,6 +2,7 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LaneRelationship;
+import com.lahuca.lane.records.RelationshipRecord;
 
 import java.util.Set;
 import java.util.UUID;
@@ -11,22 +12,8 @@ import java.util.UUID;
  * @date 14.03.2024
  **/
 
-public class ControllerRelationship implements LaneRelationship {
-
-    private final Set<LanePlayer> players;
-    private final Set<UUID> requested;
-
-    public ControllerRelationship(Set<LanePlayer> players, Set<UUID> requested) {
-        this.players = players;
-        this.requested = requested;
-    }
-
-    public Set<UUID> getRequested() {
-        return requested;
-    }
-
-    @Override
-    public Set<LanePlayer> getPlayers() {
-        return players;
+public record ControllerRelationship(Set<LanePlayer> players, Set<UUID> requested) implements LaneRelationship {
+    public RelationshipRecord convertToRecord() {
+        return new RelationshipRecord(players);
     }
 }

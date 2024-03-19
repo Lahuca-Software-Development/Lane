@@ -59,7 +59,7 @@ public class FriendCommand implements SimpleCommand {
             optionalPlayer.ifPresent(controllerPlayer -> Controller.getInstance().getPlayerByName(name).ifPresent(controllerPlayer::removeRelationship));
         } else if(args[0].equalsIgnoreCase("list")) {
             optionalPlayer.ifPresent(controllerPlayer -> {
-                controllerPlayer.getRelationships().forEach(relationship -> {
+                controllerPlayer.getRelationship().forEach(relationship -> {
                     player.sendMessage(Component.text("Friend: " + relationship.getTwo().getName()));
                 });
             });

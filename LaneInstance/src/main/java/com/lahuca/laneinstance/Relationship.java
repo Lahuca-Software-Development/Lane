@@ -19,7 +19,7 @@ public class Relationship implements LaneRelationship {
 
 
     @Override
-    public Set<LanePlayer> getPlayers() {
+    public Set<LanePlayer> players() {
         return players;
     }
 }

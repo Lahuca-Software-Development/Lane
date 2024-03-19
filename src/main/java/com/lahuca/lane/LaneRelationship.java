@@ -8,6 +8,6 @@ import java.util.Set;
  **/
 public interface LaneRelationship {
 
-    Set<LanePlayer> getPlayers();
+    Set<LanePlayer> players();
 
 }

@@ -62,7 +62,7 @@ public class PartyCommand implements SimpleCommand {
             ControllerPlayer target = Controller.getInstance().getPlayerByName(name).orElse(null);
 
             playerParty.ifPresent(party -> {
-                if(target != null && !party.getPlayers().contains(target)) {
+                if(target != null && !party.players().contains(target)) {
                     //TODO: Send message that requested is not in requested's party
                     return;
                 }
@@ -154,7 +154,7 @@ public class PartyCommand implements SimpleCommand {
 
         if(args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("leader"))) {
             List<String> partyMembers = new ArrayList<>();
-            controllerParty.ifPresent(party -> party.getPlayers().forEach(partyPlayer -> partyMembers.add(partyPlayer.getName())));
+            controllerParty.ifPresent(party -> party.players().forEach(partyPlayer -> partyMembers.add(partyPlayer.getName())));
 
             if(args[1].isEmpty()) {
                 return partyMembers;
