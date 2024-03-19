@@ -8,21 +8,21 @@ package com.lahuca.lane;
 import java.util.HashMap;
 
 /**
- * Interface representing a player state.
+ * Interface representing a requested state.
  */
 public interface LanePlayerState {
 
     /**
-     * Gets the name of this player state.
+     * Gets the name of this requested state.
      *
-     * @return the name of this player state
+     * @return the name of this requested state
      */
     String getName();
 
     /**
-     * Gets the properties associated with this player state.
+     * Gets the properties associated with this requested state.
      *
-     * @return the properties associated with this player state
+     * @return the properties associated with this requested state
      */
     HashMap<String, ? extends LaneStateProperty> getProperties();
 }

@@ -2,6 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.LanePlayer;
+import com.lahuca.lane.connection.packet.RequestPartyPacket;
 
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +24,10 @@ public class Party implements LaneParty {
         this.players = players;
         this.requested = requested;
         this.creationStamp = creationStamp;
+    }
+
+    public void sendRequest(LanePlayer player) {
+        LaneGameHandler.getInstance().getConnection().sendPacket(new RequestPartyPacket(owner, player), null);
     }
 
     @Override

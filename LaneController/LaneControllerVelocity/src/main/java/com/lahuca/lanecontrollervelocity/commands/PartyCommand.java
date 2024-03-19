@@ -20,7 +20,7 @@ public class PartyCommand implements SimpleCommand {
     @Override
     public void execute(Invocation invocation) {
         if(!(invocation.source() instanceof Player player)) {
-            invocation.source().sendPlainMessage("You must be a player to run this command!"); //TODO: replace
+            invocation.source().sendPlainMessage("You must be a requested to run this command!"); //TODO: replace
             return;
         }
 
@@ -33,14 +33,14 @@ public class PartyCommand implements SimpleCommand {
 
             /*
              *
-             * /party <Player> - Sends a request to the player
+             * /party <Player> - Sends a request to the requested
              * /party info - Sends an information about the party
-             * /party accept <Player> - Accepts the request from the given player
-             * /party deny <Player> - Denies the request from the given player
+             * /party accept <Player> - Accepts the request from the given requested
+             * /party deny <Player> - Denies the request from the given requested
              * /party disband - Disbands the party
-             * /party kick <Player> - Kicks the player from the party
+             * /party kick <Player> - Kicks the requested from the party
              * /party warp - Sends all players to the leader's server
-             * /party leader <Player> - Passes the leader to the given player [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+             * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
              *
              */
 
@@ -63,12 +63,12 @@ public class PartyCommand implements SimpleCommand {
 
             playerParty.ifPresent(party -> {
                 if(target != null && !party.getPlayers().contains(target)) {
-                    //TODO: Send message that player is not in player's party
+                    //TODO: Send message that requested is not in requested's party
                     return;
                 }
 
                 party.removePlayer(target);
-                //TODO: Send message that player was kicked
+                //TODO: Send message that requested was kicked
             });
         } else if(args[0].equalsIgnoreCase("info")) {
             //Displays the information about the party: members, ?
@@ -128,7 +128,7 @@ public class PartyCommand implements SimpleCommand {
 
                 leader.ifPresent(leaderPlayer -> {
                     if(!party.contains(leaderPlayer.getUniqueId())) {
-                        //TODO: send message that player is not in the party
+                        //TODO: send message that requested is not in the party
                         return;
                     }
 
@@ -140,7 +140,7 @@ public class PartyCommand implements SimpleCommand {
             String name = args[0];
 
             Controller.getInstance().getPlayerByName(name).ifPresent(requested -> playerParty.ifPresent(controllerParty -> controllerParty.sendRequest(requested)));
-            //TODO: Send message that player was invited
+            //TODO: Send message that requested was invited
         }
     }
 

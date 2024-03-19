@@ -87,7 +87,7 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     /**
-     * Sets the player state for this controller.
+     * Sets the requested state for this controller.
      *
      * @param playerState The ControllerPlayerState to be set.
      */

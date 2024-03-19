@@ -26,7 +26,7 @@ public class FriendCommand implements SimpleCommand {
     @Override
     public void execute(Invocation invocation) {
         if(!(invocation.source() instanceof Player player)) {
-            invocation.source().sendPlainMessage("You must be a player to run this command!");
+            invocation.source().sendPlainMessage("You must be a requested to run this command!");
             return;
         }
 
