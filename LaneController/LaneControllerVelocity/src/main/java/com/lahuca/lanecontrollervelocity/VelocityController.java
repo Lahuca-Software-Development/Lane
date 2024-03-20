@@ -21,6 +21,8 @@ import com.google.inject.Inject;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lanecontroller.Controller;
+import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
+import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -56,9 +58,12 @@ public class VelocityController {
                     server.getServer(controllerGame.getName()).ifPresent(registeredServer ->
                     server.getPlayer(uuid).ifPresent(player -> player.createConnectionRequest(registeredServer))));
         } catch(IOException e) {
-            //TODO: Handle that exception
+            //TODO: Handle the exception
             e.printStackTrace();
         }
+
+        server.getCommandManager().register("friends", new FriendCommand(), "f", "friend");
+        server.getCommandManager().register("party", new PartyCommand(), "p");
 
         logger.info("Hello there! I made my first plugin with Velocity.");
     }

@@ -16,8 +16,8 @@ public class FriendCommand implements SimpleCommand {
 
     /**
      * Friend command:
-     * /friend add Player
-     * /friend remove Player
+     * /friend add <Player> - If there is already an invitation from this player.
+     * /friend remove <Player>
      * /friend list
      * <p>
      * Probably there should be some GUI that will open after running /friend
@@ -47,7 +47,7 @@ public class FriendCommand implements SimpleCommand {
 
             String name = args[1];
 
-            optionalPlayer.ifPresent(controllerPlayer -> Controller.getInstance().getPlayerByName(name).ifPresent(controllerPlayer::addRelationship));
+            optionalPlayer.flatMap(controllerPlayer -> Controller.getInstance().getPlayerByName(name).flatMap(ControllerPlayer::getRelationship)).ifPresent(relationship -> relationship.)
         } else if(args[0].equalsIgnoreCase("remove")) {
             if(args.length < 2) {
                 //Send remove help message
