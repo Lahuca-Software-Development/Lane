@@ -38,14 +38,14 @@ public class Controller {
     private final Connection connection;
     private final PlayerMethods playerMethods;
 
-    private final Set<ControllerPlayer> players;
+    private final HashMap<UUID, ControllerPlayer> players;
     private final Set<ControllerParty> parties;
     private final HashMap<Long, ControllerGame> games = new HashMap<>();
 
     public Controller(Connection connection, PlayerMethods playerMethods) throws IOException {
         instance = this;
 
-        players = new HashSet<>();
+        players = new HashMap<>();
         parties = new HashSet<>();
 
         this.playerMethods = playerMethods;
@@ -77,8 +77,17 @@ public class Controller {
         return connection;
     }
 
-    public void registerGame(ControllerGame controllerGame) {
-        games.put(controllerGame.getGameId(), controllerGame);
+    public void registerGame(ControllerGame game) {
+        games.put(game.getGameId(), game);
+    }
+
+    public void registerPlayer(ControllerPlayer player) {
+        if(players.containsKey(player.getUuid())) return;
+        players.put(player.getUuid(), player);
+    }
+
+    public void unregisterPlayer(UUID player) {
+        players.remove(player);
     }
 
     public void endGame(ControllerGame controllerGame) {
@@ -89,8 +98,8 @@ public class Controller {
         games.remove(id);
     }
 
-    public void joinPlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.add(controllerPlayer);
+    public void joinPlayer(UUID player, long gameId) {
+
         controllerPlayer.setGameId(controllerGame.getGameId());
     }
 

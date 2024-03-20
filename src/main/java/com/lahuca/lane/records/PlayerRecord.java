@@ -15,10 +15,8 @@
  */
 package com.lahuca.lane.records;
 
-import com.lahuca.lane.LanePlayerState;
-
 import java.util.UUID;
 
 public record PlayerRecord(UUID uuid, String name, String displayName, String language,
-						   LanePlayerState state) {
+						   String instanceId, Long gameId, PlayerStateRecord state, long partyId) {
 }

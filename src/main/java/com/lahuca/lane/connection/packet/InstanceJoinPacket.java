@@ -18,8 +18,6 @@ package com.lahuca.lane.connection.packet;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.records.PlayerRecord;
 
-import java.util.UUID;
-
 /**
  * A packet that tells an instance that the given players are joining the instance.
  * If the game ID is not null, the players are meant to join the given game. Otherwise a global lobby.
@@ -27,7 +25,7 @@ import java.util.UUID;
  * @param players the players to join the instance
  * @param gameId the game id to join, null if only joining the instance
  */
-public record InstanceJoinPacket(PlayerRecord[] players, UUID gameId) implements Packet {
+public record InstanceJoinPacket(PlayerRecord[] players, Long gameId) implements Packet {
 
 	public static final String packetId = "instanceJoin";
 

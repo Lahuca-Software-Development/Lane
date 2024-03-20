@@ -15,16 +15,19 @@
  */
 package com.lahuca.lane;
 
+import com.lahuca.lane.records.PlayerRecord;
+
 import java.util.Optional;
 import java.util.UUID;
 
-public interface LanePlayer {
+public interface LanePlayer extends RecordApplier<PlayerRecord> {
 
 	UUID getUuid();
 	String getName();
 	String getDisplayName();
 	String getLanguage();
-	long getGameId();
+	Optional<String> getInstanceId();
+	Optional<Long> getGameId();
 	LanePlayerState getState();
 	Optional<? extends LaneParty> getParty();
 }

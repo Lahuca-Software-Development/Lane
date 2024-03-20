@@ -20,6 +20,8 @@ import com.google.gson.GsonBuilder;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.LaneInstance;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -46,6 +48,11 @@ public class LaneInstanceSpigot extends JavaPlugin {
 		} catch (IOException e) {
 			throw new RuntimeException(e); // TODO What now?
 		}
+	}
+
+	@EventHandler
+	public void onJoin(PlayerJoinEvent event) {
+
 	}
 
 	public static class Implementation extends LaneInstance {
