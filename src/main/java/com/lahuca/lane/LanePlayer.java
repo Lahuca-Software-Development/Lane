@@ -24,6 +24,7 @@ public interface LanePlayer {
 	String getName();
 	String getDisplayName();
 	String getLanguage();
+	long getGameId();
 	LanePlayerState getState();
 	Optional<? extends LaneParty> getParty();
 }

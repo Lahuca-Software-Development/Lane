@@ -40,7 +40,8 @@ public class PartyCommand implements SimpleCommand {
              * /party disband - Disbands the party
              * /party kick <Player> - Kicks the requested from the party
              * /party warp - Sends all players to the leader's server
-             * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+             * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN
+             * THIS CMD]
              *
              */
 
@@ -51,6 +52,10 @@ public class PartyCommand implements SimpleCommand {
         if(args[0].equalsIgnoreCase("disband")) {
             playerParty.ifPresent(ControllerParty::disband);
             //TODO: Send message that party was disbanded
+        }
+        if(args[0].equalsIgnoreCase("warp")) {
+            playerParty.ifPresent(party -> optionalPlayer.ifPresent(controllerPlayer -> Controller.getInstance().partyWarp(party, controllerPlayer.getGameId())));
+            //TODO: Send message that party was warped
         } else if(args[0].equalsIgnoreCase("kick")) {
             if(args.length < 2) {
                 //TODO: send help message
@@ -62,7 +67,7 @@ public class PartyCommand implements SimpleCommand {
             ControllerPlayer target = Controller.getInstance().getPlayerByName(name).orElse(null);
 
             playerParty.ifPresent(party -> {
-                if(target != null && !party.getPlayers().contains(target)) {
+                if(target != null && !party.players().contains(target)) {
                     //TODO: Send message that requested is not in requested's party
                     return;
                 }
@@ -84,7 +89,7 @@ public class PartyCommand implements SimpleCommand {
             String inviter = args[1];
 
             Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
-                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                if(!controllerParty.getInvited().contains(player.getUniqueId())) {
                     //TODO: send a message that he is not requested to join his party
                     return;
                 }
@@ -102,7 +107,7 @@ public class PartyCommand implements SimpleCommand {
             String inviter = args[1];
 
             Controller.getInstance().getPlayerByName(inviter).flatMap(ControllerPlayer::getParty).ifPresent(controllerParty -> {
-                if(!controllerParty.getRequested().contains(player.getUniqueId())) {
+                if(!controllerParty.getInvited().contains(player.getUniqueId())) {
                     //TODO: send a message that he is not requested to join his party
                     return;
                 }
@@ -149,12 +154,13 @@ public class PartyCommand implements SimpleCommand {
         List<String> possibilities = new ArrayList<>();
         if(!(invocation.source() instanceof Player player)) return possibilities;
 
-        Optional<ControllerParty> controllerParty = Controller.getInstance().getPlayer(player.getUniqueId()).flatMap(ControllerPlayer::getParty);
+        Optional<ControllerParty> controllerParty =
+                Controller.getInstance().getPlayer(player.getUniqueId()).flatMap(ControllerPlayer::getParty);
         String[] args = invocation.arguments();
 
         if(args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("leader"))) {
             List<String> partyMembers = new ArrayList<>();
-            controllerParty.ifPresent(party -> party.getPlayers().forEach(partyPlayer -> partyMembers.add(partyPlayer.getName())));
+            controllerParty.ifPresent(party -> party.players().forEach(partyPlayer -> partyMembers.add(partyPlayer.toString())));//TODO: fix the message its just UUID for now
 
             if(args[1].isEmpty()) {
                 return partyMembers;

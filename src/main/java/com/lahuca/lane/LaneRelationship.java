@@ -9,7 +9,6 @@ import java.util.UUID;
  **/
 public interface LaneRelationship {
 
-    Set<LanePlayer> getPlayers();
-    Set<UUID> getRequested();
+    Set<UUID> players();
 
 }

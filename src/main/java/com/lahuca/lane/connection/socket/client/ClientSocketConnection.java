@@ -31,74 +31,75 @@ import java.util.function.Consumer;
 
 public class ClientSocketConnection implements Connection {
 
-	private final String id;
-	private final String ip;
-	private final int port;
-	private Socket socket = null;
-	private Consumer<InputPacket> input = null;
-	private final Gson gson;
-	private PrintWriter out;
-	private BufferedReader in;
+    private final String id;
+    private final String ip;
+    private final int port;
+    private Socket socket = null;
+    private Consumer<InputPacket> input = null;
+    private final Gson gson;
+    private PrintWriter out;
+    private BufferedReader in;
 
-	public ClientSocketConnection(String id, String ip, int port, Gson gson) {
-		this.id = id;
-		this.ip = ip;
-		this.port = port;
-		this.gson = gson;
-	}
+    public ClientSocketConnection(String id, String ip, int port, Gson gson) {
+        this.id = id;
+        this.ip = ip;
+        this.port = port;
+        this.gson = gson;
+    }
 
-	@Override
-	public void initialise(Consumer<InputPacket> input) throws IOException {
-		this.input = input;
-		socket = new Socket(ip, port);
-		out = new PrintWriter(socket.getOutputStream(), true);
-		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		new Thread(this::listenForInput).start(); // TODO Maybe store thread somewhere?
-		sendPacket(new SocketConnectPacket(id), null);
-	}
+    @Override
+    public void initialise(Consumer<InputPacket> input) throws IOException {
+        this.input = input;
+        socket = new Socket(ip, port);
+        out = new PrintWriter(socket.getOutputStream(), true);
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        new Thread(this::listenForInput).start(); // TODO Maybe store thread somewhere?
+        sendPacket(new SocketConnectPacket(id), null);
+    }
 
-	private void listenForInput() {
-		String inputLine;
-		do {
-			try {
-				inputLine = in.readLine();
-				if(inputLine != null) readInput(inputLine);
-			} catch (IOException e) {
-				throw new RuntimeException(e); // TODO What now?
-			}
-		} while(inputLine != null);
-	}
+    private void listenForInput() {
+        String inputLine;
+        do {
+            try {
+                inputLine = in.readLine();
+                if(inputLine != null) readInput(inputLine);
+            } catch(IOException e) {
+                throw new RuntimeException(e); // TODO What now?
+            }
+        } while(inputLine != null);
+    }
 
-	private void readInput(String line) {
-		// TODO Add cryptography
-		SocketTransfer transfer = gson.fromJson(line, SocketTransfer.class);
-		if(!transfer.to().equals(id)) return; // TODO Not meant for the client? Strange
-		Packet.getPacket(transfer.typeId()).ifPresent(packetClass -> {
-			Packet packet = gson.fromJson(transfer.data(), packetClass);
-			input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));
-		}); // TODO What if the type is not registered? Parse to unknown object? Or Parse to JSONObject?
-	}
+    private void readInput(String line) {
+        // TODO Add cryptography
+        SocketTransfer transfer = gson.fromJson(line, SocketTransfer.class);
+        if(!transfer.to().equals(id)) return; // TODO Not meant for the client? Strange
 
-	@Override
-	public void sendPacket(Packet packet, String destination) {
-		// TODO Maybe add function to make it async?
-		if(destination != null && destination.equals(id)) {
-			// TODO Sending to itself?
-			return;
-		}
-		String packetString = gson.toJson(packet);
-		SocketTransfer outputPacket = new SocketTransfer(packet.getPacketId(), packetString, id,
-				destination, System.currentTimeMillis());
-		// TODO Add cryptography
-		out.println(gson.toJson(outputPacket));
-	}
+        Packet.getPacket(transfer.typeId()).ifPresent(packetClass -> {
+            Packet packet = gson.fromJson(transfer.data(), packetClass);
+            input.accept(new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt()));
+        }); // TODO What if the type is not registered? Parse to unknown object? Or Parse to JSONObject?
+    }
 
-	@Override
-	public void stop() throws IOException {
-		if(socket == null) return;
-		if(socket.isClosed() || !socket.isBound()) return;
-		// TODO Send close to controller
-		socket.close();
-	}
+    @Override
+    public void sendPacket(Packet packet, String destination) {
+        // TODO Maybe add function to make it async?
+        if(destination != null && destination.equals(id)) {
+            // TODO Sending to itself?
+            return;
+        }
+        String packetString = gson.toJson(packet);
+        SocketTransfer outputPacket = new SocketTransfer(packet.getPacketId(), packetString, id,
+                destination, System.currentTimeMillis());
+        // TODO Add cryptography
+        out.println(gson.toJson(outputPacket));
+    }
+
+    @Override
+    public void stop() throws IOException {
+        if(socket == null) return;
+        if(socket.isClosed() || !socket.isBound()) return;
+        // TODO Send close to controller
+        socket.close();
+    }
 
 }

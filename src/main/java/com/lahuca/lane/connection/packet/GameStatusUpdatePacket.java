@@ -18,9 +18,7 @@ package com.lahuca.lane.connection.packet;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.records.GameStateRecord;
 
-import java.util.UUID;
-
-public record GameStatusUpdatePacket(UUID gameId, String name, GameStateRecord state) implements Packet {
+public record GameStatusUpdatePacket(long gameId, String name, GameStateRecord state) implements Packet {
 
 	public static final String packetId = "gameStatusUpdate";
 

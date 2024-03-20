@@ -18,17 +18,18 @@ package com.lahuca.lanecontroller;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
 
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 public class ControllerPlayer implements LanePlayer {
 
-    private final Set<ControllerRelationship> relationships;
+    private ControllerRelationship relationship;
 
     private final UUID uuid;
     private final String name;
+
+    private long gameId;
+
     private String displayName;
     private String language;
 
@@ -36,45 +37,23 @@ public class ControllerPlayer implements LanePlayer {
     private ControllerParty controllerParty;
 
 
-    public ControllerPlayer(UUID uuid, String name, String displayName, ControllerParty controllerParty, ControllerPlayerState playerState) {
+    public ControllerPlayer(ControllerRelationship relationship, UUID uuid, String name, String displayName, String language, ControllerPlayerState playerState, ControllerParty controllerParty) {
+        this.relationship = relationship;
         this.uuid = uuid;
         this.name = name;
         this.displayName = displayName;
-        this.controllerParty = controllerParty;
+        this.language = language;
         this.playerState = playerState;
-
-        this.relationships = new HashSet<>();
+        this.controllerParty = controllerParty;
     }
 
     /**
-     * Adds a relationship to the list of relationships associated with this controller.
-     *
-     * @param controllerPlayer The ControllerPlayer to be added.
-     */
-    public void addRelationship(ControllerPlayer controllerPlayer) {
-        relationships.add(new ControllerRelationship(this, controllerPlayer, uuid));
-    }
-
-    /**
-     * Removes a relationship from the list of relationships associated with this controller.
-     *
-     * @param controllerPlayer The ControllerPlayer to be removed.
-     */
-    public void removeRelationship(ControllerPlayer controllerPlayer) {
-        getRelationship(controllerPlayer).ifPresent(relationships::remove);
-    }
-
-    public Optional<ControllerRelationship> getRelationship(ControllerPlayer controllerPlayer) {
-        return relationships.stream().filter(relationship -> relationship.getTwo() == controllerPlayer).findFirst();
-    }
-
-    /**
-     * Retrieves the set of relationships associated with this controller.
+     * Retrieves relationship associated with this controller.
      *
      * @return The set of ControllerRelationship objects.
      */
-    public Set<ControllerRelationship> getRelationships() {
-        return relationships;
+    public Optional<ControllerRelationship> getRelationship() {
+        return Optional.ofNullable(relationship);
     }
 
     /**
@@ -102,6 +81,16 @@ public class ControllerPlayer implements LanePlayer {
      */
     public void setParty(ControllerParty controllerParty) {
         this.controllerParty = controllerParty;
+    }
+
+
+    public void setGameId(long gameId) {
+        this.gameId = gameId;
+    }
+
+    @Override
+    public long getGameId() {
+        return gameId;
     }
 
     @Override
