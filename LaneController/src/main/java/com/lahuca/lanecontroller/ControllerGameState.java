@@ -1,7 +1,7 @@
 package com.lahuca.lanecontroller;
 
-import com.lahuca.lane.LanePlayerState;
-import com.lahuca.lane.records.PlayerStateRecord;
+import com.lahuca.lane.LaneGameState;
+import com.lahuca.lane.records.GameStateRecord;
 import com.lahuca.lane.records.StatePropertyRecord;
 
 import java.util.HashMap;
@@ -11,13 +11,15 @@ import java.util.Set;
  * @author _Neko1
  * @date 16.03.2024
  **/
-public class ControllerPlayerState implements LanePlayerState {
+public class ControllerGameState implements LaneGameState {
 
     private String name;
+    private boolean isJoinable;
+    private boolean isPlayable;
     private final HashMap<String, ControllerStateProperty> properties = new HashMap<>();
 
-    public ControllerPlayerState(PlayerStateRecord record) {
-        applyRecord(record); // TODO Maybe not really great, to only work with a record?
+    public ControllerGameState(GameStateRecord record) {
+        applyRecord(record);
     }
 
     @Override
@@ -26,20 +28,32 @@ public class ControllerPlayerState implements LanePlayerState {
     }
 
     @Override
+    public boolean isJoinable() {
+        return isJoinable;
+    }
+
+    @Override
+    public boolean isPlayable() {
+        return isPlayable;
+    }
+
+    @Override
     public HashMap<String, ControllerStateProperty> getProperties() {
         return properties;
     }
 
     @Override
-    public PlayerStateRecord convertRecord() {
+    public GameStateRecord convertRecord() {
         HashMap<String, StatePropertyRecord> propertyRecords = new HashMap<>();
         properties.forEach((k, v) -> propertyRecords.put(k, v.convertRecord()));
-        return new PlayerStateRecord(name, propertyRecords);
+        return new GameStateRecord(name, isJoinable, isPlayable, propertyRecords);
     }
 
     @Override
-    public void applyRecord(PlayerStateRecord record) {
+    public void applyRecord(GameStateRecord record) {
         name = record.name();
+        isJoinable = record.isJoinable();
+        isPlayable = record.isPlayable();
         Set<String> keys = properties.keySet();
         record.properties().forEach((k, v) -> {
             if(keys.contains(k)) {

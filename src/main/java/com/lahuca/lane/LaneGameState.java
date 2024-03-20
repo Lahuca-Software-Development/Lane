@@ -15,12 +15,14 @@
  */
 package com.lahuca.lane;
 
+import com.lahuca.lane.records.GameStateRecord;
+
 import java.util.HashMap;
 
 /**
  * Interface representing a game state.
  */
-public interface LaneGameState {
+public interface LaneGameState extends RecordApplier<GameStateRecord> {
 
 	/**
 	 * Gets the name of this game state.

@@ -11,7 +11,7 @@ import java.util.UUID;
  * @author _Neko1
  * @date 14.03.2024
  **/
-public class GamePlayer implements LanePlayer {
+public class InstancePlayer implements LanePlayer {
 
     private final UUID uuid;
     private final String name;
@@ -19,7 +19,7 @@ public class GamePlayer implements LanePlayer {
     private Party party;
     private String language;
 
-    public GamePlayer(UUID uuid, String name, String displayName) {
+    public InstancePlayer(UUID uuid, String name, String displayName) {
         this.uuid = uuid;
         this.name = name;
         this.displayName = displayName;

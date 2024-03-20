@@ -23,9 +23,9 @@ public class GameInfo {
 	private final UUID gameId;
 	private String name;
 	private GameState gameState;
-	private Set<GamePlayer> players;
+	private Set<InstancePlayer> players;
 
-	public GameInfo(UUID gameId, String name, GameState gameState, Set<GamePlayer> players) {
+	public GameInfo(UUID gameId, String name, GameState gameState, Set<InstancePlayer> players) {
 		this.gameId = gameId;
 		this.name = name;
 		this.gameState = gameState;

@@ -51,11 +51,14 @@ public class Controller {
 			if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
 				if(!games.containsKey(gameStatusUpdate.gameId())) {
 					// A new game has been created, yeey!
+					ControllerGameState initialState = new ControllerGameState();
+					initialState.applyRecord(gameStatusUpdate.state()); // TODO Not very clean? Maybe in constructor
 					games.put(gameStatusUpdate.gameId(),
 							new ControllerGame(gameStatusUpdate.gameId(), input.from(),
-									gameStatusUpdate.name(), gameStatusUpdate.state()));
+									gameStatusUpdate.name(), initialState));
+					return;
 				}
-				// TODO
+				games.get(gameStatusUpdate.gameId()).update(input.from(), gameStatusUpdate.name(), gameStatusUpdate.state());
 			} else if(packet instanceof PlayerJoinGamePacket playerJoinGamePacket) {
 				players.add((ControllerPlayer) playerJoinGamePacket.player());
 			} else if(packet instanceof PlayerQuitGamePacket playerQuitGamePacket) {

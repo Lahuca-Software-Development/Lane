@@ -1,6 +1,7 @@
 package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LaneGameState;
+import com.lahuca.lane.records.GameStateRecord;
 
 import java.util.UUID;
 
@@ -13,9 +14,9 @@ public class ControllerGame {
     private final UUID gameId;
     private String serverId;
     private String name;
-    private LaneGameState state;
+    private final ControllerGameState state;
 
-    public ControllerGame(UUID gameId, String serverId, String name, LaneGameState state) {
+    public ControllerGame(UUID gameId, String serverId, String name, ControllerGameState state) {
         this.gameId = gameId;
         this.serverId = serverId;
         this.name = name;
@@ -46,7 +47,14 @@ public class ControllerGame {
         return state;
     }
 
-    public void setState(LaneGameState state) {
-        this.state = state;
+    public void setState(GameStateRecord state) {
+        this.state.applyRecord(state);
     }
+
+    public void update(String serverId, String name, GameStateRecord state) {
+        setServerId(serverId);
+        setName(name);
+        setState(state);
+    }
+
 }

@@ -1,0 +1,5 @@
+name: LaneInstance
+authors: ["Lahuca Software Development (Laurenshup)", "_Neko1"]
+version: 1.0
+main: com.lahuca.laneinstancespigot.LaneInstanceSpigot
+api-version: 1.20

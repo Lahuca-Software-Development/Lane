@@ -15,10 +15,12 @@
  */
 package com.lahuca.lane;
 
+import com.lahuca.lane.records.StatePropertyRecord;
+
 /**
  * Interface representing a game state property.
  */
-public interface LaneStateProperty {
+public interface LaneStateProperty extends RecordApplier<StatePropertyRecord> {
 
 	/**
 	 * Gets the ID of this property.

@@ -7,21 +7,26 @@
  * <a href="mailto:info@lahuca.com">info@lahuca.com</a>
  * KvK (Chamber of Commerce): 76521621
  * <br>
- * This file is originally created for Lane on 14-3-2024 at 12:44 UTC+1.
+ * This file is originally created for Lane on 19-3-2024 at 20:46 UTC+1.
  * <br>
  * Lahuca Software Development owns all rights regarding the code.
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.laneinstance;
+package com.lahuca.lane;
 
-import com.lahuca.lane.LanePlayer;
-import org.bukkit.plugin.java.JavaPlugin;
+public interface RecordApplier<T extends Record> {
 
-public abstract class LaneGame extends GameInfo {
+	/**
+	 * Convert the object to a record with the correct data.
+	 * @return the record
+	 */
+	T convertRecord();
 
-	public abstract void onStartup();
-	public abstract void onJoin(InstancePlayer instancePlayer);
-	public abstract JavaPlugin getOwner();
+	/**
+	 * Applies the given record to the object. The object will have copied over the values.
+	 * @param record the record
+	 */
+	void applyRecord(T record);
 
 }

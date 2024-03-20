@@ -1,6 +1,7 @@
 package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LaneStateProperty;
+import com.lahuca.lane.records.StatePropertyRecord;
 
 /**
  * @author _Neko1
@@ -32,4 +33,17 @@ public class ControllerStateProperty implements LaneStateProperty {
     public Object getExtraData() {
         return extraData;
     }
+
+    @Override
+    public StatePropertyRecord convertRecord() {
+        return new StatePropertyRecord(id, value, extraData);
+    }
+
+    @Override
+    public void applyRecord(StatePropertyRecord record) {
+        id = record.id();
+        value = record.value();
+        extraData = record.extraData();
+    }
+
 }

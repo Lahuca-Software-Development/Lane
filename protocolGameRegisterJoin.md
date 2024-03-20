@@ -12,5 +12,6 @@ A player joins like the following:
 
 1. Player clicks to join game
 2. Controller receives game join
-3. Controller sends GameJoinPacket to the game server.
-4. Controller forwards the player to the game server.
+3. Controller sends InstanceJoinPacket to the instance.
+4. Controller forwards the player to the instance.
+5. If instance sees that player is going to be in join state, send to game.
