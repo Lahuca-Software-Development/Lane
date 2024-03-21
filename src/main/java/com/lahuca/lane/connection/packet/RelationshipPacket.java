@@ -4,15 +4,13 @@ import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.ResponsePacket;
 import com.lahuca.lane.records.RelationshipRecord;
 
-import java.util.UUID;
-
 /**
  * @author _Neko1
  * @date 19.03.2024
  **/
 public class RelationshipPacket {
 
-    public record Request(long requestId, UUID playerId) implements Packet {
+    public record Request(long requestId, long relationshipId) implements Packet {
 
         public static final String packetId = "requestRelationship";
 

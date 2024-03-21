@@ -42,9 +42,11 @@ public class Controller {
     private final Connection connection;
     private final ControllerImplementation implementation;
 
+    private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
     private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
-    private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
+    private final HashMap<Long, ControllerRelationship> relationships = new HashMap<>();
+
 
     public Controller(Connection connection, ControllerImplementation implementation) throws IOException {
         instance = this;
@@ -66,7 +68,7 @@ public class Controller {
             } else if(packet instanceof PartyPacket.Request requestPacket) {
                 getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
             } else if(packet instanceof RelationshipPacket.Request requestPacket) {
-                getPlayer(requestPacket.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
+                getRelationship(requestPacket.relationshipId()).ifPresent(relationship ->
                         connection.sendPacket(new RelationshipPacket.Response(requestPacket.requestId(), relationship.convertToRecord()), input.from()));
             }
         });
@@ -205,9 +207,8 @@ public class Controller {
     }
 
 
-
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.remove(controllerPlayer);
+        players.remove(controllerPlayer.getUuid());
     }
 
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
@@ -229,6 +230,10 @@ public class Controller {
 
     public Collection<ControllerParty> getParties() {
         return parties.values();
+    }
+
+    public Optional<ControllerRelationship> getRelationship(long id) {
+        return Optional.ofNullable(relationships.get(id));
     }
 
     public Optional<ControllerParty> getParty(long id) {
