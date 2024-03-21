@@ -55,7 +55,7 @@ public class ControllerParty implements LaneParty {
     }
 
     public boolean contains(UUID uuid) {
-        return players().stream().anyMatch(player -> player.equals(uuid));
+        return getPlayers().stream().anyMatch(player -> player.equals(uuid));
     }
 
     public void setOwner(UUID owner) {
@@ -77,7 +77,7 @@ public class ControllerParty implements LaneParty {
     }
 
     @Override
-    public Set<UUID> players() {
+    public Set<UUID> getPlayers() {
         return players;
     }
 

@@ -29,5 +29,5 @@ public interface LanePlayer extends RecordApplier<PlayerRecord> {
 	Optional<String> getInstanceId();
 	Optional<Long> getGameId();
 	LanePlayerState getState();
-	Optional<? extends LaneParty> getParty();
+	Optional<Long> getPartyId();
 }

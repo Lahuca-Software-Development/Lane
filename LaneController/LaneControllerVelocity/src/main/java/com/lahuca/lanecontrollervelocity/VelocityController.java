@@ -21,12 +21,14 @@ import com.google.inject.Inject;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lanecontroller.Controller;
+import com.lahuca.lanecontroller.ControllerImplementation;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 @Plugin(id = "lanecontrollervelocity", name = "Lane Controller Velocity", version = "1.0",
@@ -52,10 +54,8 @@ public class VelocityController {
         connection = new ServerSocketConnection(port, gson);
 
         try {
-            new Controller(connection, (uuid, controllerGame) ->
-                    server.getServer(controllerGame.getName()).ifPresent(registeredServer ->
-                    server.getPlayer(uuid).ifPresent(player -> player.createConnectionRequest(registeredServer))));
-        } catch(IOException e) {
+            new Controller(connection, new Implementation(server));
+        } catch (IOException e) {
             //TODO: Handle that exception
             e.printStackTrace();
         }
@@ -79,4 +79,27 @@ public class VelocityController {
     public static VelocityController getInstance() {
         return instance;
     }
+
+    public static class Implementation implements ControllerImplementation {
+
+        private final ProxyServer server;
+
+        public Implementation(ProxyServer server) {
+            this.server = server;
+        }
+
+        @Override
+        public void joinServer(UUID uuid, String destination) {
+            server.getPlayer(uuid).ifPresent(player -> server.getServer(destination).ifPresent(server -> {
+                player.getCurrentServer().ifPresentOrElse(playerServer -> {
+                    if(!playerServer.getServerInfo().getName().equals(server.getServerInfo().getName())) {
+                        player.createConnectionRequest(server).fireAndForget();
+                    }
+                }, () -> player.createConnectionRequest(server).fireAndForget());
+            }));
+            // TODO Rather than fireAndForget(), retrieve a different state? Maybe connection errors?
+        }
+
+    }
+
 }

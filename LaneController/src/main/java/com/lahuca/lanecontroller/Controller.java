@@ -15,11 +15,15 @@
  */
 package com.lahuca.lanecontroller;
 
+import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
+import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.PartyPacket;
 import com.lahuca.lane.connection.packet.RelationshipPacket;
+import com.lahuca.lane.records.PlayerRecord;
 
 import java.io.IOException;
 import java.util.*;
@@ -36,28 +40,23 @@ public class Controller {
     }
 
     private final Connection connection;
-    private final PlayerMethods playerMethods;
+    private final ControllerImplementation implementation;
 
-    private final HashMap<UUID, ControllerPlayer> players;
-    private final Set<ControllerParty> parties;
-    private final HashMap<Long, ControllerGame> games = new HashMap<>();
+    private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
+    private final HashMap<Long, ControllerParty> parties = new HashMap<>();
+    private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
 
-    public Controller(Connection connection, PlayerMethods playerMethods) throws IOException {
+    public Controller(Connection connection, ControllerImplementation implementation) throws IOException {
         instance = this;
-
-        players = new HashMap<>();
-        parties = new HashSet<>();
-
-        this.playerMethods = playerMethods;
-
         this.connection = connection;
+        this.implementation = implementation;
+
         connection.initialise(input -> {
             Packet packet = input.packet();
             if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
                 if(!games.containsKey(gameStatusUpdate.gameId())) {
                     // A new game has been created, yeey!
-                    ControllerGameState initialState = new ControllerGameState();
-					initialState.applyRecord(gameStatusUpdate.state()); // TODO Not very clean? Maybe in constructor
+                    ControllerGameState initialState = new ControllerGameState(gameStatusUpdate.state());
 					games.put(gameStatusUpdate.gameId(),
 							new ControllerGame(gameStatusUpdate.gameId(), input.from(),
 									gameStatusUpdate.name(), initialState));
@@ -77,11 +76,12 @@ public class Controller {
         return connection;
     }
 
-    public void registerGame(ControllerGame game) {
-        games.put(game.getGameId(), game);
+    public ControllerImplementation getImplementation() {
+        return implementation;
     }
 
     public void registerPlayer(ControllerPlayer player) {
+        if(player == null || player.getUuid() == null) return;
         if(players.containsKey(player.getUuid())) return;
         players.put(player.getUuid(), player);
     }
@@ -90,61 +90,159 @@ public class Controller {
         players.remove(player);
     }
 
-    public void endGame(ControllerGame controllerGame) {
-        endGame(controllerGame.getGameId());
+    /**
+     * Sends the given players to the instance.
+     * If the players are trying to join a game, it will also send the game they are willing/trying to join.
+     * @param players the players
+     * @param destination the instance id
+     * @param gameId the game id
+     */
+    private void sendToInstance(Set<ControllerPlayer> players, String destination, Long gameId) {
+        if(destination == null || players.isEmpty()) return;
+        PlayerRecord[] records = new PlayerRecord[players.size()];
+        int index = 0;
+        // Build state change
+        String stateName = gameId == null ? LanePlayerState.INSTANCE_JOIN : LanePlayerState.GAME_JOIN;
+        HashSet<ControllerStateProperty> properties = new HashSet<>();
+        properties.add(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, destination));
+        if(gameId != null) properties.add(new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId));
+        ControllerPlayerState state = new ControllerPlayerState(stateName, properties);
+        // Set state, fetch records
+        for(ControllerPlayer player : players) {
+            player.setState(state);
+            records[index] = player.convertRecord();
+            index++;
+        }
+        // Send data to instance, join player
+        connection.sendPacket(new InstanceJoinPacket(records, gameId), destination);
+        players.forEach(player -> implementation.joinServer(player.getUuid(), destination));
     }
 
-    public void endGame(long id) {
+    /**
+     * A player is willing/trying to join an instance.
+     * This will send the data to the respective instance, and teleport the player to there.
+     * @param player the player
+     * @param destination the instance id
+     */
+    public void joinInstance(UUID player, String destination) {
+       if(player == null || destination == null) return;
+       // TODO Do we maybe want a feature that checks whether there is room left on an instance?
+       getPlayer(player).ifPresent(current -> {
+           HashSet<ControllerPlayer> players = new HashSet<>();
+           players.add(current);
+           sendToInstance(players, destination, null);
+       });
+        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+    }
+
+    /**
+     * A party is willing/trying to join an instance.
+     * This will send the data to the respective instance, and teleport the players to there.
+     * @param partyId the party's id
+     * @param destination the instance id
+     */
+    public void joinInstance(long partyId, String destination) {
+        if(destination == null) return;
+        getParty(partyId).ifPresent(party -> {
+            HashSet<ControllerPlayer> players = new HashSet<>();
+            party.getPlayers().forEach(uuid -> getPlayer(uuid).ifPresent(players::add)); // TODO Parties could have offline players
+            if(players.isEmpty()) return;
+            // TODO Do we maybe want a feature that checks whether there is room left on an instance?
+            sendToInstance(players, destination, null);
+        });
+        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+    }
+
+    /**
+     * A player is willing/trying to join a game on an instance.
+     * This will first check whether the game is joinable at the current moment.
+     * When it is joinable, it will check whether the player has a party, and is the party owner.
+     * In that case it will join the whole party, otherwise only the player.
+     * Joining meaning: send the respective data and transfer player(s)
+     * @param player the player
+     * @param gameId the game id
+     */
+    public void joinGame(UUID player, long gameId) {
+        getGame(gameId).ifPresent(game -> {
+            if(game.getServerId() == null || !game.getState().isJoinable()) return;
+            // TODO Check whether there are players left? Maybe in state properties
+            getPlayer(player).ifPresent(owner -> {
+                // TODO Do we maybe want a feature that checks whether there is room left on an instance?
+                Runnable withoutParty = () -> sendToInstance(Set.of(owner), game.getServerId(), gameId);
+                owner.getPartyId().ifPresentOrElse(partyId -> getParty(partyId).ifPresentOrElse(party -> {
+                    if(party.getOwner().equals(player)) joinGame(partyId, gameId);
+                    else withoutParty.run();
+                }, withoutParty), withoutParty);
+            });
+        });
+        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+    }
+
+    /**
+     * A party is willing/trying to join a game on an instance.
+     * This will first check whether the game is joinable at the current moment.
+     * When it is joinable, it will send the respective data and transfer the party to there.
+     * @param partyId the party's id
+     * @param gameId the game id
+     */
+    public void joinGame(long partyId, long gameId) {
+        getGame(gameId).ifPresent(game -> {
+            if(game.getServerId() == null || !game.getState().isJoinable()) return;
+            // TODO Check whether there are players left? Maybe in state properties
+            getParty(partyId).ifPresent(party -> {
+                HashSet<ControllerPlayer> players = new HashSet<>();
+                party.getPlayers().forEach(uuid -> getPlayer(uuid).ifPresent(players::add)); // TODO Parties could have offline players
+                if(players.isEmpty()) return;
+                // TODO Do we maybe want a feature that checks whether there is room left on an instance?
+                sendToInstance(players, game.getServerId(), gameId);
+            });
+        });
+        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+    }
+
+    public void endGame(long id) { // TODO Check
         games.remove(id);
     }
 
-    public void joinPlayer(UUID player, long gameId) {
 
-        controllerPlayer.setGameId(controllerGame.getGameId());
-    }
 
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
         players.remove(controllerPlayer);
     }
 
-    public void creteParty(ControllerPlayer owner, ControllerPlayer invited) {
+    public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         controllerParty.sendRequest(invited);
     }
 
-    public void partyWarp(ControllerParty controllerParty, ControllerGame controllerGame) {
-        controllerParty.players().forEach(player -> playerMethods.joinServer(player, controllerGame));
-    }
-
-    public void partyWarp(ControllerParty controllerParty, long gameId) {
-        getGame(gameId).ifPresent(game -> partyWarp(controllerParty, game));
-    }
-
-    public void spectateGame(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        controllerPlayer.setPlayerState(new ControllerPlayerState("Spectating", new HashMap<>()));
-    }
-
-    public Optional<ControllerPlayer> getPlayerByName(String name) {
-        return players.stream().filter(player -> player.getName().equals(name)).findFirst();
+    public Collection<ControllerPlayer> getPlayers() {
+        return players.values();
     }
 
     public Optional<ControllerPlayer> getPlayer(UUID uuid) {
-        return players.stream().filter(player -> player.getUuid().equals(uuid)).findFirst();
+        return Optional.ofNullable(players.get(uuid));
+    }
+
+    public Optional<ControllerPlayer> getPlayerByName(String name) {
+        return players.values().stream().filter(player -> player.getName().equals(name)).findFirst();
+    }
+
+    public Collection<ControllerParty> getParties() {
+        return parties.values();
     }
 
     public Optional<ControllerParty> getParty(long id) {
-        return parties.stream().filter(party -> party.getPartyId() == id).findFirst();
+        return Optional.ofNullable(parties.get(id));
+    }
+
+    public Collection<ControllerGame> getGames() {
+        return games.values();
     }
 
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     }
 
-    public Set<ControllerPlayer> getPlayers() {
-        return players;
-    }
 
-    public Collection<ControllerGame> getGames() {
-        return games.values();
-    }
+
 }

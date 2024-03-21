@@ -23,6 +23,15 @@ import com.lahuca.lane.records.StatePropertyRecord;
 public interface LaneStateProperty extends RecordApplier<StatePropertyRecord> {
 
 	/**
+	 * Constant for the game ID property.
+	 */
+	String INSTANCE_ID = "instanceId";
+	/**
+	 * Constant for the game ID property.
+	 */
+	String GAME_ID = "gameId";
+
+	/**
 	 * Gets the ID of this property.
 	 *
 	 * @return the ID of this property

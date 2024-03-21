@@ -13,10 +13,18 @@ public class ControllerStateProperty implements LaneStateProperty {
     private Object value;
     private Object extraData;
 
+    public ControllerStateProperty(String id, Object value) {
+        this(id, value, null);
+    }
+
     public ControllerStateProperty(String id, Object value, Object extraData) {
         this.id = id;
         this.value = value;
         this.extraData = extraData;
+    }
+
+    public ControllerStateProperty(StatePropertyRecord record) {
+        applyRecord(record);
     }
 
     @Override

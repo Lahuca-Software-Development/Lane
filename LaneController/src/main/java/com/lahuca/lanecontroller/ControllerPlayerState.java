@@ -4,6 +4,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.records.PlayerStateRecord;
 import com.lahuca.lane.records.StatePropertyRecord;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -14,10 +15,30 @@ import java.util.Set;
 public class ControllerPlayerState implements LanePlayerState {
 
     private String name;
-    private final HashMap<String, ControllerStateProperty> properties = new HashMap<>();
+    private final HashMap<String, ControllerStateProperty> properties;
+
+    public ControllerPlayerState() {
+        this(UNDEFINED);
+    }
+
+    public ControllerPlayerState(String name) {
+        this.name = name;
+        properties = new HashMap<>();
+    }
+
+    public ControllerPlayerState(String name, HashMap<String, ControllerStateProperty> properties) {
+        this.name = name;
+        this.properties = properties;
+    }
+
+    public ControllerPlayerState(String name, Collection<ControllerStateProperty> properties) {
+        this(name);
+        properties.forEach(property -> this.properties.put(property.getId(), property));
+    }
 
     public ControllerPlayerState(PlayerStateRecord record) {
-        applyRecord(record); // TODO Maybe not really great, to only work with a record?
+        this();
+        applyRecord(record);
     }
 
     @Override
