@@ -23,12 +23,12 @@ public interface LanePlayerState extends RecordApplier<PlayerStateRecord> {
      * Constant for the state name of a player trying to join an instance.
      * Properties set: instanceId -> String
      */
-    String INSTANCE_JOIN = "instance.join";
+    String INSTANCE_TRANSFER = "instance.transfer";
     /**
-     * Constant for the state name of a player trying to join a game (therefore sub of {@link #INSTANCE_JOIN}).
+     * Constant for the state name of a player trying to join a game (therefore sub of {@link #INSTANCE_TRANSFER}).
      * Properties set: gameId -> Long, instanceId -> String
      */
-    String GAME_JOIN = "game.join";
+    String GAME_TRANSFER = "game.transfer";
 
     /**
      * Gets the name of the state.

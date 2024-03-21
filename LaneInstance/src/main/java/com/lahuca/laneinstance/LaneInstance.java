@@ -84,6 +84,24 @@ public abstract class LaneInstance {
         return Optional.ofNullable(games.get(gameId));
     }
 
+    /**
+     * This method is to be called when a player joins the instance.
+     * This will transfer the player to the correct game, if applicable.
+     * @param uuid the player's uuid
+     */
+    public void joinInstance(UUID uuid) {
+        getInstancePlayer(uuid).ifPresentOrElse(player -> player.getGameId().ifPresentOrElse(gameId -> getInstanceGame(gameId).ifPresentOrElse(game -> {
+            // TODO Change the player's state
+            game.onJoin(player);
+        }, () -> {
+            // TODO Hmm? Couldn't find the game with this ID on this instance? Report back to the controller
+        }), () -> {
+            // TODO Transfer player to the lobby of this instance, if it is joinable. Change the player's state!
+        }), () -> {
+            // TODO What odd? We have not received the packet with the information about the player.
+        });
+    }
+
 	public void registerGame(LaneGame game) {
 		if(games.containsKey(game.getGameId())) return; // TODO Already a game with said id on this server.
         // TODO Check whether there is a game on the controller with the given ID.
