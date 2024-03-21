@@ -22,6 +22,8 @@ import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerImplementation;
+import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
+import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -59,6 +61,9 @@ public class VelocityController {
             //TODO: Handle that exception
             e.printStackTrace();
         }
+
+        server.getCommandManager().register("friends", new FriendCommand(), "f", "friend");
+        server.getCommandManager().register("party", new PartyCommand(), "p");
 
         logger.info("Hello there! I made my first plugin with Velocity.");
     }

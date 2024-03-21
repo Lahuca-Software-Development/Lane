@@ -40,8 +40,7 @@ public class PartyCommand implements SimpleCommand {
              * /party disband - Disbands the party
              * /party kick <Player> - Kicks the requested from the party
              * /party warp - Sends all players to the leader's server
-             * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN
-             * THIS CMD]
+             * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
              *
              */
 
