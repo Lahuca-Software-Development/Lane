@@ -17,17 +17,18 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
+import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.PartyPacket;
 import com.lahuca.lane.connection.packet.RelationshipPacket;
 import com.lahuca.lane.records.PartyRecord;
+import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
@@ -41,6 +42,7 @@ public abstract class LaneInstance {
 	}
 
 	private final Connection connection;
+    private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
 	private final HashMap<Long, LaneGame> games = new HashMap<>();
     private final HashMap<Long, CompletableFuture<?>> requestablePackets = new HashMap<>();
 
@@ -48,6 +50,18 @@ public abstract class LaneInstance {
 		instance = this;
 		this.connection = connection;
 		connection.initialise(input -> {
+            if(input.packet() instanceof InstanceJoinPacket join) {
+                // TODO Also check if the instance is joinable
+                if(!games.containsKey(join.gameId())) {
+                    // TODO What to do now? The game they are being transferred to, is not active on this instance
+                }
+                for(PlayerRecord record : join.players()) {
+                    getInstancePlayer(record.uuid()).ifPresentOrElse(
+                            player -> player.applyRecord(record),
+                            () -> players.put(record.uuid(), new InstancePlayer(record)));
+                }
+            }
+
             if(input.packet() instanceof PartyPacket.Response responsePacket) {
                 CompletableFuture<PartyRecord> future = (CompletableFuture<PartyRecord>) requestablePackets.get(responsePacket.getRequestId());
                 future.complete(responsePacket.getData());
@@ -62,8 +76,17 @@ public abstract class LaneInstance {
 		return connection;
 	}
 
+    public Optional<InstancePlayer> getInstancePlayer(UUID player) {
+        return Optional.ofNullable(players.get(player));
+    }
+
+    public Optional<LaneGame> getInstanceGame(long gameId) {
+        return Optional.ofNullable(games.get(gameId));
+    }
+
 	public void registerGame(LaneGame game) {
-		if(games.containsKey(game.getGameId())) return; // TODO Already a game with said id.
+		if(games.containsKey(game.getGameId())) return; // TODO Already a game with said id on this server.
+        // TODO Check whether there is a game on the controller with the given ID.
 		games.put(game.getGameId(), game);
 		connection.sendPacket(
 				new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);

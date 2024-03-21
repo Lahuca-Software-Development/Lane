@@ -15,13 +15,13 @@
  */
 package com.lahuca.laneinstance;
 
-import com.lahuca.lane.LanePlayer;
-import org.bukkit.plugin.java.JavaPlugin;
-
 public abstract class LaneGame extends GameInfo {
+
+	public LaneGame(long gameId, String name, GameState gameState) {
+		super(gameId, name, gameState);
+	}
 
 	public abstract void onStartup();
 	public abstract void onJoin(InstancePlayer instancePlayer);
-	public abstract JavaPlugin getOwner();
 
 }

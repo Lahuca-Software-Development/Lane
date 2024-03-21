@@ -13,10 +13,18 @@ public class StateProperty implements LaneStateProperty {
     private Object value;
     private Object extraData;
 
+    public StateProperty(String id, Object value) {
+        this(id, value, null);
+    }
+
     public StateProperty(String id, Object value, Object extraData) {
         this.id = id;
         this.value = value;
         this.extraData = extraData;
+    }
+
+    public StateProperty(StatePropertyRecord record) {
+        applyRecord(record);
     }
 
     @Override

@@ -1,8 +1,8 @@
 package com.lahuca.laneinstance;
 
-import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -16,11 +16,11 @@ public class InstancePlayer implements LanePlayer {
     private final UUID uuid;
     private final String name;
     private String displayName;
-    private long gameId;
-    private Party party;
     private String language;
-
-    private Relationship relationship;
+    private String instanceId = null;
+    private Long gameId = null;
+    private InstancePlayerState state = null;
+    private Long partyId = null;
 
     public InstancePlayer(UUID uuid, String name, String displayName) {
         this.uuid = uuid;
@@ -28,7 +28,14 @@ public class InstancePlayer implements LanePlayer {
         this.displayName = displayName;
     }
 
+    public InstancePlayer(PlayerRecord record) {
+        this.uuid = record.uuid();
+        this.name = record.name();
+        applyRecord(record);
+    }
+
     public void setLanguage(String language) {
+        // TODO Really? Simple setter?
         this.language = language;
     }
 
@@ -37,13 +44,19 @@ public class InstancePlayer implements LanePlayer {
         return language;
     }
 
+    @Override
+    public Optional<String> getInstanceId() {
+        return Optional.empty();
+    }
+
     public void setGameId(long gameId) {
+        // TODO Really? Simple setter?
         this.gameId = gameId;
     }
 
     @Override
-    public long getGameId() {
-        return gameId;
+    public Optional<Long> getGameId() {
+        return Optional.ofNullable(gameId);
     }
 
     @Override
@@ -63,11 +76,29 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public LanePlayerState getState() {
-        return null;
+        return state;
     }
 
     @Override
-    public Optional<LaneParty> getParty() {
-        return Optional.ofNullable(party);
+    public Optional<Long> getPartyId() {
+        return Optional.ofNullable(partyId);
     }
+
+    @Override
+    public PlayerRecord convertRecord() {
+        return new PlayerRecord(uuid, name, displayName, language, instanceId, gameId, state.convertRecord(), partyId);
+    }
+
+    @Override
+    public void applyRecord(PlayerRecord record) {
+        // TODO Maybe better recode?
+        displayName = record.displayName();
+        language = record.language();
+        instanceId = record.instanceId();
+        gameId = record.gameId();
+        if(state == null) state = new InstancePlayerState();
+        state.applyRecord(record.state());
+        partyId = record.partyId();
+    }
+
 }
