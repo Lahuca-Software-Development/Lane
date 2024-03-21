@@ -16,6 +16,7 @@
 package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.ResponsePacket;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.PartyPacket;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
@@ -44,7 +46,7 @@ public abstract class LaneInstance {
 	private final Connection connection;
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
 	private final HashMap<Long, LaneGame> games = new HashMap<>();
-    private final HashMap<Long, CompletableFuture<?>> requestablePackets = new HashMap<>();
+    private final HashMap<Long, CompletableFuture<Object>> requests = new HashMap<>();
 
     public LaneInstance(Connection connection) throws IOException {
 		instance = this;
@@ -60,14 +62,13 @@ public abstract class LaneInstance {
                             player -> player.applyRecord(record),
                             () -> players.put(record.uuid(), new InstancePlayer(record)));
                 }
-            }
-
-            if(input.packet() instanceof PartyPacket.Response responsePacket) {
-                CompletableFuture<PartyRecord> future = (CompletableFuture<PartyRecord>) requestablePackets.get(responsePacket.getRequestId());
-                future.complete(responsePacket.getData());
-            } else if(input.packet() instanceof RelationshipPacket.Response responsePacket) {
-                CompletableFuture<RelationshipRecord> future = (CompletableFuture<RelationshipRecord>) requestablePackets.get(responsePacket.getRequestId());
-                future.complete(responsePacket.getData());
+            } else if(input.packet() instanceof ResponsePacket<?> response) {
+                CompletableFuture<Object> request = requests.get(response.getRequestId());
+                if(request != null) {
+                    // TODO How could it happen that the request is null?
+                    request.complete(response.getData());
+                    requests.remove(response.getRequestId());
+                }
             }
 		});
 	}
@@ -110,23 +111,32 @@ public abstract class LaneInstance {
 				new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);
 	}
 
+    /**
+     * Build request future, which will also be added to the requests.
+     * The object will be cast to the correct type as provided by the given function.
+     * @param id the request ID
+     * @param converter the converter that maps immediately casts any object to the given type
+     * @return the return completable future
+     * @param <T> the object type to convert to
+     */
+    private <T> CompletableFuture<T> buildFuture(long id, Function<Object, T> converter) {
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        requests.put(id, future);
+        return future.thenApply(converter);
+    }
+
     public CompletableFuture<RelationshipRecord> getRelationship(long relationshipId) {
         long id = System.currentTimeMillis();
-
-        CompletableFuture<RelationshipRecord> completableFuture = new CompletableFuture<>();
-        requestablePackets.put(id, completableFuture);
-
+        CompletableFuture<RelationshipRecord> completableFuture = buildFuture(id, o -> (RelationshipRecord) o); // TODO Maybe save the funciton somewhere, to save CPU?
         connection.sendPacket(new RelationshipPacket.Request(id, relationshipId), null);
         return completableFuture;
     }
 
     public CompletableFuture<PartyRecord> getParty(long partyId) {
         long id = System.currentTimeMillis();
-
-        CompletableFuture<PartyRecord> completableFuture = new CompletableFuture<>();
-        requestablePackets.put(id, completableFuture);
-
+        CompletableFuture<PartyRecord> completableFuture = buildFuture(id, o -> (PartyRecord) o); // TODO Maybe save the funciton somewhere, to save CPU?
         connection.sendPacket(new PartyPacket.Request(id, partyId), null);
         return completableFuture;
     }
+
 }

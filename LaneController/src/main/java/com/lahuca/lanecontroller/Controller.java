@@ -102,7 +102,7 @@ public class Controller {
         PlayerRecord[] records = new PlayerRecord[players.size()];
         int index = 0;
         // Build state change
-        String stateName = gameId == null ? LanePlayerState.INSTANCE_JOIN : LanePlayerState.GAME_JOIN;
+        String stateName = gameId == null ? LanePlayerState.INSTANCE_TRANSFER : LanePlayerState.GAME_TRANSFER;
         HashSet<ControllerStateProperty> properties = new HashSet<>();
         properties.add(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, destination));
         if(gameId != null) properties.add(new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId));
@@ -242,7 +242,5 @@ public class Controller {
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     }
-
-
 
 }

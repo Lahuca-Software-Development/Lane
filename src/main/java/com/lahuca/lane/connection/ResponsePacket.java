@@ -5,8 +5,8 @@ package com.lahuca.lane.connection;
  * @date 19.03.2024
  **/
 
-public interface ResponsePacket<T> extends Packet {
+public interface ResponsePacket<T> extends RequestPacket {
 
-    long getRequestId();
     T getData();
+
 }
