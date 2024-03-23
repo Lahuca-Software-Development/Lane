@@ -1,8 +1,8 @@
 package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
-import com.lahuca.lane.connection.RequestPacket;
-import com.lahuca.lane.connection.ResponsePacket;
+import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.RelationshipRecord;
 
 /**

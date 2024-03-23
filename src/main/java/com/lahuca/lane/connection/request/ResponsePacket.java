@@ -1,4 +1,4 @@
-package com.lahuca.lane.connection;
+package com.lahuca.lane.connection.request;
 
 /**
  * @author _Neko1

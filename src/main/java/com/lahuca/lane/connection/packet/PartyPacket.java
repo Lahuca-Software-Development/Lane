@@ -1,7 +1,8 @@
 package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
-import com.lahuca.lane.connection.ResponsePacket;
+import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.PartyRecord;
 
 /**
@@ -10,7 +11,7 @@ import com.lahuca.lane.records.PartyRecord;
  **/
 public class PartyPacket {
 
-    public record Request(long requestId, long partyId) implements Packet {
+    public record Request(long requestId, long partyId) implements RequestPacket {
 
         public static final String packetId = "requestParty";
 
@@ -23,6 +24,12 @@ public class PartyPacket {
         public String getPacketId() {
             return packetId;
         }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
     }
 
     public record Response(long requestId, PartyRecord partyRecord) implements ResponsePacket<PartyRecord> {

@@ -13,7 +13,9 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lane.connection;
+package com.lahuca.lane.connection.request;
+
+import com.lahuca.lane.connection.Packet;
 
 public interface RequestPacket extends Packet {
 

@@ -19,6 +19,8 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.RequestHandler;
+import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.PartyPacket;
@@ -27,11 +29,13 @@ import com.lahuca.lane.records.PlayerRecord;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * This is the main class for operations on the controller side of the Lane system.
  */
-public class Controller {
+public class Controller extends RequestHandler {
 
     private static Controller instance;
 
@@ -63,6 +67,13 @@ public class Controller {
 					return;
 				}
 				games.get(gameStatusUpdate.gameId()).update(input.from(), gameStatusUpdate.name(), gameStatusUpdate.state());
+            } else if(input.packet() instanceof ResponsePacket<?> response) {
+                CompletableFuture<Object> request = getRequests().get(response.getRequestId());
+                if(request != null) {
+                    // TODO How could it happen that the request is null?
+                    request.complete(response.getData());
+                    getRequests().remove(response.getRequestId());
+                }
             } else if(packet instanceof PartyPacket.Request requestPacket) {
                 getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
             } else if(packet instanceof RelationshipPacket.Request requestPacket) {
@@ -203,7 +214,6 @@ public class Controller {
     public void endGame(long id) { // TODO Check
         games.remove(id);
     }
-
 
 
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {

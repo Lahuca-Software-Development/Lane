@@ -16,11 +16,12 @@
 package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
-import com.lahuca.lane.connection.ResponsePacket;
 import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.PartyPacket;
 import com.lahuca.lane.connection.packet.RelationshipPacket;
+import com.lahuca.lane.connection.request.RequestHandler;
+import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
@@ -30,12 +31,11 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
  */
-public abstract class LaneInstance {
+public abstract class LaneInstance extends RequestHandler {
 
 	private static LaneInstance instance;
 
@@ -46,7 +46,6 @@ public abstract class LaneInstance {
 	private final Connection connection;
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
 	private final HashMap<Long, LaneGame> games = new HashMap<>();
-    private final HashMap<Long, CompletableFuture<Object>> requests = new HashMap<>();
 
     public LaneInstance(Connection connection) throws IOException {
 		instance = this;
@@ -63,11 +62,11 @@ public abstract class LaneInstance {
                             () -> players.put(record.uuid(), new InstancePlayer(record)));
                 }
             } else if(input.packet() instanceof ResponsePacket<?> response) {
-                CompletableFuture<Object> request = requests.get(response.getRequestId());
+                CompletableFuture<Object> request = getRequests().get(response.getRequestId());
                 if(request != null) {
                     // TODO How could it happen that the request is null?
                     request.complete(response.getData());
-                    requests.remove(response.getRequestId());
+                    getRequests().remove(response.getRequestId());
                 }
             }
 		});
@@ -110,20 +109,6 @@ public abstract class LaneInstance {
 		connection.sendPacket(
 				new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);
 	}
-
-    /**
-     * Build request future, which will also be added to the requests.
-     * The object will be cast to the correct type as provided by the given function.
-     * @param id the request ID
-     * @param converter the converter that maps immediately casts any object to the given type
-     * @return the return completable future
-     * @param <T> the object type to convert to
-     */
-    private <T> CompletableFuture<T> buildFuture(long id, Function<Object, T> converter) {
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        requests.put(id, future);
-        return future.thenApply(converter);
-    }
 
     public CompletableFuture<RelationshipRecord> getRelationship(long relationshipId) {
         long id = System.currentTimeMillis();
