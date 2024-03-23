@@ -17,7 +17,7 @@ package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
 
-public record InstanceStatusUpdatePacket(boolean joinable, boolean nonPlayable) implements Packet {
+public record InstanceStatusUpdatePacket(boolean joinable, boolean nonPlayable, int maxPlayers) implements Packet {
 
     public static final String packetId = "instanceStatusUpdate";
 

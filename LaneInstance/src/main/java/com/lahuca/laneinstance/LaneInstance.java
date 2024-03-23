@@ -45,12 +45,14 @@ public abstract class LaneInstance extends RequestHandler {
 	private final HashMap<Long, LaneGame> games = new HashMap<>();
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
+    private int maxPlayers; // Maximum players on this instance, negative = unlimited
 
-    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
+    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable, int maxPlayers) throws IOException {
 		instance = this;
 		this.connection = connection;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
+        this.maxPlayers = maxPlayers;
 		connection.initialise(input -> {
             if(input.packet() instanceof InstanceJoinPacket join) {
                 // TODO Also check if the instance is joinable
@@ -93,6 +95,15 @@ public abstract class LaneInstance extends RequestHandler {
 
     public void setNonPlayable(boolean nonPlayable) {
         this.nonPlayable = nonPlayable;
+        sendInstanceStatus();
+    }
+
+    public int getMaxPlayers() {
+        return maxPlayers;
+    }
+
+    public void setMaxPlayers(int maxPlayers) {
+        this.maxPlayers = maxPlayers;
         sendInstanceStatus();
     }
 

@@ -20,6 +20,7 @@ public class ControllerLaneInstance {
     private String id;
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
+    private int maxPlayers; // Maximum number of players on the instance, negative = unlimited
     // TODO Add: boolean isMaintanance (only for on the controller)
 
     public ControllerLaneInstance(String id) {
@@ -28,10 +29,11 @@ public class ControllerLaneInstance {
         nonPlayable = false;
     }
 
-    public ControllerLaneInstance(String id, boolean joinable, boolean nonPlayable) {
+    public ControllerLaneInstance(String id, boolean joinable, boolean nonPlayable, int maxPlayers) {
         this.id = id;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
+        this.maxPlayers = maxPlayers;
     }
 
     public String getId() {
@@ -46,9 +48,14 @@ public class ControllerLaneInstance {
         return nonPlayable;
     }
 
-    public void update(boolean joinable, boolean nonPlayable) {
+    public int getMaxPlayers() {
+        return maxPlayers;
+    }
+
+    public void update(boolean joinable, boolean nonPlayable, int maxPlayers) {
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
+        this.maxPlayers = maxPlayers;
     }
 
 }
