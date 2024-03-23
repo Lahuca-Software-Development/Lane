@@ -16,10 +16,7 @@
 package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
-import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
-import com.lahuca.lane.connection.packet.InstanceJoinPacket;
-import com.lahuca.lane.connection.packet.PartyPacket;
-import com.lahuca.lane.connection.packet.RelationshipPacket;
+import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.PartyRecord;
@@ -46,10 +43,14 @@ public abstract class LaneInstance extends RequestHandler {
 	private final Connection connection;
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
 	private final HashMap<Long, LaneGame> games = new HashMap<>();
+    private boolean joinable;
+    private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
 
-    public LaneInstance(Connection connection) throws IOException {
+    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
 		instance = this;
 		this.connection = connection;
+        this.joinable = joinable;
+        this.nonPlayable = nonPlayable;
 		connection.initialise(input -> {
             if(input.packet() instanceof InstanceJoinPacket join) {
                 // TODO Also check if the instance is joinable
@@ -70,11 +71,34 @@ public abstract class LaneInstance extends RequestHandler {
                 }
             }
 		});
+        sendInstanceStatus();
 	}
 
 	private Connection getConnection() {
 		return connection;
 	}
+
+    public boolean isJoinable() {
+        return joinable;
+    }
+
+    public void setJoinable(boolean joinable) {
+        joinable = joinable;
+        sendInstanceStatus();
+    }
+
+    public boolean isNonPlayable() {
+        return nonPlayable;
+    }
+
+    public void setNonPlayable(boolean nonPlayable) {
+        this.nonPlayable = nonPlayable;
+        sendInstanceStatus();
+    }
+
+    private void sendInstanceStatus() {
+        connection.sendPacket(new InstanceStatusUpdatePacket(joinable, nonPlayable), null);
+    }
 
     public Optional<InstancePlayer> getInstancePlayer(UUID player) {
         return Optional.ofNullable(players.get(player));

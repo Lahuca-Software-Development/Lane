@@ -19,12 +19,9 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
-import com.lahuca.lane.connection.packet.InstanceJoinPacket;
-import com.lahuca.lane.connection.packet.PartyPacket;
-import com.lahuca.lane.connection.packet.RelationshipPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.io.IOException;
@@ -49,6 +46,7 @@ public class Controller extends RequestHandler {
     private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
     private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
+    private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
 
     public Controller(Connection connection, ControllerImplementation implementation) throws IOException {
         instance = this;
@@ -56,17 +54,19 @@ public class Controller extends RequestHandler {
         this.implementation = implementation;
 
         connection.initialise(input -> {
-            Packet packet = input.packet();
-            if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
-                if(!games.containsKey(gameStatusUpdate.gameId())) {
+            Packet iPacket = input.packet();
+            if(iPacket instanceof GameStatusUpdatePacket packet) {
+                if(!games.containsKey(packet.gameId())) {
                     // A new game has been created, yeey!
-                    ControllerGameState initialState = new ControllerGameState(gameStatusUpdate.state());
-					games.put(gameStatusUpdate.gameId(),
-							new ControllerGame(gameStatusUpdate.gameId(), input.from(),
-									gameStatusUpdate.name(), initialState));
+                    ControllerGameState initialState = new ControllerGameState(packet.state());
+					games.put(packet.gameId(),
+							new ControllerGame(packet.gameId(), input.from(),
+                                    packet.name(), initialState));
 					return;
 				}
-				games.get(gameStatusUpdate.gameId()).update(input.from(), gameStatusUpdate.name(), gameStatusUpdate.state());
+				games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
+            } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
+                createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable());
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Object> request = getRequests().get(response.getRequestId());
                 if(request != null) {
@@ -74,11 +74,11 @@ public class Controller extends RequestHandler {
                     request.complete(response.getData());
                     getRequests().remove(response.getRequestId());
                 }
-            } else if(packet instanceof PartyPacket.Request requestPacket) {
-                getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
-            } else if(packet instanceof RelationshipPacket.Request requestPacket) {
-                getPlayer(requestPacket.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
-                        connection.sendPacket(new RelationshipPacket.Response(requestPacket.requestId(), relationship.convertToRecord()), input.from()));
+            } else if(iPacket instanceof PartyPacket.Request packet) {
+                getParty(packet.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(packet.requestId(), party.convertToRecord()), input.from()));
+            } else if(iPacket instanceof RelationshipPacket.Request packet) {
+                getPlayer(packet.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
+                        connection.sendPacket(new RelationshipPacket.Response(packet.requestId(), relationship.convertToRecord()), input.from()));
             }
         });
     }
@@ -89,6 +89,11 @@ public class Controller extends RequestHandler {
 
     public ControllerImplementation getImplementation() {
         return implementation;
+    }
+
+    private ControllerLaneInstance createGetInstance(String id) {
+        if(!instances.containsKey(id)) return instances.put(id, new ControllerLaneInstance(id));
+        return instances.get(id);
     }
 
     public void registerPlayer(ControllerPlayer player) {
