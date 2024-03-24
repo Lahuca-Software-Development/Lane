@@ -7,6 +7,11 @@ package com.lahuca.lane.connection.request;
 
 public interface ResponsePacket<T> extends RequestPacket {
 
+    String OK = "ok";
+    String NOT_JOINABLE = "notJoinable";
+    String NO_FREE_SLOTS = "noFreeSlots";
+
+    String getResult();
     T getData();
 
 }

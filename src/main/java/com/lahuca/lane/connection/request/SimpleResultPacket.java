@@ -7,22 +7,22 @@
  * <a href="mailto:info@lahuca.com">info@lahuca.com</a>
  * KvK (Chamber of Commerce): 76521621
  * <br>
- * This file is originally created for Lane on 23-3-2024 at 12:20 UTC+1.
+ * This file is originally created for Lane on 25-3-2024 at 00:41 UTC+1.
  * <br>
  * Lahuca Software Development owns all rights regarding the code.
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lane.connection.packet;
+package com.lahuca.lane.connection.request;
 
 import com.lahuca.lane.connection.Packet;
 
-public record InstanceStatusUpdatePacket(boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) implements Packet {
+public record SimpleResultPacket(long requestId, String result) implements ResponsePacket<Void> {
 
-    public static final String packetId = "instanceStatusUpdate";
+    public static final String packetId = "simpleResult";
 
     static {
-        Packet.registerPacket(packetId, InstanceStatusUpdatePacket.class);
+        Packet.registerPacket(packetId, SimpleResultPacket.class);
     }
 
     @Override
@@ -30,4 +30,18 @@ public record InstanceStatusUpdatePacket(boolean joinable, boolean nonPlayable, 
         return packetId;
     }
 
+    @Override
+    public long getRequestId() {
+        return requestId;
+    }
+
+    @Override
+    public String getResult() {
+        return result;
+    }
+
+    @Override
+    public Void getData() {
+        return null;
+    }
 }
