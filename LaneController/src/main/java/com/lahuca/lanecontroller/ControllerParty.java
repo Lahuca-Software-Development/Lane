@@ -46,6 +46,7 @@ public class ControllerParty implements LaneParty {
 
     public void removePlayer(ControllerPlayer controllerPlayer) {
         players.remove(controllerPlayer.getUuid());
+        controllerPlayer.setParty(-1);
     }
 
     public void disband() {
@@ -62,11 +63,6 @@ public class ControllerParty implements LaneParty {
         this.owner = owner;
     }
 
-    @Override
-    public long getPartyId() {
-        return partyId;
-    }
-
     public long getCreationStamp() {
         return creationStamp;
     }
@@ -74,6 +70,11 @@ public class ControllerParty implements LaneParty {
     @Override
     public UUID getOwner() {
         return owner;
+    }
+
+    @Override
+    public long getId() {
+        return partyId;
     }
 
     @Override

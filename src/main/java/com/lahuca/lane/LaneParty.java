@@ -21,14 +21,6 @@ public interface LaneParty extends LaneRelationship {
 
 
 	/**
-	 * Gets party id.
-	 *
-	 * @return The party id
-	 */
-	long getPartyId();
-
-
-	/**
 	 * Gets owner of this party.
 	 *
 	 * @return The owner's uuid of this party
