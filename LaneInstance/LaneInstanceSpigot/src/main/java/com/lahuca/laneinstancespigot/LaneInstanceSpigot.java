@@ -35,6 +35,8 @@ public class LaneInstanceSpigot extends JavaPlugin {
 	public static final String ip = "mc.slux.cz";
 	public static final int port = 776;
 	public static final Gson gson = new GsonBuilder().create();
+	public static final boolean joinable = true;
+	public static final boolean nonPlayable = false;
 
 	private Implementation implementation;
 
@@ -45,9 +47,10 @@ public class LaneInstanceSpigot extends JavaPlugin {
 			connection = new ClientSocketConnection(id, ip, port, gson);
 		}
 		try {
-			implementation = new Implementation(connection);
+			implementation = new Implementation(connection, joinable, nonPlayable);
 		} catch (IOException e) {
-			throw new RuntimeException(e); // TODO What now?
+			e.printStackTrace(); // TODO Send message with exception
+			getPluginLoader().disablePlugin(this);
 		}
 	}
 
@@ -60,10 +63,20 @@ public class LaneInstanceSpigot extends JavaPlugin {
 		impl().ifPresent(impl -> impl.joinInstance(event.getPlayer().getUniqueId()));
 	}
 
-	public static class Implementation extends LaneInstance {
+	public class Implementation extends LaneInstance {
 
-		public Implementation(Connection connection) throws IOException {
-			super(connection);
+		public Implementation(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
+			super(connection, joinable, nonPlayable);
+		}
+
+		@Override
+		public int getCurrentPlayers() {
+			return LaneInstanceSpigot.this.getServer().getOnlinePlayers().size();
+		}
+
+		@Override
+		public int getMaxPlayers() {
+			return LaneInstanceSpigot.this.getServer().getMaxPlayers();
 		}
 
 	}
