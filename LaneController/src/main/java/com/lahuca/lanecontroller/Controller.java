@@ -42,9 +42,11 @@ public class Controller {
     private final Connection connection;
     private final ControllerImplementation implementation;
 
-    private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
+
     private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
+    private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
+    private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
     private final HashMap<Long, ControllerRelationship> relationships = new HashMap<>();
 
 
@@ -54,22 +56,31 @@ public class Controller {
         this.implementation = implementation;
 
         connection.initialise(input -> {
-            Packet packet = input.packet();
-            if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
-                if(!games.containsKey(gameStatusUpdate.gameId())) {
+            Packet iPacket = input.packet();
+            if(iPacket instanceof GameStatusUpdatePacket packet) {
+                if(!games.containsKey(packet.gameId())) {
                     // A new game has been created, yeey!
-                    ControllerGameState initialState = new ControllerGameState(gameStatusUpdate.state());
-                    games.put(gameStatusUpdate.gameId(),
-                            new ControllerGame(gameStatusUpdate.gameId(), input.from(),
-                                    gameStatusUpdate.name(), initialState));
-                    return;
+                    ControllerGameState initialState = new ControllerGameState(packet.state());
+					games.put(packet.gameId(),
+							new ControllerGame(packet.gameId(), input.from(),
+                                    packet.name(), initialState));
+					return;
+				}
+				games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
+            } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
+                createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable());
+            } else if(input.packet() instanceof ResponsePacket<?> response) {
+                CompletableFuture<Object> request = getRequests().get(response.getRequestId());
+                if(request != null) {
+                    // TODO How could it happen that the request is null?
+                    request.complete(response.getData());
+                    getRequests().remove(response.getRequestId());
                 }
-                games.get(gameStatusUpdate.gameId()).update(input.from(), gameStatusUpdate.name(), gameStatusUpdate.state());
-            } else if(packet instanceof PartyPacket.Request requestPacket) {
-                getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
-            } else if(packet instanceof RelationshipPacket.Request requestPacket) {
-                getRelationship(requestPacket.relationshipId()).ifPresent(relationship ->
-                        connection.sendPacket(new RelationshipPacket.Response(requestPacket.requestId(), relationship.convertToRecord()), input.from()));
+            } else if(iPacket instanceof PartyPacket.Request packet) {
+                getParty(packet.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(packet.requestId(), party.convertToRecord()), input.from()));
+            } else if(iPacket instanceof RelationshipPacket.Request packet) {
+                getPlayer(packet.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
+                        connection.sendPacket(new RelationshipPacket.Response(packet.requestId(), relationship.convertToRecord()), input.from()));
             }
         });
     }
@@ -95,17 +106,16 @@ public class Controller {
     /**
      * Sends the given players to the instance.
      * If the players are trying to join a game, it will also send the game they are willing/trying to join.
-     *
-     * @param players     the players
+     * @param players the players
      * @param destination the instance id
-     * @param gameId      the game id
+     * @param gameId the game id
      */
     private void sendToInstance(Set<ControllerPlayer> players, String destination, Long gameId) {
         if(destination == null || players.isEmpty()) return;
         PlayerRecord[] records = new PlayerRecord[players.size()];
         int index = 0;
         // Build state change
-        String stateName = gameId == null ? LanePlayerState.INSTANCE_JOIN : LanePlayerState.GAME_JOIN;
+        String stateName = gameId == null ? LanePlayerState.INSTANCE_TRANSFER : LanePlayerState.GAME_TRANSFER;
         HashSet<ControllerStateProperty> properties = new HashSet<>();
         properties.add(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, destination));
         if(gameId != null) properties.add(new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId));
@@ -124,26 +134,24 @@ public class Controller {
     /**
      * A player is willing/trying to join an instance.
      * This will send the data to the respective instance, and teleport the player to there.
-     *
-     * @param player      the player
+     * @param player the player
      * @param destination the instance id
      */
     public void joinInstance(UUID player, String destination) {
-        if(player == null || destination == null) return;
-        // TODO Do we maybe want a feature that checks whether there is room left on an instance?
-        getPlayer(player).ifPresent(current -> {
-            HashSet<ControllerPlayer> players = new HashSet<>();
-            players.add(current);
-            sendToInstance(players, destination, null);
-        });
+       if(player == null || destination == null) return;
+       // TODO Do we maybe want a feature that checks whether there is room left on an instance?
+       getPlayer(player).ifPresent(current -> {
+           HashSet<ControllerPlayer> players = new HashSet<>();
+           players.add(current);
+           sendToInstance(players, destination, null);
+       });
         // TODO Why not return the end state? Either in return, asyned consumer, or future?
     }
 
     /**
      * A party is willing/trying to join an instance.
      * This will send the data to the respective instance, and teleport the players to there.
-     *
-     * @param partyId     the party's id
+     * @param partyId the party's id
      * @param destination the instance id
      */
     public void joinInstance(long partyId, String destination) {
@@ -164,7 +172,6 @@ public class Controller {
      * When it is joinable, it will check whether the player has a party, and is the party owner.
      * In that case it will join the whole party, otherwise only the player.
      * Joining meaning: send the respective data and transfer player(s)
-     *
      * @param player the player
      * @param gameId the game id
      */
@@ -188,9 +195,8 @@ public class Controller {
      * A party is willing/trying to join a game on an instance.
      * This will first check whether the game is joinable at the current moment.
      * When it is joinable, it will send the respective data and transfer the party to there.
-     *
      * @param partyId the party's id
-     * @param gameId  the game id
+     * @param gameId the game id
      */
     public void joinGame(long partyId, long gameId) {
         getGame(gameId).ifPresent(game -> {
@@ -212,18 +218,14 @@ public class Controller {
     }
 
 
+
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.remove(controllerPlayer.getUuid());
+        players.remove(controllerPlayer);
     }
 
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         controllerParty.sendRequest(invited);
-    }
-
-    public void disbandParty(ControllerParty party) {
-        parties.remove(party.getId());
-        party.disband();
     }
 
     public Collection<ControllerPlayer> getPlayers() {
@@ -257,6 +259,4 @@ public class Controller {
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     }
-
-
 }

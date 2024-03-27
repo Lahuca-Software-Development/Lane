@@ -1,8 +1,11 @@
 package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
-import com.lahuca.lane.connection.ResponsePacket;
+import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.RelationshipRecord;
+
+import java.util.UUID;
 
 /**
  * @author _Neko1
@@ -10,7 +13,7 @@ import com.lahuca.lane.records.RelationshipRecord;
  **/
 public class RelationshipPacket {
 
-    public record Request(long requestId, long relationshipId) implements Packet {
+    public record Request(long requestId, long relationshipId) implements RequestPacket {
 
         public static final String packetId = "requestRelationship";
 
@@ -22,6 +25,12 @@ public class RelationshipPacket {
         public String getPacketId() {
             return packetId;
         }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
     }
 
     public record Response(long requestId, RelationshipRecord relationshipRecord) implements ResponsePacket<RelationshipRecord> {
@@ -31,7 +40,6 @@ public class RelationshipPacket {
         static {
             Packet.registerPacket(packetId, RelationshipPacket.Response.class);
         }
-
 
         @Override
         public String getPacketId() {

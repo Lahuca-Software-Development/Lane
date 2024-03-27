@@ -25,6 +25,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public class LaneInstanceSpigot extends JavaPlugin {
 
@@ -50,9 +51,13 @@ public class LaneInstanceSpigot extends JavaPlugin {
 		}
 	}
 
+	public Optional<Implementation> impl() {
+		return Optional.ofNullable(implementation);
+	}
+
 	@EventHandler
 	public void onJoin(PlayerJoinEvent event) {
-
+		impl().ifPresent(impl -> impl.joinInstance(event.getPlayer().getUniqueId()));
 	}
 
 	public static class Implementation extends LaneInstance {

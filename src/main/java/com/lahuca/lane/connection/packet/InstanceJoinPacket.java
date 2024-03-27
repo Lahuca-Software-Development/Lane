@@ -16,16 +16,17 @@
 package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
 /**
- * A packet that tells an instance that the given players are joining the instance.
- * If the game ID is not null, the players are meant to join the given game. Otherwise a global lobby.
- * If the game has the possibility, the players should be grouped together if applicable.
- * @param players the players to join the instance
+ * A packet that tells an instance that the given player is joining the instance.
+ * If the game ID is not null, the player is meant to join the given game. Otherwise, a global lobby.
+ * If the game has the possibility, the player should be grouped together if applicable.
+ * @param player the player to join the instance
  * @param gameId the game id to join, null if only joining the instance
  */
-public record InstanceJoinPacket(PlayerRecord[] players, Long gameId) implements Packet {
+public record InstanceJoinPacket(long requestId, PlayerRecord player, Long gameId) implements RequestPacket {
 
 	public static final String packetId = "instanceJoin";
 
@@ -36,6 +37,11 @@ public record InstanceJoinPacket(PlayerRecord[] players, Long gameId) implements
 	@Override
 	public String getPacketId() {
 		return packetId;
+	}
+
+	@Override
+	public long getRequestId() {
+		return requestId;
 	}
 
 }
