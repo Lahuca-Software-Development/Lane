@@ -16,9 +16,12 @@
 package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.RequestHandler;
+import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
+import com.lahuca.lane.connection.request.SimpleResultPacket;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
@@ -45,25 +48,43 @@ public abstract class LaneInstance extends RequestHandler {
 	private final HashMap<Long, LaneGame> games = new HashMap<>();
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
-    private int maxPlayers; // Maximum players on this instance, negative = unlimited
 
-    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable, int maxPlayers) throws IOException {
+    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
 		instance = this;
 		this.connection = connection;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
-        this.maxPlayers = maxPlayers;
 		connection.initialise(input -> {
-            if(input.packet() instanceof InstanceJoinPacket join) {
-                // TODO Also check if the instance is joinable
-                if(!games.containsKey(join.gameId())) {
-                    // TODO What to do now? The game they are being transferred to, is not active on this instance
+            if(input.packet() instanceof InstanceJoinPacket packet) {
+                if(!isJoinable()) {
+                    sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
+                    return;
                 }
-                for(PlayerRecord record : join.players()) {
-                    getInstancePlayer(record.uuid()).ifPresentOrElse(
+                // TODO Find if slot, also when the max players which has been reserved is met
+                if(!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
+                    sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                    return;
+                }
+                if(packet.gameId() != null) {
+                    Optional<LaneGame> instanceGame = getInstanceGame(packet.gameId());
+                    if(instanceGame.isEmpty()) {
+                        sendSimpleResult(packet, ResponsePacket.INVALID_GAME);
+                        return;
+                    }
+                    LaneGame game = instanceGame.get();
+                    GameState state = game.getGameState();
+                    if(!state.isJoinable()) {
+                        sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
+                        return;
+                    }
+                    // TODO What about max players in a game?
+                }
+                // We are here, so we can apply it.
+                PlayerRecord record = packet.player();
+                getInstancePlayer(record.uuid()).ifPresentOrElse(
                             player -> player.applyRecord(record),
                             () -> players.put(record.uuid(), new InstancePlayer(record)));
-                }
+                sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Object> request = getRequests().get(response.getRequestId());
                 if(request != null) {
@@ -98,17 +119,24 @@ public abstract class LaneInstance extends RequestHandler {
         sendInstanceStatus();
     }
 
-    public int getMaxPlayers() {
-        return maxPlayers;
+    public abstract int getCurrentPlayers();
+
+    public abstract int getMaxPlayers();
+
+    private void sendController(Packet packet) {
+        connection.sendPacket(packet, null);
     }
 
-    public void setMaxPlayers(int maxPlayers) {
-        this.maxPlayers = maxPlayers;
-        sendInstanceStatus();
+    private void sendSimpleResult(long requestId, String result) {
+        sendController(new SimpleResultPacket(requestId, result));
+    }
+
+    private void sendSimpleResult(RequestPacket request, String result) {
+        sendSimpleResult(request.getRequestId(), result);
     }
 
     private void sendInstanceStatus() {
-        connection.sendPacket(new InstanceStatusUpdatePacket(joinable, nonPlayable), null);
+        sendController(new InstanceStatusUpdatePacket(joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers()));
     }
 
     public Optional<InstancePlayer> getInstancePlayer(UUID player) {

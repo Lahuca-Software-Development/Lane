@@ -21,26 +21,52 @@ import java.util.function.Function;
 
 public class RequestHandler {
 
-    private final HashMap<Long, CompletableFuture<Object>> requests = new HashMap<>(); // TODO Make cachable, for lost requests
+    private final HashMap<Long, CompletableFuture<Result<?>>> requests = new HashMap<>(); // TODO Make cachable, for lost requests
 
     // TODO Do the request function in here.
 
     /**
      * Build request future, which will also be added to the requests.
-     * The object will be cast to the correct type as provided by the given function.
+     * The object of the result will be cast to the correct type as provided by the given function.
      * @param id the request ID
      * @param converter the converter that maps immediately casts any object to the given type
-     * @return the return completable future
+     * @return the return completable future with the result
      * @param <T> the object type to convert to
      */
-    protected  <T> CompletableFuture<T> buildFuture(long id, Function<Object, T> converter) {
-        CompletableFuture<Object> future = new CompletableFuture<>();
+    protected <T> CompletableFuture<Result<T>> buildFuture(long id, Function<Result<?>, Result<T>> converter) {
+        CompletableFuture<Result<?>> future = new CompletableFuture<>();
         requests.put(id, future);
         return future.thenApply(converter);
     }
 
-    protected HashMap<Long, CompletableFuture<Object>> getRequests() {
+    /**
+     * Build request future, which will also be added to the requests.
+     * The result only consists of the result state not any data
+     * @param id the request ID
+     * @return the return completable future
+     */
+    protected CompletableFuture<Result<Void>> buildVoidFuture(long id) {
+        return buildFuture(id, result -> new Result<>(result.result()));
+    }
+
+    protected long getNewRequestId() {
+        long id;
+        do {
+            id = System.currentTimeMillis();
+        } while(requests.containsKey(id));
+        return id;
+    }
+
+    protected HashMap<Long, CompletableFuture<Result<?>>> getRequests() {
         return requests;
+    }
+
+    protected Result<Void> simpleResult(String result) {
+        return new Result<>(result);
+    }
+
+    protected CompletableFuture<Result<Void>> simpleFuture(String result) {
+        return CompletableFuture.completedFuture(new Result<>(result));
     }
 
 }

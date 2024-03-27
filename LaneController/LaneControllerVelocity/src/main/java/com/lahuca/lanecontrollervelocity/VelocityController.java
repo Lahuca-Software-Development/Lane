@@ -19,6 +19,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.inject.Inject;
 import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.request.ResponsePacket;
+import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerImplementation;
@@ -27,10 +29,12 @@ import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.ProxyServer;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 @Plugin(id = "lanecontrollervelocity", name = "Lane Controller Velocity", version = "1.0",
@@ -94,15 +98,34 @@ public class VelocityController {
         }
 
         @Override
-        public void joinServer(UUID uuid, String destination) {
-            server.getPlayer(uuid).ifPresent(player -> server.getServer(destination).ifPresent(server -> {
-                player.getCurrentServer().ifPresentOrElse(playerServer -> {
-                    if(!playerServer.getServerInfo().getName().equals(server.getServerInfo().getName())) {
-                        player.createConnectionRequest(server).fireAndForget();
-                    }
-                }, () -> player.createConnectionRequest(server).fireAndForget());
-            }));
-            // TODO Rather than fireAndForget(), retrieve a different state? Maybe connection errors?
+        public CompletableFuture<Result<Void>> joinServer(UUID uuid, String destination) {
+            CompletableFuture<Result<Void>> future = new CompletableFuture<>();
+            // Fetch player
+            server.getPlayer(uuid).ifPresentOrElse(player -> {
+                // Fetch instance
+                server.getServer(destination).ifPresentOrElse(instance -> {
+                    // Do connection request
+                    player.createConnectionRequest(instance).connect().whenComplete((result, ex) -> {
+                        if(ex != null) {
+                           future.completeExceptionally(ex);
+                        }
+                        // Transfer result
+                        if(result.getStatus() == ConnectionRequestBuilder.Status.SUCCESS
+                                || result.getStatus() == ConnectionRequestBuilder.Status.ALREADY_CONNECTED) {
+                            future.complete(new Result<>(ResponsePacket.OK));
+                        } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_IN_PROGRESS) {
+                            future.complete(new Result<>(ResponsePacket.CONNECTION_IN_PROGRESS));
+                        } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_CANCELLED) {
+                            future.complete(new Result<>(ResponsePacket.CONNECTION_CANCELLED));
+                        } else if(result.getStatus() == ConnectionRequestBuilder.Status.SERVER_DISCONNECTED) {
+                            future.complete(new Result<>(ResponsePacket.CONNECTION_DISCONNECTED));
+                        } else {
+                            future.complete(new Result<>(ResponsePacket.UNKNOWN));
+                        }
+                    });
+                }, () -> future.complete(new Result<>(ResponsePacket.INVALID_ID)));
+            }, () -> future.complete(new Result<>(ResponsePacket.INVALID_PLAYER)));
+            return future;
         }
 
     }
