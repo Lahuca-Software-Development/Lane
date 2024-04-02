@@ -22,6 +22,7 @@ import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.LaneInstance;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -61,6 +62,11 @@ public class LaneInstanceSpigot extends JavaPlugin {
 	@EventHandler
 	public void onJoin(PlayerJoinEvent event) {
 		impl().ifPresent(impl -> impl.joinInstance(event.getPlayer().getUniqueId()));
+	}
+
+	@EventHandler
+	public void onQuit(PlayerQuitEvent event) {
+		impl().ifPresent(impl -> impl.quitInstance(event.getPlayer().getUniqueId()));
 	}
 
 	public class Implementation extends LaneInstance {

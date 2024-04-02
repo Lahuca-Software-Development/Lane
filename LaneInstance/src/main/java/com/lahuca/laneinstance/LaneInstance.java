@@ -163,6 +163,30 @@ public abstract class LaneInstance extends RequestHandler {
         });
     }
 
+    /**
+     * Sets that the given player is leaving the current server, only works for players on this instance.
+     * If the player is on this server, will remove its data and call the correct functions.
+     * @param uuid
+     */
+    public void quitInstance(UUID uuid) {
+        getInstancePlayer(uuid).ifPresent(player -> {
+            quitGame(uuid);
+
+        });
+    }
+
+    /**
+     * Sets that the given player is quitting its game, only works for players on this instance.
+     * @param uuid the player's uuid
+     */
+    public void quitGame(UUID uuid) {
+        getInstancePlayer(uuid).ifPresent(player -> player.getGameId().ifPresent(gameId ->
+                getInstanceGame(gameId).ifPresent(game -> {
+                    game.onQuit(player);
+                    // TODO Remove player actually from player list in the game
+        })));
+    }
+
 	public CompletableFuture<Result<Void>> registerGame(LaneGame game) {
         if(game == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
 		if(games.containsKey(game.getGameId())) return simpleFuture(ResponsePacket.INVALID_ID);

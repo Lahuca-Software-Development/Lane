@@ -22,6 +22,8 @@ public abstract class LaneGame extends GameInfo {
 	}
 
 	public abstract void onStartup();
+	public abstract void onShutdown();
 	public abstract void onJoin(InstancePlayer instancePlayer);
+	public abstract void onQuit(InstancePlayer instancePlayer);
 
 }
