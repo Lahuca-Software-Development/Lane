@@ -63,9 +63,16 @@ public class Controller extends RequestHandler {
 					games.put(packet.gameId(),
 							new ControllerGame(packet.gameId(), input.from(),
                                     packet.name(), initialState));
+                    connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
 					return;
 				}
+                ControllerGame game = games.get(packet.gameId());
+                if(!game.getServerId().equals(input.from())) {
+                    connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                    return;
+                }
 				games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
+                connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
             } else if(input.packet() instanceof ResponsePacket<?> response) {
