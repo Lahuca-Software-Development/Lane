@@ -52,6 +52,11 @@ public class PartyPacket {
         }
 
         @Override
+        public String getResult() {
+            return null;
+        }
+
+        @Override
         public PartyRecord getData() {
             return partyRecord;
         }

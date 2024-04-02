@@ -23,8 +23,6 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
-import com.lahuca.lane.connection.request.SimpleResultPacket;
-import com.lahuca.lane.records.PlayerRecord;
 
 import java.io.IOException;
 import java.util.*;
@@ -80,8 +78,7 @@ public class Controller extends RequestHandler {
             } else if(iPacket instanceof PartyPacket.Request packet) {
                 getParty(packet.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(packet.requestId(), party.convertToRecord()), input.from()));
             } else if(iPacket instanceof RelationshipPacket.Request packet) {
-                getPlayer(packet.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
-                        connection.sendPacket(new RelationshipPacket.Response(packet.requestId(), relationship.convertToRecord()), input.from()));
+                getRelationship(packet.relationshipId()).ifPresent(relationship -> connection.sendPacket(new RelationshipPacket.Response(packet.requestId(), relationship.convertToRecord()), input.from()));
             }
         });
     }
@@ -320,12 +317,19 @@ public class Controller extends RequestHandler {
 
 
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.remove(controllerPlayer);
+        players.remove(controllerPlayer.getUuid());
     }
 
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         controllerParty.sendRequest(invited);
+    }
+
+    public void createRelationship(ControllerPlayer... players) {
+        long id = System.currentTimeMillis();
+        Set<UUID> uuids = new HashSet<>();
+        Arrays.stream(players).forEach(controllerPlayer -> uuids.add(controllerPlayer.getUuid()));
+        relationships.put(id, new ControllerRelationship(id, uuids));
     }
 
     public Collection<ControllerPlayer> getPlayers() {
@@ -359,5 +363,4 @@ public class Controller extends RequestHandler {
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     }
-
 }

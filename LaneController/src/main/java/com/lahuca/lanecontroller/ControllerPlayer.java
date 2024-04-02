@@ -34,13 +34,18 @@ public class ControllerPlayer implements LanePlayer {
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
-    private final Set<Long> relationshipIds = new HashSet<>();
+    private final Set<Long> relationships = new HashSet<>();
 
     public ControllerPlayer(UUID uuid, String name, String displayName, String language) {
         this.uuid = uuid;
         this.name = name;
         this.displayName = displayName;
         this.language = language;
+    }
+
+    @Override
+    public Set<Long> getRelationships() {
+        return relationships;
     }
 
     @Override
@@ -103,20 +108,11 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     public void addRelationship(Long id) {
-        relationshipIds.add(id);
+        relationships.add(id);
     }
 
     public void removeRelationship(Long id) {
-        relationshipIds.remove(id);
-    }
-
-    /**
-     * Gets set with all player's relationships
-     *
-     * @return Set with relationships ids
-     */
-    public Set<Long> getRelationshipIds() {
-        return relationshipIds;
+        relationships.remove(id);
     }
 
     /**

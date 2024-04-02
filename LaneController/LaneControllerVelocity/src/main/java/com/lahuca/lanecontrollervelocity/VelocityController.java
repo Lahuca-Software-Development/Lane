@@ -68,8 +68,6 @@ public class VelocityController {
 
         server.getCommandManager().register("friends", new FriendCommand(), "f", "friend");
         server.getCommandManager().register("party", new PartyCommand(), "p");
-
-        logger.info("Hello there! I made my first plugin with Velocity.");
     }
 
     @Subscribe
