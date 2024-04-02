@@ -18,10 +18,7 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
-import com.lahuca.lane.connection.request.RequestHandler;
-import com.lahuca.lane.connection.request.RequestPacket;
-import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.SimpleResultPacket;
+import com.lahuca.lane.connection.request.*;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
@@ -60,7 +57,7 @@ public abstract class LaneInstance extends RequestHandler {
                     sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
                     return;
                 }
-                // TODO Find if slot, also when the max players which has been reserved is met
+                // TODO Find if slot, also when the max players which has been RESERVED is met
                 if(!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
                     sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                     return;
@@ -68,7 +65,7 @@ public abstract class LaneInstance extends RequestHandler {
                 if(packet.gameId() != null) {
                     Optional<LaneGame> instanceGame = getInstanceGame(packet.gameId());
                     if(instanceGame.isEmpty()) {
-                        sendSimpleResult(packet, ResponsePacket.INVALID_GAME);
+                        sendSimpleResult(packet, ResponsePacket.INVALID_ID);
                         return;
                     }
                     LaneGame game = instanceGame.get();
@@ -86,14 +83,14 @@ public abstract class LaneInstance extends RequestHandler {
                             () -> players.put(record.uuid(), new InstancePlayer(record)));
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof ResponsePacket<?> response) {
-                CompletableFuture<Object> request = getRequests().get(response.getRequestId());
+                CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
                 if(request != null) {
                     // TODO How could it happen that the request is null?
-                    request.complete(response.getData());
+                    request.complete(response.transformResult());
                     getRequests().remove(response.getRequestId());
                 }
             }
-		});
+        });
         sendInstanceStatus();
 	}
 
@@ -162,15 +159,24 @@ public abstract class LaneInstance extends RequestHandler {
             // TODO Transfer player to the lobby of this instance, if it is joinable. Change the player's state!
         }), () -> {
             // TODO What odd? We have not received the packet with the information about the player.
+            // TODO If is allowed by isJoinable and if slots left, move to instance lobby, otherwise send away.
         });
     }
 
-	public void registerGame(LaneGame game) {
-		if(games.containsKey(game.getGameId())) return; // TODO Already a game with said id on this server.
-        // TODO Check whether there is a game on the controller with the given ID.
+	public CompletableFuture<Result<Void>> registerGame(LaneGame game) {
+        if(game == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
+		if(games.containsKey(game.getGameId())) return simpleFuture(ResponsePacket.INVALID_ID);
 		games.put(game.getGameId(), game);
+        long requestId = getNewRequestId();
+        CompletableFuture<Result<Void>> future = buildVoidFuture(requestId).thenApply(result -> {
+            if(!result.isSuccesful()) {
+                games.remove(game.getGameId());
+            }
+            return result;
+        });
 		connection.sendPacket(
-				new GameStatusUpdatePacket(game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);
+				new GameStatusUpdatePacket(requestId, game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);
+        return future;
 	}
 
     public CompletableFuture<RelationshipRecord> getRelationship(long relationshipId) {
