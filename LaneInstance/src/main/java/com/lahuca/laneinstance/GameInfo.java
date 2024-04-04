@@ -39,6 +39,10 @@ public class GameInfo {
 		return name;
 	}
 
+	public void setGameState(GameState gameState) {
+		this.gameState = gameState;
+	}
+
 	public GameState getGameState() {
 		return gameState;
 	}
