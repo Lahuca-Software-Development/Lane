@@ -19,19 +19,19 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
-import com.lahuca.lane.connection.packet.GameStatusUpdatePacket;
-import com.lahuca.lane.connection.packet.InstanceJoinPacket;
-import com.lahuca.lane.connection.packet.PartyPacket;
-import com.lahuca.lane.connection.packet.RelationshipPacket;
-import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lane.connection.packet.*;
+import com.lahuca.lane.connection.request.RequestHandler;
+import com.lahuca.lane.connection.request.ResponsePacket;
+import com.lahuca.lane.connection.request.Result;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * This is the main class for operations on the controller side of the Lane system.
  */
-public class Controller {
+public class Controller extends RequestHandler {
 
     private static Controller instance;
 
@@ -45,6 +45,9 @@ public class Controller {
     private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
     private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
+    private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
+    private final HashMap<Long, ControllerRelationship> relationships = new HashMap<>();
+
 
     public Controller(Connection connection, ControllerImplementation implementation) throws IOException {
         instance = this;
@@ -52,22 +55,30 @@ public class Controller {
         this.implementation = implementation;
 
         connection.initialise(input -> {
-            Packet packet = input.packet();
-            if(packet instanceof GameStatusUpdatePacket gameStatusUpdate) {
-                if(!games.containsKey(gameStatusUpdate.gameId())) {
+            Packet iPacket = input.packet();
+            if(iPacket instanceof GameStatusUpdatePacket packet) {
+                if(!games.containsKey(packet.gameId())) {
                     // A new game has been created, yeey!
-                    ControllerGameState initialState = new ControllerGameState(gameStatusUpdate.state());
-					games.put(gameStatusUpdate.gameId(),
-							new ControllerGame(gameStatusUpdate.gameId(), input.from(),
-									gameStatusUpdate.name(), initialState));
+                    ControllerGameState initialState = new ControllerGameState(packet.state());
+					games.put(packet.gameId(),
+							new ControllerGame(packet.gameId(), input.from(),
+                                    packet.name(), initialState));
 					return;
 				}
-				games.get(gameStatusUpdate.gameId()).update(input.from(), gameStatusUpdate.name(), gameStatusUpdate.state());
-            } else if(packet instanceof PartyPacket.Request requestPacket) {
-                getParty(requestPacket.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(requestPacket.requestId(), party.convertToRecord()), input.from()));
-            } else if(packet instanceof RelationshipPacket.Request requestPacket) {
-                getPlayer(requestPacket.playerId()).flatMap(ControllerPlayer::getRelationship).ifPresent(relationship ->
-                        connection.sendPacket(new RelationshipPacket.Response(requestPacket.requestId(), relationship.convertToRecord()), input.from()));
+				games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
+            } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
+                createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
+            } else if(input.packet() instanceof ResponsePacket<?> response) {
+                CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
+                if(request != null) {
+                    // TODO How could it happen that the request is null?
+                    request.complete(response.transformResult());
+                    getRequests().remove(response.getRequestId());
+                }
+            } else if(iPacket instanceof PartyPacket.Request packet) {
+                getParty(packet.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(packet.requestId(), party.convertToRecord()), input.from()));
+            } else if(iPacket instanceof RelationshipPacket.Request packet) {
+                getRelationship(packet.relationshipId()).ifPresent(relationship -> connection.sendPacket(new RelationshipPacket.Response(packet.requestId(), relationship.convertToRecord()), input.from()));
             }
         });
     }
@@ -78,6 +89,15 @@ public class Controller {
 
     public ControllerImplementation getImplementation() {
         return implementation;
+    }
+
+    private ControllerLaneInstance createGetInstance(String id) {
+        if(!instances.containsKey(id)) return instances.put(id, new ControllerLaneInstance(id));
+        return instances.get(id);
+    }
+
+    private Optional<ControllerLaneInstance> getInstance(String id) {
+        return Optional.ofNullable(instances.get(id));
     }
 
     public void registerPlayer(ControllerPlayer player) {
@@ -97,25 +117,95 @@ public class Controller {
      * @param destination the instance id
      * @param gameId the game id
      */
-    private void sendToInstance(Set<ControllerPlayer> players, String destination, Long gameId) {
-        if(destination == null || players.isEmpty()) return;
-        PlayerRecord[] records = new PlayerRecord[players.size()];
-        int index = 0;
-        // Build state change
-        String stateName = gameId == null ? LanePlayerState.INSTANCE_JOIN : LanePlayerState.GAME_JOIN;
-        HashSet<ControllerStateProperty> properties = new HashSet<>();
-        properties.add(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, destination));
-        if(gameId != null) properties.add(new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId));
-        ControllerPlayerState state = new ControllerPlayerState(stateName, properties);
-        // Set state, fetch records
-        for(ControllerPlayer player : players) {
-            player.setState(state);
-            records[index] = player.convertRecord();
-            index++;
-        }
-        // Send data to instance, join player
-        connection.sendPacket(new InstanceJoinPacket(records, gameId), destination);
-        players.forEach(player -> implementation.joinServer(player.getUuid(), destination));
+    private CompletableFuture<Result<Void>> sendToInstance(Set<ControllerPlayer> players, String destination, Long gameId) {
+        // Check whether the input parameters are correct
+        if(destination == null || players.isEmpty()) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
+        CompletableFuture<Result<Void>> future = new CompletableFuture<>();
+        // Check if we have a party and instance with the given IDs
+        getInstance(destination).ifPresentOrElse(instance -> {
+            // Check whether the instance allows the party to join
+            if(!instance.isJoinable()) {
+                future.complete(simpleResult(ResponsePacket.NOT_JOINABLE));
+                return;
+            }
+            // TODO party.getPlayers() might contain offline players
+            if(instance.getCurrentPlayers() + players.size() > instance.getMaxPlayers()) { // TODO Add override
+                // TODO Maybe partially tp party
+                future.complete(simpleResult(ResponsePacket.NO_FREE_SLOTS));
+                return;
+            }
+            // First try to reservate spots for the players
+            String stateName = gameId == null ? LanePlayerState.INSTANCE_TRANSFER : LanePlayerState.GAME_TRANSFER;
+            HashSet<ControllerStateProperty> parameters = new HashSet<>();
+            parameters.add(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, destination));
+            if(gameId != null) parameters.add(new ControllerStateProperty(LaneStateProperty.GAME_ID, destination));
+            ControllerPlayerState state = new ControllerPlayerState(stateName, parameters);
+            CompletableFuture<Result<Void>> last = null;
+            for(ControllerPlayer player : players) {
+                player.setState(state);
+                long id = getNewRequestId();
+                CompletableFuture<Result<Void>> result = buildVoidFuture(id);
+                // TODO Override slots boolean! in line below
+                connection.sendPacket(new InstanceJoinPacket(id, player.convertRecord(), false, null), destination);
+                if(last == null) {
+                    last = result;
+                } else {
+                    last = last.thenCombine(result, (first, second) -> {
+                        if(first.isSuccesful()) return second;
+                        return first;
+                    });
+                }
+            }
+            if(last == null) {
+                // Somehow we do not have players in our party, so probably invalid ID.
+                // TODO Undo the join at the instance
+                future.complete(simpleResult(ResponsePacket.INVALID_ID));
+                return;
+            }
+            last.whenComplete((result, ex) -> {
+                if(ex != null) {
+                    future.completeExceptionally(ex);
+                    return;
+                }
+                if(!result.isSuccesful()) {
+                    // Do not send players, cancel join by sending packets
+                    // TODO Undo the join at the instance
+                    future.complete(result);
+                } else {
+                    // The instance allows all joins to happen, so do it
+                    CompletableFuture<Result<Void>> joinLast = null;
+                    for(ControllerPlayer player : players) {
+                        CompletableFuture<Result<Void>> joinResult = implementation.joinServer(player.getUuid(), destination);
+                        if(joinLast == null) {
+                            joinLast = joinResult;
+                        } else {
+                            joinLast = joinLast.thenCombine(joinResult, (first, second) -> {
+                                if(first.result().equals(ResponsePacket.OK)) {
+                                    if(second.result().equals(ResponsePacket.OK)) {
+                                        return simpleResult(ResponsePacket.OK);
+                                    }
+                                    return simpleResult(ResponsePacket.OK_PARTIALLY);
+                                }
+                                if(second.result().equals(ResponsePacket.OK)) {
+                                    return simpleResult(ResponsePacket.OK_PARTIALLY);
+                                }
+                                return first;
+                            });
+                        }
+                    }
+                    if(joinLast == null) {
+                        // Somehow we do not have players in our party, so probably invalid ID.
+                        future.complete(simpleResult(ResponsePacket.INVALID_ID));
+                        return;
+                    }
+                    joinLast.whenComplete((joinResult, joinEx) -> {
+                        if(joinEx == null) future.complete(joinResult);
+                        else future.completeExceptionally(joinEx);
+                    });
+                }
+            });
+        }, () -> future.complete(simpleResult(ResponsePacket.INVALID_ID)));
+        return future;
     }
 
     /**
@@ -123,16 +213,19 @@ public class Controller {
      * This will send the data to the respective instance, and teleport the player to there.
      * @param player the player
      * @param destination the instance id
+     * @return the result of the join
      */
-    public void joinInstance(UUID player, String destination) {
-       if(player == null || destination == null) return;
-       // TODO Do we maybe want a feature that checks whether there is room left on an instance?
-       getPlayer(player).ifPresent(current -> {
-           HashSet<ControllerPlayer> players = new HashSet<>();
-           players.add(current);
-           sendToInstance(players, destination, null);
-       });
-        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+    public CompletableFuture<Result<Void>> joinInstance(UUID player, String destination) {
+        // Check whether the input parameters are correct
+        if(player == null || destination == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
+        CompletableFuture<Result<Void>> future = new CompletableFuture<>();
+        getPlayer(player).ifPresentOrElse(current -> {
+            sendToInstance(Set.of(current), destination, null).whenComplete((result, ex) -> {
+                if(ex == null) future.complete(result);
+                else future.completeExceptionally(ex);
+            });
+        }, () -> future.complete(simpleResult(ResponsePacket.INVALID_ID)));
+        return future;
     }
 
     /**
@@ -140,17 +233,24 @@ public class Controller {
      * This will send the data to the respective instance, and teleport the players to there.
      * @param partyId the party's id
      * @param destination the instance id
+     * @return the result of the join
      */
-    public void joinInstance(long partyId, String destination) {
-        if(destination == null) return;
-        getParty(partyId).ifPresent(party -> {
+    public CompletableFuture<Result<Void>> joinInstance(long partyId, String destination) {
+        // Check whether the input parameters are correct
+        if(destination == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
+        CompletableFuture<Result<Void>> future = new CompletableFuture<>();
+        // Check if we have a party and instance with the given IDs
+        getParty(partyId).ifPresentOrElse(party -> {
             HashSet<ControllerPlayer> players = new HashSet<>();
-            party.getPlayers().forEach(uuid -> getPlayer(uuid).ifPresent(players::add)); // TODO Parties could have offline players
-            if(players.isEmpty()) return;
-            // TODO Do we maybe want a feature that checks whether there is room left on an instance?
-            sendToInstance(players, destination, null);
-        });
-        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+            for(UUID uuid : party.getPlayers()) {
+                getPlayer(uuid).ifPresent(players::add);
+            }
+            sendToInstance(players, destination, null).whenComplete((result, ex) -> {
+                if(ex == null) future.complete(result);
+                else future.completeExceptionally(ex);
+            });
+        }, () -> future.complete(simpleResult(ResponsePacket.INVALID_ID)));
+        return future;
     }
 
     /**
@@ -161,21 +261,27 @@ public class Controller {
      * Joining meaning: send the respective data and transfer player(s)
      * @param player the player
      * @param gameId the game id
+     * @return the result of the join
      */
-    public void joinGame(UUID player, long gameId) {
-        getGame(gameId).ifPresent(game -> {
-            if(game.getServerId() == null || !game.getState().isJoinable()) return;
-            // TODO Check whether there are players left? Maybe in state properties
+    public CompletableFuture<Result<Void>> joinGame(UUID player, long gameId) {
+        CompletableFuture<Result<Void>> future = new CompletableFuture<>();
+        getGame(gameId).ifPresentOrElse(game -> {
+            if(game.getServerId() == null || !game.getState().isJoinable()) {
+                future.complete(simpleResult(ResponsePacket.INVALID_ID));
+                return;
+            }
             getPlayer(player).ifPresent(owner -> {
-                // TODO Do we maybe want a feature that checks whether there is room left on an instance?
-                Runnable withoutParty = () -> sendToInstance(Set.of(owner), game.getServerId(), gameId);
+                Runnable withoutParty = () -> sendToInstance(Set.of(owner), game.getServerId(), gameId).whenComplete((result, ex) -> {
+                    if(ex == null) future.complete(result);
+                    else future.completeExceptionally(ex);
+                });
                 owner.getPartyId().ifPresentOrElse(partyId -> getParty(partyId).ifPresentOrElse(party -> {
                     if(party.getOwner().equals(player)) joinGame(partyId, gameId);
                     else withoutParty.run();
                 }, withoutParty), withoutParty);
             });
-        });
-        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+        }, () -> future.complete(simpleResult(ResponsePacket.INVALID_ID)));
+        return future;
     }
 
     /**
@@ -184,20 +290,25 @@ public class Controller {
      * When it is joinable, it will send the respective data and transfer the party to there.
      * @param partyId the party's id
      * @param gameId the game id
+     * @return the result of the join
      */
-    public void joinGame(long partyId, long gameId) {
+    public CompletableFuture<Result<Void>> joinGame(long partyId, long gameId) {
+        CompletableFuture<Result<Void>> future = new CompletableFuture<>();
         getGame(gameId).ifPresent(game -> {
-            if(game.getServerId() == null || !game.getState().isJoinable()) return;
-            // TODO Check whether there are players left? Maybe in state properties
+            if(game.getServerId() == null || !game.getState().isJoinable()) {
+                future.complete(simpleResult(ResponsePacket.INVALID_ID));
+                return;
+            }
             getParty(partyId).ifPresent(party -> {
                 HashSet<ControllerPlayer> players = new HashSet<>();
-                party.getPlayers().forEach(uuid -> getPlayer(uuid).ifPresent(players::add)); // TODO Parties could have offline players
-                if(players.isEmpty()) return;
-                // TODO Do we maybe want a feature that checks whether there is room left on an instance?
-                sendToInstance(players, game.getServerId(), gameId);
+                party.getPlayers().forEach(uuid -> getPlayer(uuid).ifPresent(players::add));
+                sendToInstance(players, game.getServerId(), gameId).whenComplete((result, ex) -> {
+                    if(ex == null) future.complete(result);
+                    else future.completeExceptionally(ex);
+                });
             });
         });
-        // TODO Why not return the end state? Either in return, asyned consumer, or future?
+        return future;
     }
 
     public void endGame(long id) { // TODO Check
@@ -205,14 +316,20 @@ public class Controller {
     }
 
 
-
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.remove(controllerPlayer);
+        players.remove(controllerPlayer.getUuid());
     }
 
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         controllerParty.sendRequest(invited);
+    }
+
+    public void createRelationship(ControllerPlayer... players) {
+        long id = System.currentTimeMillis();
+        Set<UUID> uuids = new HashSet<>();
+        Arrays.stream(players).forEach(controllerPlayer -> uuids.add(controllerPlayer.getUuid()));
+        relationships.put(id, new ControllerRelationship(id, uuids));
     }
 
     public Collection<ControllerPlayer> getPlayers() {
@@ -231,6 +348,10 @@ public class Controller {
         return parties.values();
     }
 
+    public Optional<ControllerRelationship> getRelationship(long id) {
+        return Optional.ofNullable(relationships.get(id));
+    }
+
     public Optional<ControllerParty> getParty(long id) {
         return Optional.ofNullable(parties.get(id));
     }
@@ -242,7 +363,4 @@ public class Controller {
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     }
-
-
-
 }

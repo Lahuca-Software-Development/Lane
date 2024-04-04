@@ -19,7 +19,9 @@ import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.records.PlayerRecord;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public class ControllerPlayer implements LanePlayer {
@@ -32,12 +34,18 @@ public class ControllerPlayer implements LanePlayer {
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
+    private final Set<Long> relationships = new HashSet<>();
 
     public ControllerPlayer(UUID uuid, String name, String displayName, String language) {
         this.uuid = uuid;
         this.name = name;
         this.displayName = displayName;
         this.language = language;
+    }
+
+    @Override
+    public Set<Long> getRelationships() {
+        return relationships;
     }
 
     @Override
@@ -99,14 +107,22 @@ public class ControllerPlayer implements LanePlayer {
         this.state = state;
     }
 
+    public void addRelationship(Long id) {
+        relationships.add(id);
+    }
+
+    public void removeRelationship(Long id) {
+        relationships.remove(id);
+    }
+
     /**
      * Sets the party associated with this controller.
      *
-     * @param controllerParty The ControllerParty to be set.
+     * @param partyId The partyId to be set.
      */
-    public void setParty(ControllerParty controllerParty) {
+    public void setParty(long partyId) {
         // TODO Simple setter? Maybe packet send needed?
-        this.controllerParty = controllerParty;
+        this.partyId = partyId;
     }
 
     public void setGameId(long gameId) {
@@ -132,4 +148,12 @@ public class ControllerPlayer implements LanePlayer {
         partyId = record.partyId();
     }
 
+    public void load() {
+        //TODO load relationship data
+    }
+
+    public void save() {
+        //TODO save relationship data
+
+    }
 }

@@ -15,20 +15,20 @@
  */
 package com.lahuca.laneinstance;
 
-import java.util.Set;
+import java.util.HashSet;
+import java.util.UUID;
 
 public class GameInfo {
 
 	private final long gameId;
 	private String name;
 	private GameState gameState;
-	private Set<InstancePlayer> players;
+	private final HashSet<UUID> players = new HashSet<>();
 
-	public GameInfo(long gameId, String name, GameState gameState, Set<InstancePlayer> players) {
+	public GameInfo(long gameId, String name, GameState gameState) {
 		this.gameId = gameId;
 		this.name = name;
 		this.gameState = gameState;
-		this.players = players;
 	}
 
 	public long getGameId() {
@@ -37,6 +37,10 @@ public class GameInfo {
 
 	public String getName() {
 		return name;
+	}
+
+	public void setGameState(GameState gameState) {
+		this.gameState = gameState;
 	}
 
 	public GameState getGameState() {

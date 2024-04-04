@@ -18,6 +18,7 @@ package com.lahuca.lane;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface LanePlayer extends RecordApplier<PlayerRecord> {
@@ -30,4 +31,5 @@ public interface LanePlayer extends RecordApplier<PlayerRecord> {
 	Optional<Long> getGameId();
 	LanePlayerState getState();
 	Optional<Long> getPartyId();
+	Set<Long> getRelationships();
 }
