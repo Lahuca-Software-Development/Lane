@@ -10,7 +10,7 @@ import com.lahuca.lane.records.GameStateRecord;
 public class ControllerGame {
 
     private final long gameId;
-    private String serverId;
+    private String serverId; // TODO Why not rename it back to instanceId?, maybe final?
     private String name;
     private final ControllerGameState state;
 

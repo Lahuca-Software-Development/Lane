@@ -16,9 +16,10 @@
 package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.records.GameStateRecord;
 
-public record GameStatusUpdatePacket(long gameId, String name, GameStateRecord state) implements Packet {
+public record GameStatusUpdatePacket(long requestId, long gameId, String name, GameStateRecord state) implements RequestPacket {
 
 	public static final String packetId = "gameStatusUpdate";
 
@@ -29,6 +30,11 @@ public record GameStatusUpdatePacket(long gameId, String name, GameStateRecord s
 	@Override
 	public String getPacketId() {
 		return packetId;
+	}
+
+	@Override
+	public long getRequestId() {
+		return requestId;
 	}
 
 }
