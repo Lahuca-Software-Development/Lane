@@ -25,7 +25,7 @@ public class Party implements LaneParty {
     }
 
     @Override
-    public long getPartyId() {
+    public long getId() {
         return partyId;
     }
 
@@ -40,7 +40,7 @@ public class Party implements LaneParty {
     }
 
     @Override
-    public Set<UUID> players() {
+    public Set<UUID> getPlayers() {
         return players;
     }
 }

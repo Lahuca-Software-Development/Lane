@@ -2,6 +2,8 @@ package com.lahuca.lanecontrollervelocity.commands;
 
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerPlayer;
+import com.lahuca.lanecontroller.ControllerRelationship;
+import com.lahuca.lanecontrollervelocity.VelocityController;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 
@@ -53,11 +55,29 @@ public class FriendCommand implements SimpleCommand {
                 return;
             }
 
+            Controller.getInstance().getPlayerByName(args[1]).ifPresentOrElse(f -> {
+                ControllerRelationship relationship = Controller.getInstance().createRelationship(controllerPlayer, f);
+                controllerPlayer.addRelationship(relationship.getId());
+            }, () -> {
+                //TODO send message player is not online?
+            });
         } else if(args[0].equalsIgnoreCase("remove")) {
             if(args.length < 2) {
                 //Send remove help message
                 return;
             }
+
+            VelocityController.getInstance().getServer().getPlayer(args[1]).ifPresentOrElse(friend -> {
+
+                if(!controllerPlayer.hasRelationshipWith(friend.getUniqueId())) {
+                    //TODO send message they are not friends
+                    return;
+                }
+
+                controllerPlayer.removeRelationship(controllerPlayer.getRelationship(friend.getUniqueId()).getId());
+            }, () -> {
+                //TODO send message couldn't find the player
+            });
 
 
         } else if(args[0].equalsIgnoreCase("accept")) {

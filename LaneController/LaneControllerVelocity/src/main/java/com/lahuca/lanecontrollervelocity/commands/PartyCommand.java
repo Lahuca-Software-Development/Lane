@@ -55,16 +55,14 @@ public class PartyCommand implements SimpleCommand {
         }
 
         if(args[0].equalsIgnoreCase("disband")) {
-            runAsPartyLeader(controllerPlayer, party -> {
-                Controller.getInstance().disbandParty(party);
-            });
+            runAsPartyLeader(controllerPlayer, ControllerParty::disband);
         } else if(args[0].equalsIgnoreCase("warp")) {
-            runAsPartyLeader(controllerPlayer, party -> {
-                controllerPlayer.getGameId().flatMap(game -> Controller.getInstance().getGame(game)).ifPresent(gameServer -> {
-                    Controller.getInstance().joinInstance(party.getId(), gameServer.getServerId());//TODO check if its really serverId
-                    //TODO: Send message that party was warped
-                });
-            });
+            runAsPartyLeader(controllerPlayer, party -> controllerPlayer.getGameId()
+                    .flatMap(game -> Controller.getInstance().getGame(game))
+                    .ifPresent(gameServer -> {
+                        Controller.getInstance().joinInstance(party.getId(), gameServer.getServerId());//TODO check if its really serverId
+                        //TODO: Send message that party was warped
+                    }));
         } else if(args[0].equalsIgnoreCase("kick")) {
             if(args.length < 2) {
                 //TODO: send help message
@@ -123,19 +121,17 @@ public class PartyCommand implements SimpleCommand {
 
             String inviter = args[1];
 
-            Controller.getInstance().getPlayerByName(inviter).ifPresentOrElse(controllerInviter -> {
-                getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
-                    if(!party.getInvited().contains(player.getUniqueId())) {
-                        //TODO send message that this player didnt invite him
-                        return;
-                    }
-
-                    party.getInvited().remove(player.getUniqueId());
-                    //TODO: send message that he denied it
-                }, () -> {
+            Controller.getInstance().getPlayerByName(inviter).ifPresentOrElse(controllerInviter -> getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
+                if(!party.getInvited().contains(player.getUniqueId())) {
                     //TODO send message that this player didnt invite him
-                });
+                    return;
+                }
+
+                party.getInvited().remove(player.getUniqueId());
+                //TODO: send message that he denied it
             }, () -> {
+                //TODO send message that this player didnt invite him
+            }), () -> {
                 //TODO: send msg to the player that player is offline
             });
         } else if(args[0].equalsIgnoreCase("leader")) {
