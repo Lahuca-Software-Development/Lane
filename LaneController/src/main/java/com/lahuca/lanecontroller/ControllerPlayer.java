@@ -17,6 +17,7 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.HashSet;
@@ -94,53 +95,43 @@ public class ControllerPlayer implements LanePlayer {
      * @param displayName The new display name to be set.
      */
     public void setDisplayName(String displayName) {
-        // TODO Simple setter? Maybe packet send needed?
         this.displayName = displayName;
+        updateInstancePlayer();
     }
 
     /**
      * Sets the state of the player.
+     *
      * @param state the state
      */
     public void setState(ControllerPlayerState state) {
-        // TODO Simple setter? Maybe packet send needed?
         this.state = state;
     }
 
     public void addRelationship(Long id) {
         relationships.add(id);
-    } // TODO
+        updateInstancePlayer();
+    }
 
     public void removeRelationship(Long id) {
         relationships.remove(id);
-    } // TODO
-
-    /**
-     * Sets the party of the player.
-     * This method is only to be called from the controller, as it sets the variable without any side-effects.
-     * @param partyId the party ID to set
-     */
-    void setPartyByController(Long partyId) {
-        this.partyId = partyId;
+        updateInstancePlayer();
     }
 
     /**
-     * Sets the party associated with this player.
-     * This method is only to be used with the controller, who manages the following:
-     * Also remove player from the party object, send correct player updates.
-     * @param controller the controller
-     * @param partyId the partyId to be set.
+     * Sets the party associated with this controller.
+     *
+     * @param partyId The partyId to be set.
      */
-    public void setParty(long partyId) {
-        // TODO Simple setter? Maybe packet send needed?
+    public void setParty(Long partyId) {
         this.partyId = partyId;
+        updateInstancePlayer();
     }
 
     public void setGameId(long gameId) {
-        // TODO Simple setter? Maybe packet send needed?
         this.gameId = gameId;
+        updateInstancePlayer();
     }
-
 
     @Override
     public PlayerRecord convertRecord() {
@@ -159,12 +150,7 @@ public class ControllerPlayer implements LanePlayer {
         partyId = record.partyId();
     }
 
-    public void load() {
-        //TODO load relationship data
-    }
-
-    public void save() {
-        //TODO save relationship data
-
+    public void updateInstancePlayer() {
+        getInstanceId().ifPresent(instanceId -> Controller.getInstance().getConnection().sendPacket(new InstanceUpdatePlayerPacket(convertRecord()), instanceId));
     }
 }

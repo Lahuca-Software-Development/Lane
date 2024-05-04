@@ -61,18 +61,18 @@ public class Controller extends RequestHandler {
                 if(!games.containsKey(packet.gameId())) {
                     // A new game has been created, yeey!
                     ControllerGameState initialState = new ControllerGameState(packet.state());
-					games.put(packet.gameId(),
-							new ControllerGame(packet.gameId(), input.from(),
+                    games.put(packet.gameId(),
+                            new ControllerGame(packet.gameId(), input.from(),
                                     packet.name(), initialState));
                     connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
-					return;
-				}
+                    return;
+                }
                 ControllerGame game = games.get(packet.gameId());
                 if(!game.getServerId().equals(input.from())) {
                     connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                     return;
                 }
-				games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
+                games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
                 connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
@@ -84,14 +84,21 @@ public class Controller extends RequestHandler {
                     getRequests().remove(response.getRequestId());
                 }
             } else if(iPacket instanceof PartyPacket.Retrieve.Request packet) {
-                getParty(packet.partyId()).ifPresentOrElse(party ->
-                                connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
+                getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+            } else if(iPacket instanceof PartyPacket.Player.Add packet) {
+                getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::addPlayer,
+                                () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                        () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+            } else if(iPacket instanceof PartyPacket.Player.Remove packet) {
+                getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::removePlayer,
+                                () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                        () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof PartyPacket.Disband.Request packet) {
-                // TODO Disband
+                getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
                 getRelationship(packet.relationshipId()).ifPresentOrElse(relationship ->
-                        connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
+                                connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             }
         });
@@ -117,9 +124,10 @@ public class Controller extends RequestHandler {
     /**
      * Sends the given players to the instance.
      * If the players are trying to join a game, it will also send the game they are willing/trying to join.
-     * @param players the players
+     *
+     * @param players     the players
      * @param destination the instance id
-     * @param gameId the game id
+     * @param gameId      the game id
      */
     private CompletableFuture<Result<Void>> sendToInstance(Set<ControllerPlayer> players, String destination, Long gameId) {
         // Check whether the input parameters are correct
@@ -155,7 +163,7 @@ public class Controller extends RequestHandler {
                     last = result;
                 } else {
                     last = last.thenCombine(result, (first, second) -> {
-                        if(first.isSuccesful()) return second;
+                        if(first.isSuccessful()) return second;
                         return first;
                     });
                 }
@@ -171,7 +179,7 @@ public class Controller extends RequestHandler {
                     future.completeExceptionally(ex);
                     return;
                 }
-                if(!result.isSuccesful()) {
+                if(!result.isSuccessful()) {
                     // Do not send players, cancel join by sending packets
                     // TODO Undo the join at the instance
                     future.complete(result);
@@ -215,7 +223,8 @@ public class Controller extends RequestHandler {
     /**
      * A player is willing/trying to join an instance.
      * This will send the data to the respective instance, and teleport the player to there.
-     * @param player the player
+     *
+     * @param player      the player
      * @param destination the instance id
      * @return the result of the join
      */
@@ -235,7 +244,8 @@ public class Controller extends RequestHandler {
     /**
      * A party is willing/trying to join an instance.
      * This will send the data to the respective instance, and teleport the players to there.
-     * @param partyId the party's id
+     *
+     * @param partyId     the party's id
      * @param destination the instance id
      * @return the result of the join
      */
@@ -263,6 +273,7 @@ public class Controller extends RequestHandler {
      * When it is joinable, it will check whether the player has a party, and is the party owner.
      * In that case it will join the whole party, otherwise only the player.
      * Joining meaning: send the respective data and transfer player(s)
+     *
      * @param player the player
      * @param gameId the game id
      * @return the result of the join
@@ -292,8 +303,9 @@ public class Controller extends RequestHandler {
      * A party is willing/trying to join a game on an instance.
      * This will first check whether the game is joinable at the current moment.
      * When it is joinable, it will send the respective data and transfer the party to there.
+     *
      * @param partyId the party's id
-     * @param gameId the game id
+     * @param gameId  the game id
      * @return the result of the join
      */
     public CompletableFuture<Result<Void>> joinGame(long partyId, long gameId) {
@@ -337,17 +349,14 @@ public class Controller extends RequestHandler {
     } // TODO Redo
 
     /**
-     *
      * @param owner
      * @param invited
      */
-    // TODO Redo
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
         if(owner == null || invited == null) return;
         if(owner.getPartyId().isPresent()) return;
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         // TODO Check ID for doubles
-        owner.setPartyByController(controllerParty.getId());
 
         controllerParty.sendRequest(invited);
     }
@@ -355,11 +364,12 @@ public class Controller extends RequestHandler {
     public void disbandParty(ControllerParty party) { // TODO Redo
         if(!parties.containsKey(party.getId())) return;
         parties.remove(party.getId());
+
         for(UUID uuid : party.getPlayers()) {
-            getPlayer(uuid).ifPresent(player -> {
-                player.setParty();
-            });
+            getPlayer(uuid).ifPresent(player -> player.setParty(null));
         }
+
+        party.disband();
     }
 
     public void createRelationship(ControllerPlayer... players) { // TODO Redo

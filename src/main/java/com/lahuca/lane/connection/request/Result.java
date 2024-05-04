@@ -25,7 +25,7 @@ public record Result<T>(String result, T data) {
         this(response.getResult(), response.getData());
     }
 
-    public boolean isSuccesful() {
+    public boolean isSuccessful() {
         return result.equals(ResponsePacket.OK);
     }
 

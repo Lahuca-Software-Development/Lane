@@ -58,8 +58,7 @@ public class RelationshipPacket {
 
         }
 
-        public record Response(long requestId, String result,
-                               RelationshipRecord relationshipRecord) implements ResponsePacket<RelationshipRecord> {
+        public record Response(long requestId, String result, RelationshipRecord relationshipRecord) implements ResponsePacket<RelationshipRecord> {
 
             public static final String packetId = "relationshipRetrieveResponse";
 

@@ -5,6 +5,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -12,6 +13,7 @@ import java.util.UUID;
  * @date 14.03.2024
  **/
 public class InstancePlayer implements LanePlayer {
+
 
     private final UUID uuid;
     private final String name;
