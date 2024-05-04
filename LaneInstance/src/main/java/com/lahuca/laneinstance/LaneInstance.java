@@ -46,7 +46,8 @@ public abstract class LaneInstance extends RequestHandler {
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
 
-    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
+    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+        if(instance != null) throw new InstanceInstantiationException();
         instance = this;
         this.connection = connection;
         this.joinable = joinable;

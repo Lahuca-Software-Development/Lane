@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
+import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -41,8 +42,6 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
     public static final boolean joinable = true;
     public static final boolean nonPlayable = false;
 
-    private Implementation implementation;
-
     @Override
     public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
@@ -53,15 +52,18 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         }
 
         try {
-            implementation = new Implementation(connection, joinable, nonPlayable);
+            new Implementation(connection, joinable, nonPlayable); // TODO We should not be able to instantiate, as this will create multiple
         } catch(IOException e) {
             e.printStackTrace(); // TODO Send message with exception
             getPluginLoader().disablePlugin(this);
+        } catch (InstanceInstantiationException e) {
+            LaneInstance.getInstance().setJoinable(joinable);
+            LaneInstance.getInstance().setNonPlayable(nonPlayable);
         }
     }
 
-    public Optional<Implementation> impl() {
-        return Optional.ofNullable(implementation);
+    public Optional<LaneInstance> impl() {
+        return Optional.ofNullable(LaneInstance.getInstance());
     }
 
     @EventHandler
@@ -76,7 +78,7 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     public class Implementation extends LaneInstance {
 
-        public Implementation(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
+        public Implementation(Connection connection, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
             super(connection, joinable, nonPlayable);
         }
 
