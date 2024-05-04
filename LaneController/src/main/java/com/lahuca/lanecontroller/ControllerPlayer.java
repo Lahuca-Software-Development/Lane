@@ -100,6 +100,7 @@ public class ControllerPlayer implements LanePlayer {
 
     /**
      * Sets the state of the player.
+     *
      * @param state the state
      */
     public void setState(ControllerPlayerState state) {
@@ -129,7 +130,6 @@ public class ControllerPlayer implements LanePlayer {
         // TODO Simple setter? Maybe packet send needed?
         this.gameId = gameId;
     }
-
 
     @Override
     public PlayerRecord convertRecord() {

@@ -5,6 +5,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -21,6 +22,7 @@ public class InstancePlayer implements LanePlayer {
     private Long gameId = null;
     private InstancePlayerState state = null;
     private Long partyId = null;
+    private Set<Long> relationships;
 
     public InstancePlayer(UUID uuid, String name, String displayName) {
         this.uuid = uuid;
@@ -82,6 +84,11 @@ public class InstancePlayer implements LanePlayer {
     @Override
     public Optional<Long> getPartyId() {
         return Optional.ofNullable(partyId);
+    }
+
+    @Override
+    public Set<Long> getRelationships() {
+        return relationships;
     }
 
     @Override

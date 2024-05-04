@@ -34,24 +34,24 @@ import java.util.concurrent.CompletableFuture;
  */
 public abstract class LaneInstance extends RequestHandler {
 
-	private static LaneInstance instance;
+    private static LaneInstance instance;
 
-	public static LaneInstance getInstance() {
-		return instance;
-	}
+    public static LaneInstance getInstance() {
+        return instance;
+    }
 
-	private final Connection connection;
+    private final Connection connection;
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
-	private final HashMap<Long, LaneGame> games = new HashMap<>();
+    private final HashMap<Long, LaneGame> games = new HashMap<>();
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
 
     public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException {
-		instance = this;
-		this.connection = connection;
+        instance = this;
+        this.connection = connection;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
-		connection.initialise(input -> {
+        connection.initialise(input -> {
             if(input.packet() instanceof InstanceJoinPacket packet) {
                 if(!isJoinable()) {
                     sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
@@ -79,8 +79,14 @@ public abstract class LaneInstance extends RequestHandler {
                 // We are here, so we can apply it.
                 PlayerRecord record = packet.player();
                 getInstancePlayer(record.uuid()).ifPresentOrElse(
-                            player -> player.applyRecord(record),
-                            () -> players.put(record.uuid(), new InstancePlayer(record)));
+                        player -> player.applyRecord(record),
+                        () -> players.put(record.uuid(), new InstancePlayer(record)));
+                sendSimpleResult(packet, ResponsePacket.OK);
+            } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
+                PlayerRecord record = packet.playerRecord();
+                getInstancePlayer(record.uuid()).ifPresentOrElse(
+                        player -> player.applyRecord(record),
+                        () -> players.put(record.uuid(), new InstancePlayer(record)));
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
@@ -92,11 +98,11 @@ public abstract class LaneInstance extends RequestHandler {
             }
         });
         sendInstanceStatus();
-	}
+    }
 
-	private Connection getConnection() {
-		return connection;
-	}
+    private Connection getConnection() {
+        return connection;
+    }
 
     public boolean isJoinable() {
         return joinable;
@@ -147,6 +153,7 @@ public abstract class LaneInstance extends RequestHandler {
     /**
      * This method is to be called when a player joins the instance.
      * This will transfer the player to the correct game, if applicable.
+     *
      * @param uuid the player's uuid
      */
     public void joinInstance(UUID uuid) {
@@ -166,42 +173,40 @@ public abstract class LaneInstance extends RequestHandler {
     /**
      * Sets that the given player is leaving the current server, only works for players on this instance.
      * If the player is on this server, will remove its data and call the correct functions.
+     *
      * @param uuid
      */
     public void quitInstance(UUID uuid) {
-        getInstancePlayer(uuid).ifPresent(player -> {
-            quitGame(uuid);
-
-        });
+        getInstancePlayer(uuid).ifPresent(player -> quitGame(uuid));
     }
 
     /**
      * Sets that the given player is quitting its game, only works for players on this instance.
+     *
      * @param uuid the player's uuid
      */
     public void quitGame(UUID uuid) {
-        getInstancePlayer(uuid).ifPresent(player -> player.getGameId().ifPresent(gameId ->
-                getInstanceGame(gameId).ifPresent(game -> {
-                    game.onQuit(player);
-                    // TODO Remove player actually from player list in the game
-        })));
+        getInstancePlayer(uuid).ifPresent(player -> player.getGameId().flatMap(this::getInstanceGame).ifPresent(game -> {
+            game.onQuit(player);
+            // TODO Remove player actually from player list in the game
+        }));
     }
 
-	public CompletableFuture<Result<Void>> registerGame(LaneGame game) {
+    public CompletableFuture<Result<Void>> registerGame(LaneGame game) {
         if(game == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
-		if(games.containsKey(game.getGameId())) return simpleFuture(ResponsePacket.INVALID_ID);
-		games.put(game.getGameId(), game);
+        if(games.containsKey(game.getGameId())) return simpleFuture(ResponsePacket.INVALID_ID);
+        games.put(game.getGameId(), game);
         long requestId = getNewRequestId();
         CompletableFuture<Result<Void>> future = buildVoidFuture(requestId).thenApply(result -> {
-            if(!result.isSuccesful()) {
+            if(!result.isSuccessful()) {
                 games.remove(game.getGameId());
             }
             return result;
         });
-		connection.sendPacket(
-				new GameStatusUpdatePacket(requestId, game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);
+        connection.sendPacket(
+                new GameStatusUpdatePacket(requestId, game.getGameId(), game.getName(), game.getGameState().convertRecord()), null);
         return future;
-	}
+    }
 
     public CompletableFuture<RelationshipRecord> getRelationship(long relationshipId) {
         long id = System.currentTimeMillis();
