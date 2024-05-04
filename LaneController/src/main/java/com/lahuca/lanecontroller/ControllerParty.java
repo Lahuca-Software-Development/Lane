@@ -18,18 +18,20 @@ public class ControllerParty implements LaneParty {
 
     private final Set<UUID> players;
     private final Set<UUID> invited;
-    private long creationStamp;
+    private long creationTimestamp;
 
-    public ControllerParty(long partyId, UUID owner) {
+    public ControllerParty(long partyId, UUID owner) { // TODO Maybe not public
         this.partyId = partyId;
         this.owner = owner;
         this.players = new HashSet<>();
         this.invited = new HashSet<>();
-        this.creationStamp = System.currentTimeMillis();
+        this.creationTimestamp = System.currentTimeMillis();
     }
 
     public void addPlayer(ControllerPlayer controllerPlayer) {
         players.add(controllerPlayer.getUuid());
+        controllerPlayer.setParty(eee);
+
     }
 
     public void addPlayer(UUID uuid) {
@@ -52,7 +54,7 @@ public class ControllerParty implements LaneParty {
     public void disband() {
         players.clear();
         invited.clear();
-        creationStamp = -1;
+        creationTimestamp = -1;
     }
 
     public boolean contains(UUID uuid) {
@@ -61,10 +63,6 @@ public class ControllerParty implements LaneParty {
 
     public void setOwner(UUID owner) {
         this.owner = owner;
-    }
-
-    public long getCreationStamp() {
-        return creationStamp;
     }
 
     @Override
@@ -88,7 +86,7 @@ public class ControllerParty implements LaneParty {
 
     @Override
     public long getCreationTimestamp() {
-        return creationStamp;
+        return creationTimestamp;
     }
 
     public PartyRecord convertToRecord() {

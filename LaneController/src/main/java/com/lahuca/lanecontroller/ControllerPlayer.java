@@ -109,16 +109,27 @@ public class ControllerPlayer implements LanePlayer {
 
     public void addRelationship(Long id) {
         relationships.add(id);
-    }
+    } // TODO
 
     public void removeRelationship(Long id) {
         relationships.remove(id);
+    } // TODO
+
+    /**
+     * Sets the party of the player.
+     * This method is only to be called from the controller, as it sets the variable without any side-effects.
+     * @param partyId the party ID to set
+     */
+    void setPartyByController(Long partyId) {
+        this.partyId = partyId;
     }
 
     /**
-     * Sets the party associated with this controller.
-     *
-     * @param partyId The partyId to be set.
+     * Sets the party associated with this player.
+     * This method is only to be used with the controller, who manages the following:
+     * Also remove player from the party object, send correct player updates.
+     * @param controller the controller
+     * @param partyId the partyId to be set.
      */
     public void setParty(long partyId) {
         // TODO Simple setter? Maybe packet send needed?

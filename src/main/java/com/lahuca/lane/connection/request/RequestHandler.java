@@ -41,6 +41,17 @@ public class RequestHandler {
 
     /**
      * Build request future, which will also be added to the requests.
+     * The object of the result will be cast to the correct type as provided by the required type.
+     * @param id the request ID
+     * @return the return completable future with the result
+     * @param <T> the object type to convert to
+     */
+    protected <T> CompletableFuture<Result<T>> buildFutureCast(long id) {
+        return buildFuture(id, result -> new Result<>(result.result(), (T) result.data()));
+    }
+
+    /**
+     * Build request future, which will also be added to the requests.
      * The result only consists of the result state not any data
      * @param id the request ID
      * @return the return completable future

@@ -11,55 +11,87 @@ import com.lahuca.lane.records.PartyRecord;
  **/
 public class PartyPacket {
 
-    public record Request(long requestId, long partyId) implements RequestPacket {
 
-        public static final String packetId = "requestParty";
+    public static class Disband {
 
-        static {
-            Packet.registerPacket(packetId, Request.class);
-        }
+        public record Request(long requestId, long partyId) implements RequestPacket {
 
+            public static final String packetId = "partyDisbandRequest";
 
-        @Override
-        public String getPacketId() {
-            return packetId;
-        }
+            static {
+                Packet.registerPacket(packetId, Request.class);
+            }
 
-        @Override
-        public long getRequestId() {
-            return requestId;
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
         }
 
     }
 
-    public record Response(long requestId, PartyRecord partyRecord) implements ResponsePacket<PartyRecord> {
+    public static class Retrieve {
 
-        public static final String packetId = "responseParty";
+        public record Request(long requestId, long partyId) implements RequestPacket {
 
-        static {
-            Packet.registerPacket(packetId, Response.class);
+            public static final String packetId = "partyRetrieveRequest";
+
+            static {
+                Packet.registerPacket(packetId, Request.class);
+            }
+
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
         }
 
+        public record Response(long requestId, String result, PartyRecord partyRecord) implements ResponsePacket<PartyRecord> {
 
-        @Override
-        public String getPacketId() {
-            return packetId;
+            public static final String packetId = "partyRetrieveResponse";
+
+            static {
+                Packet.registerPacket(packetId, Response.class);
+            }
+
+            public Response(long requestId, String result) {
+                this(requestId, result, null);
+            }
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
+            @Override
+            public String getResult() {
+                return result;
+            }
+
+            @Override
+            public PartyRecord getData() {
+                return partyRecord;
+            }
         }
 
-        @Override
-        public long getRequestId() {
-            return requestId;
-        }
-
-        @Override
-        public String getResult() {
-            return null;
-        }
-
-        @Override
-        public PartyRecord getData() {
-            return partyRecord;
-        }
     }
 
 }

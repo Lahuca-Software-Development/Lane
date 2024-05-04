@@ -11,53 +11,87 @@ import com.lahuca.lane.records.RelationshipRecord;
  **/
 public class RelationshipPacket {
 
-    public record Request(long requestId, long relationshipId) implements RequestPacket {
 
-        public static final String packetId = "requestRelationship";
+    public static class Create {
 
-        static {
-            Packet.registerPacket(packetId, RelationshipPacket.Request.class);
-        }
+        public record Request(long requestId, long relationshipId) implements RequestPacket {
 
-        @Override
-        public String getPacketId() {
-            return packetId;
-        }
+            public static final String packetId = "relationshipCreateRequest";
 
-        @Override
-        public long getRequestId() {
-            return requestId;
+            static {
+                Packet.registerPacket(packetId, RelationshipPacket.Create.Request.class);
+            }
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
         }
 
     }
 
-    public record Response(long requestId, RelationshipRecord relationshipRecord) implements ResponsePacket<RelationshipRecord> {
+    public static class Retrieve {
 
-        public static final String packetId = "responseRelationship";
+        public record Request(long requestId, long relationshipId) implements RequestPacket {
 
-        static {
-            Packet.registerPacket(packetId, RelationshipPacket.Response.class);
+            public static final String packetId = "relationshipRetrieveRequest";
+
+            static {
+                Packet.registerPacket(packetId, RelationshipPacket.Retrieve.Request.class);
+            }
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
         }
 
-        @Override
-        public String getPacketId() {
-            return packetId;
+        public record Response(long requestId, String result,
+                               RelationshipRecord relationshipRecord) implements ResponsePacket<RelationshipRecord> {
+
+            public static final String packetId = "relationshipRetrieveResponse";
+
+            static {
+                Packet.registerPacket(packetId, RelationshipPacket.Retrieve.Response.class);
+            }
+
+            public Response(long requestId, String result) {
+                this(requestId, result, null);
+            }
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
+            @Override
+            public String getResult() {
+                return result;
+            }
+
+            @Override
+            public RelationshipRecord getData() {
+                return relationshipRecord;
+            }
         }
 
-        @Override
-        public long getRequestId() {
-            return requestId;
-        }
-
-        @Override
-        public String getResult() {
-            return null;
-        }
-
-        @Override
-        public RelationshipRecord getData() {
-            return relationshipRecord;
-        }
     }
 
 }

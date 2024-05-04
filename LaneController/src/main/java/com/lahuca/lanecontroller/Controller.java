@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.SimpleResultPacket;
 
 import java.io.IOException;
 import java.util.*;
@@ -82,10 +83,16 @@ public class Controller extends RequestHandler {
                     request.complete(response.transformResult());
                     getRequests().remove(response.getRequestId());
                 }
-            } else if(iPacket instanceof PartyPacket.Request packet) {
-                getParty(packet.partyId()).ifPresent(party -> connection.sendPacket(new PartyPacket.Response(packet.requestId(), party.convertToRecord()), input.from()));
-            } else if(iPacket instanceof RelationshipPacket.Request packet) {
-                getRelationship(packet.relationshipId()).ifPresent(relationship -> connection.sendPacket(new RelationshipPacket.Response(packet.requestId(), relationship.convertToRecord()), input.from()));
+            } else if(iPacket instanceof PartyPacket.Retrieve.Request packet) {
+                getParty(packet.partyId()).ifPresentOrElse(party ->
+                                connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
+                        () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+            } else if(iPacket instanceof PartyPacket.Disband.Request packet) {
+                // TODO Disband
+            } else if(iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
+                getRelationship(packet.relationshipId()).ifPresentOrElse(relationship ->
+                        connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
+                        () -> connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             }
         });
     }
@@ -105,16 +112,6 @@ public class Controller extends RequestHandler {
 
     private Optional<ControllerLaneInstance> getInstance(String id) {
         return Optional.ofNullable(instances.get(id));
-    }
-
-    public void registerPlayer(ControllerPlayer player) {
-        if(player == null || player.getUuid() == null) return;
-        if(players.containsKey(player.getUuid())) return;
-        players.put(player.getUuid(), player);
-    }
-
-    public void unregisterPlayer(UUID player) {
-        players.remove(player);
     }
 
     /**
@@ -318,21 +315,54 @@ public class Controller extends RequestHandler {
         return future;
     }
 
+    // TODO Redo
     public void endGame(long id) { // TODO Check
         games.remove(id);
     }
 
 
+    // TODO Redo
     public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
         players.remove(controllerPlayer.getUuid());
     }
 
+    public void registerPlayer(ControllerPlayer player) { // TODO Redo
+        if(player == null || player.getUuid() == null) return;
+        if(players.containsKey(player.getUuid())) return;
+        players.put(player.getUuid(), player);
+    }
+
+    public void unregisterPlayer(UUID player) {
+        players.remove(player);
+    } // TODO Redo
+
+    /**
+     *
+     * @param owner
+     * @param invited
+     */
+    // TODO Redo
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
+        if(owner == null || invited == null) return;
+        if(owner.getPartyId().isPresent()) return;
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
+        // TODO Check ID for doubles
+        owner.setPartyByController(controllerParty.getId());
+
         controllerParty.sendRequest(invited);
     }
 
-    public void createRelationship(ControllerPlayer... players) {
+    public void disbandParty(ControllerParty party) { // TODO Redo
+        if(!parties.containsKey(party.getId())) return;
+        parties.remove(party.getId());
+        for(UUID uuid : party.getPlayers()) {
+            getPlayer(uuid).ifPresent(player -> {
+                player.setParty();
+            });
+        }
+    }
+
+    public void createRelationship(ControllerPlayer... players) { // TODO Redo
         long id = System.currentTimeMillis();
         Set<UUID> uuids = new HashSet<>();
         Arrays.stream(players).forEach(controllerPlayer -> uuids.add(controllerPlayer.getUuid()));
@@ -341,33 +371,33 @@ public class Controller extends RequestHandler {
 
     public Collection<ControllerPlayer> getPlayers() {
         return players.values();
-    }
+    } // TODO Redo
 
     public Optional<ControllerPlayer> getPlayer(UUID uuid) {
         return Optional.ofNullable(players.get(uuid));
-    }
+    } // TODO Redo
 
-    public Optional<ControllerPlayer> getPlayerByName(String name) {
+    public Optional<ControllerPlayer> getPlayerByName(String name) { // TODO Redo
         return players.values().stream().filter(player -> player.getName().equals(name)).findFirst();
     }
 
     public Collection<ControllerParty> getParties() {
         return parties.values();
-    }
+    } // TODO Redo
 
-    public Optional<ControllerRelationship> getRelationship(long id) {
+    public Optional<ControllerRelationship> getRelationship(long id) { // TODO Redo
         return Optional.ofNullable(relationships.get(id));
     }
 
     public Optional<ControllerParty> getParty(long id) {
         return Optional.ofNullable(parties.get(id));
-    }
+    } // TODO Redo
 
     public Collection<ControllerGame> getGames() {
         return games.values();
-    }
+    } // TODO Redo
 
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
-    }
+    } // TODO Redo
 }

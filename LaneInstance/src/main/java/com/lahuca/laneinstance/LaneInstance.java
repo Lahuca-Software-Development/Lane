@@ -203,10 +203,10 @@ public abstract class LaneInstance extends RequestHandler {
         return future;
 	}
 
-    public CompletableFuture<RelationshipRecord> getRelationship(long relationshipId) {
+    public CompletableFuture<Result<RelationshipRecord>> getRelationship(long relationshipId) {
         long id = System.currentTimeMillis();
-        CompletableFuture<RelationshipRecord> completableFuture = buildFuture(id, o -> (RelationshipRecord) o); // TODO Maybe save the funciton somewhere, to save CPU?
-        connection.sendPacket(new RelationshipPacket.Request(id, relationshipId), null);
+        CompletableFuture<Result<RelationshipRecord>> completableFuture = buildFutureCast(id);
+        connection.sendPacket(new RelationshipPacket.Retrieve.Request(id, relationshipId), null);
         return completableFuture;
     }
 
@@ -214,6 +214,13 @@ public abstract class LaneInstance extends RequestHandler {
         long id = System.currentTimeMillis();
         CompletableFuture<PartyRecord> completableFuture = buildFuture(id, o -> (PartyRecord) o); // TODO Maybe save the funciton somewhere, to save CPU?
         connection.sendPacket(new PartyPacket.Request(id, partyId), null);
+        return completableFuture;
+    }
+
+    public CompletableFuture<Result<Void>> disbandParty(long partyId) {
+        long id = System.currentTimeMillis();
+        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
+        connection.sendPacket(new PartyPacket.Disband.Request(id, partyId), null);
         return completableFuture;
     }
 
