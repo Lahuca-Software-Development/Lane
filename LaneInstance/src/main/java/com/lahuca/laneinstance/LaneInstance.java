@@ -84,9 +84,7 @@ public abstract class LaneInstance extends RequestHandler {
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
                 PlayerRecord record = packet.playerRecord();
-                getInstancePlayer(record.uuid()).ifPresentOrElse(
-                        player -> player.applyRecord(record),
-                        () -> players.put(record.uuid(), new InstancePlayer(record)));
+                getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
                 if(request != null) {
