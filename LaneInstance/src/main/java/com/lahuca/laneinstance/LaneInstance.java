@@ -89,6 +89,11 @@ public abstract class LaneInstance extends RequestHandler {
                         player -> player.applyRecord(record),
                         () -> players.put(record.uuid(), new InstancePlayer(record)));
                 sendSimpleResult(packet, ResponsePacket.OK);
+            } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
+                PlayerRecord record = packet.playerRecord();
+                getInstancePlayer(record.uuid()).ifPresentOrElse(
+                        player -> player.applyRecord(record),
+                        () -> players.put(record.uuid(), new InstancePlayer(record)));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
                 if(request != null) {
@@ -216,10 +221,10 @@ public abstract class LaneInstance extends RequestHandler {
         return completableFuture;
     }
 
-    public CompletableFuture<PartyRecord> getParty(long partyId) {
+    public CompletableFuture<Result<PartyRecord>> getParty(long partyId) {
         long id = System.currentTimeMillis();
-        CompletableFuture<PartyRecord> completableFuture = buildFuture(id, o -> (PartyRecord) o); // TODO Maybe save the funciton somewhere, to save CPU?
-        connection.sendPacket(new PartyPacket.Request(id, partyId), null);
+        CompletableFuture<Result<PartyRecord>> completableFuture = buildFutureCast(id); // TODO Maybe save the funciton somewhere, to save CPU?
+        connection.sendPacket(new PartyPacket.Retrieve.Request(id, partyId), null);
         return completableFuture;
     }
 
@@ -230,4 +235,17 @@ public abstract class LaneInstance extends RequestHandler {
         return completableFuture;
     }
 
+    public CompletableFuture<Result<Void>> addPartyPlayer(long partyId, UUID player) {
+        long id = System.currentTimeMillis();
+        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
+        connection.sendPacket(new PartyPacket.Player.Add(id, partyId, player), null);
+        return completableFuture;
+    }
+
+    public CompletableFuture<Result<Void>> removePartyPlayer(long partyId, UUID player) {
+        long id = System.currentTimeMillis();
+        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
+        connection.sendPacket(new PartyPacket.Player.Remove(id, partyId, player), null);
+        return completableFuture;
+    }
 }

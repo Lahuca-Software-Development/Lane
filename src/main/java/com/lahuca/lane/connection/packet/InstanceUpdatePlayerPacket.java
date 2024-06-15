@@ -10,7 +10,7 @@ import com.lahuca.lane.records.PlayerRecord;
 
 public record InstanceUpdatePlayerPacket(PlayerRecord playerRecord) implements Packet {
 
-    public static final String packetId = "updatePlayer";
+    public static final String packetId = "instanceUpdatePlayer";
 
     static {
         Packet.registerPacket(packetId, InstanceUpdatePlayerPacket.class);

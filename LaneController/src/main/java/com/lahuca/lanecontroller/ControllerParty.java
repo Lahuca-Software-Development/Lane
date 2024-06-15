@@ -22,7 +22,7 @@ public class ControllerParty implements LaneParty {
 
     public ControllerParty(long partyId, UUID owner) { // TODO Maybe not public
         this.partyId = partyId;
-        this.owner = owner;
+        setOwner(owner);
         this.players = new HashSet<>();
         this.invited = new HashSet<>();
         this.creationTimestamp = System.currentTimeMillis();
@@ -30,12 +30,8 @@ public class ControllerParty implements LaneParty {
 
     public void addPlayer(ControllerPlayer controllerPlayer) {
         players.add(controllerPlayer.getUuid());
-        controllerPlayer.setParty(eee);
+        controllerPlayer.setParty(partyId);
 
-    }
-
-    public void addPlayer(UUID uuid) {
-        players.add(uuid);
     }
 
     public void sendRequest(ControllerPlayer controllerPlayer) {
@@ -48,7 +44,7 @@ public class ControllerParty implements LaneParty {
 
     public void removePlayer(ControllerPlayer controllerPlayer) {
         players.remove(controllerPlayer.getUuid());
-        controllerPlayer.setParty(-1);
+        controllerPlayer.setParty(null);
     }
 
     public void disband() {
@@ -63,6 +59,7 @@ public class ControllerParty implements LaneParty {
 
     public void setOwner(UUID owner) {
         this.owner = owner;
+        Controller.getInstance().getPlayer(owner).ifPresent(controllerPlayer -> controllerPlayer.setParty(partyId));
     }
 
     @Override
@@ -90,6 +87,6 @@ public class ControllerParty implements LaneParty {
     }
 
     public PartyRecord convertToRecord() {
-        return new PartyRecord(owner, players, creationStamp);
+        return new PartyRecord(owner, players, creationTimestamp);
     }
 }

@@ -84,14 +84,21 @@ public class Controller extends RequestHandler {
                     getRequests().remove(response.getRequestId());
                 }
             } else if(iPacket instanceof PartyPacket.Retrieve.Request packet) {
-                getParty(packet.partyId()).ifPresentOrElse(party ->
-                                connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
+                getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+            } else if(iPacket instanceof PartyPacket.Player.Add packet) {
+                getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::addPlayer,
+                                () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                        () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+            } else if(iPacket instanceof PartyPacket.Player.Remove packet) {
+                getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::removePlayer,
+                                () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                        () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof PartyPacket.Disband.Request packet) {
-                // TODO Disband
+                getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
                 getRelationship(packet.relationshipId()).ifPresentOrElse(relationship ->
-                        connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
+                                connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             }
         });
@@ -342,17 +349,14 @@ public class Controller extends RequestHandler {
     } // TODO Redo
 
     /**
-     *
      * @param owner
      * @param invited
      */
-    // TODO Redo
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
         if(owner == null || invited == null) return;
         if(owner.getPartyId().isPresent()) return;
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         // TODO Check ID for doubles
-        owner.setPartyByController(controllerParty.getId());
 
         controllerParty.sendRequest(invited);
     }
@@ -360,11 +364,12 @@ public class Controller extends RequestHandler {
     public void disbandParty(ControllerParty party) { // TODO Redo
         if(!parties.containsKey(party.getId())) return;
         parties.remove(party.getId());
+
         for(UUID uuid : party.getPlayers()) {
-            getPlayer(uuid).ifPresent(player -> {
-                player.setParty();
-            });
+            getPlayer(uuid).ifPresent(player -> player.setParty(null));
         }
+
+        party.disband();
     }
 
     public ControllerRelationship createRelationship(ControllerPlayer... players) { // TODO Redo

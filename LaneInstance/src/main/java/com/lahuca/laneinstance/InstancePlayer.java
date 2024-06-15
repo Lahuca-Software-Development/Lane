@@ -14,6 +14,7 @@ import java.util.UUID;
  **/
 public class InstancePlayer implements LanePlayer {
 
+
     private final UUID uuid;
     private final String name;
     private String displayName;

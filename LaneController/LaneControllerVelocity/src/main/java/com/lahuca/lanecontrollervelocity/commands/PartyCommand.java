@@ -55,7 +55,7 @@ public class PartyCommand implements SimpleCommand {
         }
 
         if(args[0].equalsIgnoreCase("disband")) {
-            runAsPartyLeader(controllerPlayer, ControllerParty::disband);
+            runAsPartyLeader(controllerPlayer, party -> Controller.getInstance().disbandParty(party));
         } else if(args[0].equalsIgnoreCase("warp")) {
             runAsPartyLeader(controllerPlayer, party -> controllerPlayer.getGameId()
                     .flatMap(game -> Controller.getInstance().getGame(game))
