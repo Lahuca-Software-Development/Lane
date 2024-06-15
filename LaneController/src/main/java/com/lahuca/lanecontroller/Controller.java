@@ -361,7 +361,7 @@ public class Controller extends RequestHandler {
         controllerParty.sendRequest(invited);
     }
 
-    public void disbandParty(ControllerParty party) { // TODO Redo
+    public void disbandParty(ControllerParty party) { // TODO Redo: might send packets to servers with party info
         if(!parties.containsKey(party.getId())) return;
         parties.remove(party.getId());
 
@@ -372,7 +372,7 @@ public class Controller extends RequestHandler {
         party.disband();
     }
 
-    public ControllerRelationship createRelationship(ControllerPlayer... players) { // TODO Redo
+    public ControllerRelationship createRelationship(ControllerPlayer... players) { // TODO Redo: might send to instances
         long id = System.currentTimeMillis();
         Set<UUID> uuids = new HashSet<>();
         Arrays.stream(players).forEach(controllerPlayer -> uuids.add(controllerPlayer.getUuid()));
