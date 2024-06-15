@@ -1,0 +1,23 @@
+
+title Slux
+
+
+participant Player
+participant Proxy
+participant Controller
+participant MCLobbyInstance
+participant MCLobby
+
+
+activate Player
+Player->Proxy:Join
+activate Proxy
+Proxy->Controller:Register
+activate Controller
+Controller->MCLobbyInstance:Apply join state to MCLobby
+Controller<-MCLobbyInstance:Confirm join state
+Proxy<-Controller:Send registration data and join info
+deactivate Controller
+Player<-Proxy:Confirm join, forward to MCLobby
+deactivate Proxy
+deactivate Player

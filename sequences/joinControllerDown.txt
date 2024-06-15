@@ -1,0 +1,18 @@
+
+title Slux
+
+
+participant Player
+participant Proxy
+participant Controller
+participant MCLobbyInstance
+participant MCLobby
+
+
+activate Player
+Player->Proxy:Join
+activate Proxy
+Proxy-xController:Register
+Player<-Proxy:Connection failed, disconnect player
+deactivate Proxy
+deactivate Player

@@ -1,0 +1,26 @@
+
+title Slux
+
+
+participant Player
+participant Proxy
+participant Controller
+participant MCLobbyInstance
+participant MCLobby
+
+
+activate Player
+note over Player,MCLobby:Player has already done join request, Controller has registered, MCLobbyInstance knows join state
+
+Player->MCLobby:Join MCLobby
+
+
+MCLobbyInstance<-MCLobby:Request join info
+activate MCLobbyInstance
+MCLobbyInstance-xMCLobbyInstance:Confirm join info
+note over MCLobbyInstance:Never retrieved join info from controller, request if possible
+Controller<-MCLobbyInstance:Request MCLobby join
+Controller->MCLobbyInstance:Confirm MCLobby join, set state to joined
+MCLobbyInstance->MCLobby:Confirm join info
+deactivate MCLobbyInstance
+Player<-MCLobby:Confirm join

@@ -1,0 +1,17 @@
+
+title Slux
+
+
+participant Player
+participant Proxy
+participant Controller
+participant MCLobbyInstance
+participant MCLobby
+
+
+activate Player
+note over Player,MCLobby:This happens when an instance crashes.
+
+
+Proxy<-MCLobby:Timeout
+note over Player,Proxy:Find new lobby for playter to go to.

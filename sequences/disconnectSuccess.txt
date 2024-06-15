@@ -1,0 +1,25 @@
+
+title Slux
+
+
+participant Player
+participant Proxy
+participant Controller
+participant MCLobbyInstance
+participant MCLobby
+
+
+activate Player
+note over Player,MCLobby:This happens when the player clicks on Disconnect, since both the Proxy and MC retrieve the disconnect.\nWe are not interested in syncing all data.\nWe are interested in the order in which it happens, this is when Proxy retrieves it first.
+Player->Proxy:Disconnect
+
+Proxy->Controller:Disconnect
+activate Controller
+Player->MCLobby:Disconnect
+deactivate Player
+note over Controller:Note that we are waiting for MCLobby to handle the disconnect.\nOtherwise we might remove needed info before everything is saved.
+MCLobbyInstance<-MCLobby:Disconnect
+activate MCLobbyInstance
+Controller<-MCLobbyInstance:Disconnect from instance
+MCLobbyInstance->MCLobby:Confirm data removal
+Controller->Controller:Confirm be got both disconnect messages.\nThen remove data.

@@ -1,0 +1,21 @@
+
+title Slux
+
+
+participant Player
+participant Proxy
+participant Controller
+participant MCLobbyInstance
+participant MCLobby
+
+
+activate Player
+note over Player,MCLobby:Player is already registered/joined, somehow needs new lobby.\nProxy catches this (as it runs on top of the MC servers).
+
+
+Proxy->Controller:Request new lobby
+activate Controller
+Controller->MCLobbyInstance:Apply join state
+Controller<-MCLobbyInstance:Confirm join
+Proxy<-Controller:Confirm
+Player<-Proxy:Confirm
