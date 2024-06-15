@@ -20,24 +20,21 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class ControllerPlayer implements LanePlayer {
 
     private final UUID uuid;
     private final String name;
     private String displayName;
-    private String language;
+    private Locale language;
     private String instanceId = null;
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
     private final Set<Long> relationships = new HashSet<>();
 
-    public ControllerPlayer(UUID uuid, String name, String displayName, String language) {
+    public ControllerPlayer(UUID uuid, String name, String displayName, Locale language) {
         this.uuid = uuid;
         this.name = name;
         this.displayName = displayName;
@@ -65,7 +62,7 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     @Override
-    public String getLanguage() {
+    public Locale getLanguage() {
         return language;
     }
 
@@ -135,14 +132,14 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, name, displayName, language, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), instanceId, gameId, state.convertRecord(), partyId);
     }
 
     @Override
     public void applyRecord(PlayerRecord record) {
         // TODO Recode this. When is this even called on the ControllerPlayer object? Never?
         displayName = record.displayName();
-        language = record.language();
+        language = Locale.forLanguageTag(record.languageTag());
         instanceId = record.instanceId();
         gameId = record.gameId();
         if(state == null) state = new ControllerPlayerState();

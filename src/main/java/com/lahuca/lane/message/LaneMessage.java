@@ -1,5 +1,7 @@
 package com.lahuca.lane.message;
 
+import java.util.Locale;
+
 /**
  * @author _Neko1
  * @date 18.03.2024
@@ -7,6 +9,6 @@ package com.lahuca.lane.message;
 
 public interface LaneMessage {
 
-    String retrieveMessage(String messageId, String language);
+    String retrieveMessage(String messageId, Locale locale);
 
 }

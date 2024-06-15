@@ -1,5 +1,6 @@
 package com.lahuca.lane.message;
 
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -16,8 +17,8 @@ public class MapLaneMessage implements LaneMessage {
     }
 
     @Override
-    public String retrieveMessage(String messageId, String language) {
-        Map<String, String> data = messages.get(language);
+    public String retrieveMessage(String messageId, Locale locale) {
+        Map<String, String> data = messages.get(locale.toLanguageTag());
         return data != null ? data.get(messageId) : null;
     }
 }

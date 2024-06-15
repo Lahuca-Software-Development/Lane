@@ -28,6 +28,7 @@ import com.lahuca.lane.connection.request.SimpleResultPacket;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * This is the main class for operations on the controller side of the Lane system.
@@ -119,6 +120,18 @@ public class Controller extends RequestHandler {
 
     private Optional<ControllerLaneInstance> getInstance(String id) {
         return Optional.ofNullable(instances.get(id));
+    }
+
+    public Collection<ControllerLaneInstance> getInstances() { // TODO Really public?
+        return instances.values();
+    }
+
+    public CompletableFuture<Result<Void>> buildUnsafeVoidPacket(Function<Long, Packet> packet, String destination) {
+        // TODO DO NOT USE!, very unsafe for other plugins to send unhandled packets like this!
+        long id = getNewRequestId();
+        CompletableFuture<Result<Void>> result = buildVoidFuture(id);
+        connection.sendPacket(packet.apply(id), destination);
+        return result;
     }
 
     /**
@@ -338,10 +351,16 @@ public class Controller extends RequestHandler {
         players.remove(controllerPlayer.getUuid());
     }
 
-    public void registerPlayer(ControllerPlayer player) { // TODO Redo
-        if(player == null || player.getUuid() == null) return;
-        if(players.containsKey(player.getUuid())) return;
+    /**
+     * Registers the player on the controller
+     * @param player the player to register
+     * @return true if succesful
+     */
+    public boolean registerPlayer(ControllerPlayer player) {
+        if(player == null || player.getUuid() == null) return false;
+        if(players.containsKey(player.getUuid())) return false;
         players.put(player.getUuid(), player);
+        return true;
     }
 
     public void unregisterPlayer(UUID player) {
