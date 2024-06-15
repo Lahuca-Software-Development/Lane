@@ -186,7 +186,7 @@ public abstract class LaneInstance extends RequestHandler {
      *
      * @param uuid the player's uuid
      */
-    public void quitGame(UUID uuid) {
+    public void quitGame(UUID uuid) { // TODO We might need to differentiate between forcing or not
         getInstancePlayer(uuid).ifPresent(player -> player.getGameId().flatMap(this::getInstanceGame).ifPresent(game -> {
             game.onQuit(player);
             // TODO Remove player actually from player list in the game
