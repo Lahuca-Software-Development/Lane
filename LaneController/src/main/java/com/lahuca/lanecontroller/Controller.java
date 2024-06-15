@@ -163,6 +163,7 @@ public class Controller extends RequestHandler {
             String stateName = gameId == null ? LanePlayerState.INSTANCE_TRANSFER : LanePlayerState.GAME_TRANSFER;
             HashSet<ControllerStateProperty> parameters = new HashSet<>();
             parameters.add(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, destination));
+            parameters.add(new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()));
             if(gameId != null) parameters.add(new ControllerStateProperty(LaneStateProperty.GAME_ID, destination));
             ControllerPlayerState state = new ControllerPlayerState(stateName, parameters);
             CompletableFuture<Result<Void>> last = null;

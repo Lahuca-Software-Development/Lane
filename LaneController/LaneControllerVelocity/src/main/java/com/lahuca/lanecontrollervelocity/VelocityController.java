@@ -32,8 +32,10 @@ import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.velocitypowered.api.event.ResultedEvent;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
@@ -129,13 +131,9 @@ public class VelocityController {
         controller.ifPresentOrElse(ctrl -> ctrl.getPlayer(player.getUniqueId()).ifPresentOrElse(cPlayer -> {
             accept.accept(ctrl, cPlayer);
         }, () -> {
-            TextComponent message = Component.text(getMessage("notRegisteredPlayer", locale));
-            if(failed == null) player.disconnect(message);
-            failed.accept(message);
+            if(failed != null) failed.accept(Component.text(getMessage("notRegisteredPlayer", locale)));
         }), () -> {
-            TextComponent message = Component.text(getMessage("cannotReachController", locale));
-            if(failed == null) player.disconnect(message);
-            failed.accept(message);
+            if(failed != null) failed.accept(Component.text(getMessage("cannotReachController", locale)));
         });
     }
 
@@ -154,7 +152,8 @@ public class VelocityController {
             do {
                 implementation.getNewInstance(controller, player, exclude).ifPresentOrElse(instance -> {
                     ControllerPlayerState state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
-                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()))); // TODO Better state handling!
+                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
+                                    new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
                     player.setState(state);
                     CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) ->
                             new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
@@ -183,6 +182,52 @@ public class VelocityController {
             event.getPlayer().disconnect(message); // TODO Will this actually correct work here?
             event.setInitialServer(null);
         });
+    }
+
+    /**
+     * For more dynamic programming we want to catch exactly when the player has connected to a server.
+     * This updates the states from X_TRANSFER to X_TRANSFERRED.
+     * @param event
+     */
+    @Subscribe
+    public void onServerPostConnect(ServerPostConnectEvent event) {
+        runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            event.getPlayer().getCurrentServer().ifPresent(connection -> {
+                String state = player.getState().getName();
+                if(state.equals(LanePlayerState.INSTANCE_TRANSFER) || state.equals(LanePlayerState.GAME_TRANSFER)) {
+                    // Correct state
+                    String connectedWith = connection.getServer().getServerInfo().getName();
+                    Object connectTo = player.getState().getProperties().get(LaneStateProperty.INSTANCE_ID).getValue();
+                    if(connectTo instanceof String text && text.equals(connectedWith)) {
+                        // Correctly transferred
+                        HashMap<String, ControllerStateProperty> properties = player.getState().getProperties();
+                        if(state.equals(LanePlayerState.INSTANCE_TRANSFER)) {
+                            player.setState(new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFERRED,
+                                    Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, properties.get(LaneStateProperty.INSTANCE_ID).getValue()),
+                                            new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
+                        } else {
+                            player.setState(new ControllerPlayerState(LanePlayerState.GAME_TRANSFERRED,
+                                    Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, properties.get(LaneStateProperty.INSTANCE_ID).getValue()),
+                                            new ControllerStateProperty(LaneStateProperty.GAME_ID, properties.get(LaneStateProperty.GAME_ID).getValue()),
+                                            new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
+                        }
+                    }
+                } else {
+                    // We are at the incorrect state
+                    // TODO Make methods to handle this case, for now, we do nothing.
+                }
+            });
+        }, null);
+    }
+
+    @Subscribe
+    public void onDisconnect(DisconnectEvent event) {
+        runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            if(player.getState().getName().equals(LanePlayerState.OFFLINE)) {
+                controller.unregisterPlayer(player.getUuid());
+            }
+            // TODO Even after X seconds it should unregister: timer
+        }, null);
     }
 
     public ProxyServer getServer() {
@@ -246,7 +291,7 @@ public class VelocityController {
         }
 
         @Override
-        public Optional<ControllerLaneInstance> getNewInstance(Controller controller, ControllerPlayer player, Collection<ControllerLaneInstance exclude>) {
+        public Optional<ControllerLaneInstance> getNewInstance(Controller controller, ControllerPlayer player, Collection<ControllerLaneInstance> exclude) {
             for(ControllerLaneInstance instance : controller.getInstances()) {
                 if(instance.isJoinable() && instance.isNonPlayable()
                         && instance.getCurrentPlayers() + 1 <= instance.getMaxPlayers() && !exclude.contains(instance)) {

@@ -59,6 +59,7 @@ public abstract class LaneInstance extends RequestHandler {
                     return;
                 }
                 // TODO Find if slot, also when the max players which has been RESERVED is met
+                // TODO Added later at 15 June, it looks like this already accounts for reserved positions.
                 if(!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
                     sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                     return;
@@ -81,7 +82,7 @@ public abstract class LaneInstance extends RequestHandler {
                 PlayerRecord record = packet.player();
                 getInstancePlayer(record.uuid()).ifPresentOrElse(
                         player -> player.applyRecord(record),
-                        () -> players.put(record.uuid(), new InstancePlayer(record)));
+                        () -> players.put(record.uuid(), new InstancePlayer(record))); // TODO What happens if the player fails the connect?
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
                 PlayerRecord record = packet.playerRecord();

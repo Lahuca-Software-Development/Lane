@@ -16,7 +16,6 @@
 package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LanePlayer;
-import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
@@ -77,7 +76,7 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     @Override
-    public LanePlayerState getState() {
+    public ControllerPlayerState getState() {
         return state;
     }
 
@@ -103,6 +102,7 @@ public class ControllerPlayer implements LanePlayer {
      */
     public void setState(ControllerPlayerState state) {
         this.state = state;
+        updateInstancePlayer();
     }
 
     public void addRelationship(Long id) {
