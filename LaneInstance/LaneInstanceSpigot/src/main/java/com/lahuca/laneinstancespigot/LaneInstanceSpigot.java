@@ -22,6 +22,7 @@ import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -30,6 +31,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
 
 public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
@@ -92,6 +94,11 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
             return LaneInstanceSpigot.this.getServer().getMaxPlayers();
         }
 
+        @Override
+        public void disconnectPlayer(UUID player, String message) {
+            Player p = LaneInstanceSpigot.this.getServer().getPlayer(player);
+            if(p != null && p.isOnline()) p.kickPlayer(message);
+        }
     }
 
 }

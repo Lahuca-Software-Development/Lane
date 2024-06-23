@@ -15,6 +15,8 @@
  */
 package com.lahuca.laneinstance;
 
+import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
@@ -26,6 +28,7 @@ import com.lahuca.lane.records.RelationshipRecord;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -89,12 +92,6 @@ public abstract class LaneInstance extends RequestHandler {
                 getInstancePlayer(record.uuid()).ifPresentOrElse(
                         player -> player.applyRecord(record),
                         () -> players.put(record.uuid(), new InstancePlayer(record)));
-                sendSimpleResult(packet, ResponsePacket.OK);
-            } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
-                PlayerRecord record = packet.playerRecord();
-                getInstancePlayer(record.uuid()).ifPresentOrElse(
-                        player -> player.applyRecord(record),
-                        () -> players.put(record.uuid(), new InstancePlayer(record)));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
                 if(request != null) {
@@ -132,6 +129,7 @@ public abstract class LaneInstance extends RequestHandler {
     public abstract int getCurrentPlayers();
 
     public abstract int getMaxPlayers();
+    public abstract void disconnectPlayer(UUID player, String message);
 
     private void sendController(Packet packet) {
         connection.sendPacket(packet, null);
@@ -166,14 +164,64 @@ public abstract class LaneInstance extends RequestHandler {
     public void joinInstance(UUID uuid) {
         getInstancePlayer(uuid).ifPresentOrElse(player -> player.getGameId().ifPresentOrElse(gameId -> getInstanceGame(gameId).ifPresentOrElse(game -> {
             // TODO Change the player's state
+            String instanceId = player.getInstanceId().get(); // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
+            InstancePlayerState state = new InstancePlayerState(LanePlayerState.GAME_ONLINE,
+                    Set.of(new StateProperty(LaneStateProperty.INSTANCE_ID, instanceId),
+                            new StateProperty(LaneStateProperty.GAME_ID, game.getGameId()),
+                            new StateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
+            player.getState().applyRecord(state.convertRecord());
+            sendController(new InstanceUpdatePlayerPacket(player.convertRecord()));
             game.onJoin(player);
         }, () -> {
-            // TODO Hmm? Couldn't find the game with this ID on this instance? Report back to the controller
+            // Cannot find game, find new lobby. TODO Cancel join
+            if(!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
+                // We cannot be at this instance.
+                disconnectPlayer(uuid, "m"); // TODO Translate
+                return;
+            }
+            // We can also join the instance instead, although we want to join a game.
+            // TODO Join a game instead, game logic on controller.
+            String instanceId = player.getInstanceId().get(); // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
+            InstancePlayerState state = new InstancePlayerState(LanePlayerState.INSTANCE_ONLINE,
+                    Set.of(new StateProperty(LaneStateProperty.INSTANCE_ID, instanceId),
+                            new StateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
+            player.getState().applyRecord(state.convertRecord());
+            sendController(new InstanceUpdatePlayerPacket(player.convertRecord()));
         }), () -> {
             // TODO Transfer player to the lobby of this instance, if it is joinable. Change the player's state!
+            // Cannot find game, find new lobby. TODO Cancel join
+            if(!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
+                // We cannot be at this instance.
+                disconnectPlayer(uuid, "m"); // TODO Translate
+                return;
+            }
+            // We can also join the instance instead, although we want to join a game.
+            // TODO Join a game instead, game logic on controller.
+            String instanceId = player.getInstanceId().get(); // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
+            InstancePlayerState state = new InstancePlayerState(LanePlayerState.INSTANCE_ONLINE,
+                    Set.of(new StateProperty(LaneStateProperty.INSTANCE_ID, instanceId),
+                            new StateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
+            player.getState().applyRecord(state.convertRecord());
+            sendController(new InstanceUpdatePlayerPacket(player.convertRecord()));
         }), () -> {
-            // TODO What odd? We have not received the packet with the information about the player.
-            // TODO If is allowed by isJoinable and if slots left, move to instance lobby, otherwise send away.
+            // Join the instance's lobby, if possible.
+            // Cannot find game, find new lobby. TODO Cancel join
+            if(!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
+                // We cannot be at this instance.
+                disconnectPlayer(uuid, "m"); // TODO Translate
+                return;
+            }
+            // We can also join the instance instead, although we want to join a game.
+            // TODO Join a game instead, game logic on controller.
+            String instanceId = null; // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
+
+            // TODO Fetch player first!
+
+            InstancePlayerState state = new InstancePlayerState(LanePlayerState.INSTANCE_ONLINE,
+                    Set.of(new StateProperty(LaneStateProperty.INSTANCE_ID, instanceId),
+                            new StateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
+            //player.getState().applyRecord(state.convertRecord());
+            //sendController(new InstanceUpdatePlayerPacket(player.convertRecord()));
         });
     }
 
@@ -185,6 +233,7 @@ public abstract class LaneInstance extends RequestHandler {
      */
     public void quitInstance(UUID uuid) {
         getInstancePlayer(uuid).ifPresent(player -> quitGame(uuid));
+
     }
 
     /**
@@ -192,7 +241,7 @@ public abstract class LaneInstance extends RequestHandler {
      *
      * @param uuid the player's uuid
      */
-    public void quitGame(UUID uuid) { // TODO We might need to differentiate between forcing or not
+    public void quitGame(UUID uuid) {
         getInstancePlayer(uuid).ifPresent(player -> player.getGameId().flatMap(this::getInstanceGame).ifPresent(game -> {
             game.onQuit(player);
             // TODO Remove player actually from player list in the game

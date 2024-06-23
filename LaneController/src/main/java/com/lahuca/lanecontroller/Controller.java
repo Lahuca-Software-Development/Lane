@@ -118,9 +118,9 @@ public class Controller extends RequestHandler {
         return instances.get(id);
     }
 
-    private Optional<ControllerLaneInstance> getInstance(String id) {
+    public Optional<ControllerLaneInstance> getInstance(String id) {
         return Optional.ofNullable(instances.get(id));
-    }
+    } // TODO Really public?
 
     public Collection<ControllerLaneInstance> getInstances() { // TODO Really public?
         return instances.values();

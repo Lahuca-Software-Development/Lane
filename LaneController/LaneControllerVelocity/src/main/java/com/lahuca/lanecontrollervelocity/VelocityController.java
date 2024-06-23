@@ -34,6 +34,7 @@ import com.velocitypowered.api.event.ResultedEvent;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
+import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -230,6 +231,50 @@ public class VelocityController {
         }, null);
     }
 
+    @Subscribe
+    public void onKickedFromServer(KickedFromServerEvent event) {
+        // TODO, if the player is still on a lobby, we should revert the state to the lobby instead.
+        // TODO, if the player was trying to join a game, we should retry it
+        runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            HashSet<ControllerLaneInstance> exclude = new HashSet<>();
+            controller.getInstance(event.getServer().getServerInfo().getName()).ifPresent(exclude::add);
+            AtomicBoolean done = new AtomicBoolean(false);
+            AtomicBoolean success = new AtomicBoolean(false);
+            do {
+                implementation.getNewInstance(controller, player, exclude).ifPresentOrElse(instance -> {
+                    ControllerPlayerState state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
+                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
+                                    new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
+                    player.setState(state);
+                    CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) ->
+                            new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
+                    try {
+                        Result<Void> result = future.get();
+                        if(result.isSuccessful()) {
+                            server.getServer(instance.getId()).ifPresentOrElse(server -> {
+                                event.setResult(KickedFromServerEvent.RedirectPlayer.create(server)); // TODO Maybe message?
+                                done.set(true);
+                                success.set(true);
+                            }, () -> exclude.add(instance));
+                        } else {
+                            exclude.add(instance);
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        exclude.add(instance);
+                    }
+                }, () -> done.set(true));
+            } while(!done.get());
+            if(!success.get()) {
+                TextComponent message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
+                event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
+                // TODO Maybe we should keep the player at the lobby?, but we somehow could not find one
+            }
+        }, (message) -> {
+            event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
+            // TODO Maybe we should keep the player at the lobby?, or register the player back
+        });
+    }
+
     public ProxyServer getServer() {
         return server;
     }
@@ -283,7 +328,10 @@ public class VelocityController {
 
         public static MapLaneMessage translator = new MapLaneMessage(Map.ofEntries(
                 Map.entry(Locale.ENGLISH.toLanguageTag(), Map.ofEntries(
-                        Map.entry("cannotReachController", "Cannot reach controller")))));
+                        Map.entry("cannotReachController", "Cannot reach controller"),
+                        Map.entry("failedToRegister", "Failed to register"),
+                        Map.entry("notRegisteredPlayer", "Not registered player"),
+                        Map.entry("cannotFindFreeInstance", "Cannot find free instance")))));
 
         @Override
         public LaneMessage getTranslator() {

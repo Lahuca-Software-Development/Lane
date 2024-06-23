@@ -20,7 +20,7 @@ import java.util.UUID;
 
 public class GameInfo {
 
-	private final long gameId;
+	private final long gameId; // TODO Really long?
 	private String name;
 	private GameState gameState;
 	private final HashSet<UUID> players = new HashSet<>();
