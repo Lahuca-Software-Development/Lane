@@ -15,6 +15,7 @@
  */
 package com.lahuca.lane;
 
+import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.Locale;
@@ -28,6 +29,7 @@ public interface LanePlayer extends RecordApplier<PlayerRecord> {
 	String getName();
 	String getDisplayName();
 	Locale getLanguage();
+	Optional<QueueRequest> getQueueRequest();
 	Optional<String> getInstanceId();
 	Optional<Long> getGameId();
 	LanePlayerState getState();

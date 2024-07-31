@@ -10,13 +10,13 @@ import com.lahuca.lane.records.GameStateRecord;
 public class ControllerGame {
 
     private final long gameId;
-    private String serverId; // TODO Why not rename it back to instanceId?, maybe final?
+    private String instanceId; // TODO Why not rename it back to instanceId?, maybe final?
     private String name;
     private final ControllerGameState state;
 
-    public ControllerGame(long gameId, String serverId, String name, ControllerGameState state) {
+    public ControllerGame(long gameId, String instanceId, String name, ControllerGameState state) {
         this.gameId = gameId;
-        this.serverId = serverId;
+        this.instanceId = instanceId;
         this.name = name;
         this.state = state;
     }
@@ -25,12 +25,12 @@ public class ControllerGame {
         return gameId;
     }
 
-    public String getServerId() {
-        return serverId;
+    public String getInstanceId() {
+        return instanceId;
     }
 
-    public void setServerId(String serverId) {
-        this.serverId = serverId;
+    public void setInstanceId(String instanceId) {
+        this.instanceId = instanceId;
     }
 
     public String getName() {
@@ -49,8 +49,8 @@ public class ControllerGame {
         this.state.applyRecord(state);
     }
 
-    public void update(String serverId, String name, GameStateRecord state) {
-        setServerId(serverId);
+    public void update(String instanceId, String name, GameStateRecord state) {
+        setInstanceId(instanceId);
         setName(name);
         setState(state);
     }

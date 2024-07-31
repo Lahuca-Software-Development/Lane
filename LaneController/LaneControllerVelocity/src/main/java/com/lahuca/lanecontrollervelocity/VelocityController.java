@@ -27,7 +27,10 @@ import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.message.MapLaneMessage;
+import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.*;
+import com.lahuca.lanecontroller.events.QueueStageEvent;
+import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.velocitypowered.api.event.ResultedEvent;
@@ -41,6 +44,7 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 
@@ -147,37 +151,110 @@ public class VelocityController {
     @Subscribe
     public void onChooseInitialServer(PlayerChooseInitialServerEvent event) {
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
-            HashSet<ControllerLaneInstance> exclude = new HashSet<>();
-            AtomicBoolean done = new AtomicBoolean(false);
-            AtomicBoolean success = new AtomicBoolean(false);
-            do {
-                implementation.getNewInstance(controller, player, exclude).ifPresentOrElse(instance -> {
-                    ControllerPlayerState state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
-                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
-                                    new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
-                    player.setState(state);
+            QueueRequest request = new QueueRequest(QueueRequestReason.NETWORK_JOIN, QueueRequestParameters.lobbyParameters);
+            QueueStageEvent requestEvent = new QueueStageEvent(player, request);
+            boolean nextStage = true;
+            // We run the queue request as long as we are trying to find instances/games.
+            while(nextStage) {
+                nextStage = false;
+                implementation.handleQueueStageEvent(requestEvent);
+                QueueStageEventResult result = requestEvent.getResult();
+                if(result instanceof QueueStageEventResult.Disconnect disconnect) {
+                    // We should disconnect the player.
+                    TextComponent message;
+                    if(disconnect.getMessage() == null || disconnect.getMessage().isEmpty()) {
+                        message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
+                    } else {
+                        message = Component.text(disconnect.getMessage());
+                    }
+                    event.getPlayer().disconnect(message); // TODO Will this actually work here?
+                    event.setInitialServer(null);
+                } else if(result instanceof QueueStageEventResult.None) {
+                    // Since we are at the initial server event, we have to disconnect the player.
+                    event.getPlayer().disconnect(Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()))); // TODO Will this actually work here?
+                    event.setInitialServer(null);
+                } else if(result instanceof QueueStageEventResult.JoinGame || result instanceof QueueStageEventResult.JoinInstance) {
+                    // We want to let the player join a specific instance or game.
+                    ControllerLaneInstance instance;
+                    String instanceId = null;
+                    Long gameId = null;
+                    if(result instanceof QueueStageEventResult.JoinGame joinGame) {
+                        gameId = joinGame.getGameId();
+                        Optional<ControllerGame> gameOptional = controller.getGame(joinGame.getGameId());
+                        if(gameOptional.isEmpty()) {
+                            request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, null, joinGame.getGameId()));
+                            nextStage = true;
+                            continue;
+                        }
+                        ControllerGame game = gameOptional.get();
+                        Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
+                        if(instanceOptional.isEmpty()) {
+                            // Run the stage event again to determine a new ID.
+                            request.stages().add(new QueueStage(QueueStageResult.INVALID_STATE, null, joinGame.getGameId()));
+                            nextStage = true;
+                            continue;
+                        }
+                        instance = instanceOptional.get();
+                    } else {
+                        QueueStageEventResult.JoinInstance joinInstance = (QueueStageEventResult.JoinInstance) result;
+                        instanceId = joinInstance.getInstanceId();
+                        Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(joinInstance.getInstanceId());
+                        if(instanceOptional.isEmpty()) {
+                            // Run the stage event again to determine a new ID.
+                            request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, joinInstance.getInstanceId(), null));
+                            nextStage = true;
+                            continue;
+                        }
+                        instance = instanceOptional.get();
+                    }
+                    if(instance.isJoinable() && instance.isNonPlayable() &&
+                            instance.getCurrentPlayers() + 1 <= instance.getMaxPlayers()) {
+                        // Run the stage event again to find a joinable instance.
+                        request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, instanceId, gameId));
+                        nextStage = true;
+                        continue;
+                    }
+                    // TODO Check whether the game actually has a place left. ONLY WHEN result is JoinGame
+                    // We found a hopefully free instance, try do send the packet.
+                    ControllerPlayerState state;
+                    if(result instanceof QueueStageEventResult.JoinGame) {
+                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
+                                Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
+                                        new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId),
+                                        new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                    } else {
+                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
+                                Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
+                                        new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                    }
+                    player.setState(state); // TODO Better state handling!
+                    player.setQueueRequest(request);
                     CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) ->
                             new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
                     try {
-                        Result<Void> result = future.get();
-                        if(result.isSuccessful()) {
-                            server.getServer(instance.getId()).ifPresentOrElse(server -> {
-                                event.setInitialServer(server);
-                                done.set(true);
-                                success.set(true);
-                            }, () -> exclude.add(instance));
+                        Result<Void> joinResult = future.get();
+                        if(joinResult.isSuccessful()) {
+                            Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
+                            if(instanceServer.isEmpty()) {
+                                request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, instanceId, gameId));
+                                nextStage = true;
+                                continue;
+                            }
+                            // We can join
+                            event.setInitialServer(instanceServer.get());
                         } else {
-                            exclude.add(instance);
+                            // We are not allowing to join at this instance.
+                            request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, instanceId, gameId));
+                            nextStage = true;
+                            continue;
                         }
                     } catch (InterruptedException | ExecutionException e) {
-                        exclude.add(instance);
+                        // We did not receive a valid response.
+                        request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, instanceId, gameId));
+                        nextStage = true;
+                        continue;
                     }
-                }, () -> done.set(true));
-            } while(!done.get());
-            if(!success.get()) {
-                TextComponent message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
-                event.getPlayer().disconnect(message); // TODO Will this actually correct work here?
-                event.setInitialServer(null);
+                }
             }
         }, (message) -> {
             event.getPlayer().disconnect(message); // TODO Will this actually correct work here?
@@ -347,6 +424,11 @@ public class VelocityController {
                 }
             }
             return Optional.empty();
+        }
+
+        @Override
+        public void handleQueueStageEvent(QueueStageEvent event) {
+            // TODO
         }
 
     }
