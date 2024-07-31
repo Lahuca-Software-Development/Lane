@@ -2,6 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LaneGameState;
 import com.lahuca.lane.LaneStateProperty;
+import com.lahuca.lane.records.GameStateRecord;
 
 import java.util.HashMap;
 
@@ -42,5 +43,15 @@ public class GameState implements LaneGameState {
     @Override
     public HashMap<String, ? extends LaneStateProperty> getProperties() {
         return properties;
+    }
+
+    @Override
+    public GameStateRecord convertRecord() {
+        return null;
+    }
+
+    @Override
+    public void applyRecord(GameStateRecord record) {
+
     }
 }

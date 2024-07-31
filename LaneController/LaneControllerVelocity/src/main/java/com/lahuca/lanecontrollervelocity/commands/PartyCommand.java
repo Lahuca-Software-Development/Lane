@@ -60,7 +60,7 @@ public class PartyCommand implements SimpleCommand {
             runAsPartyLeader(controllerPlayer, party -> controllerPlayer.getGameId()
                     .flatMap(game -> Controller.getInstance().getGame(game))
                     .ifPresent(gameServer -> {
-                        Controller.getInstance().joinInstance(party.getId(), gameServer.getServerId());//TODO check if its really serverId
+                        Controller.getInstance().joinInstance(party.getId(), gameServer.getInstanceId());//TODO check if its really serverId
                         //TODO: Send message that party was warped
                     }));
         } else if(args[0].equalsIgnoreCase("kick")) {

@@ -1,0 +1,7 @@
+connection:
+  socketConnection: true
+  id: "surival"
+  ip: "mc.slux.cz"
+  port: 776
+  joinable: true
+  nonPlayable: false

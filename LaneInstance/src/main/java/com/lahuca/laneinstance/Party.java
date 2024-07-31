@@ -24,6 +24,10 @@ public class Party implements LaneParty {
         this.creationStamp = creationStamp;
     }
 
+    public void setOwner(UUID owner) {
+        this.owner = owner;
+    }
+
     @Override
     public long getId() {
         return partyId;

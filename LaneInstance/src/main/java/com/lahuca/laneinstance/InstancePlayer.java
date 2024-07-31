@@ -2,8 +2,10 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -18,7 +20,7 @@ public class InstancePlayer implements LanePlayer {
     private final UUID uuid;
     private final String name;
     private String displayName;
-    private String language;
+    private Locale language;
     private String instanceId = null;
     private Long gameId = null;
     private InstancePlayerState state = null;
@@ -37,13 +39,13 @@ public class InstancePlayer implements LanePlayer {
         applyRecord(record);
     }
 
-    public void setLanguage(String language) {
-        // TODO Really? Simple setter?
+    public void setLanguage(Locale language) {
         this.language = language;
+        LaneInstance.getInstance().sendController(new InstanceUpdatePlayerPacket(convertRecord()));
     }
 
     @Override
-    public String getLanguage() {
+    public Locale getLanguage() {
         return language;
     }
 
@@ -53,8 +55,8 @@ public class InstancePlayer implements LanePlayer {
     }
 
     public void setGameId(long gameId) {
-        // TODO Really? Simple setter?
         this.gameId = gameId;
+        LaneInstance.getInstance().sendController(new InstanceUpdatePlayerPacket(convertRecord()));
     }
 
     @Override
@@ -101,7 +103,7 @@ public class InstancePlayer implements LanePlayer {
     public void applyRecord(PlayerRecord record) {
         // TODO Maybe better recode?
         displayName = record.displayName();
-        language = record.language();
+        language = record.languageTag();
         instanceId = record.instanceId();
         gameId = record.gameId();
         if(state == null) state = new InstancePlayerState();

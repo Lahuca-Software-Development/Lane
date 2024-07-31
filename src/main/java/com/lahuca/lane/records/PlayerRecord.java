@@ -15,8 +15,9 @@
  */
 package com.lahuca.lane.records;
 
+import java.util.Locale;
 import java.util.UUID;
 
-public record PlayerRecord(UUID uuid, String name, String displayName, String languageTag,
+public record PlayerRecord(UUID uuid, String name, String displayName, Locale languageTag,
 						   String instanceId, Long gameId, PlayerStateRecord state, Long partyId) {
 }

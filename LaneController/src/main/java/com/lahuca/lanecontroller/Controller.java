@@ -69,11 +69,11 @@ public class Controller extends RequestHandler {
                     return;
                 }
                 ControllerGame game = games.get(packet.gameId());
-                if(!game.getServerId().equals(input.from())) {
+                if(!game.getInstanceId().equals(input.from())) {
                     connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                     return;
                 }
-                games.get(packet.gameId()).update(input.from(), packet.name(), packet.state());
+                games.get(packet.gameId()).update(packet.name(), packet.state());
                 connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
@@ -295,12 +295,12 @@ public class Controller extends RequestHandler {
     public CompletableFuture<Result<Void>> joinGame(UUID player, long gameId) {
         CompletableFuture<Result<Void>> future = new CompletableFuture<>();
         getGame(gameId).ifPresentOrElse(game -> {
-            if(game.getServerId() == null || !game.getState().isJoinable()) {
+            if(game.getInstanceId() == null || !game.getState().isJoinable()) {
                 future.complete(simpleResult(ResponsePacket.INVALID_ID));
                 return;
             }
             getPlayer(player).ifPresent(owner -> {
-                Runnable withoutParty = () -> sendToInstance(Set.of(owner), game.getServerId(), gameId).whenComplete((result, ex) -> {
+                Runnable withoutParty = () -> sendToInstance(Set.of(owner), game.getInstanceId(), gameId).whenComplete((result, ex) -> {
                     if(ex == null) future.complete(result);
                     else future.completeExceptionally(ex);
                 });
@@ -325,14 +325,14 @@ public class Controller extends RequestHandler {
     public CompletableFuture<Result<Void>> joinGame(long partyId, long gameId) {
         CompletableFuture<Result<Void>> future = new CompletableFuture<>();
         getGame(gameId).ifPresent(game -> {
-            if(game.getServerId() == null || !game.getState().isJoinable()) {
+            if(game.getInstanceId() == null || !game.getState().isJoinable()) {
                 future.complete(simpleResult(ResponsePacket.INVALID_ID));
                 return;
             }
             getParty(partyId).ifPresent(party -> {
                 HashSet<ControllerPlayer> players = new HashSet<>();
                 party.getPlayers().forEach(uuid -> getPlayer(uuid).ifPresent(players::add));
-                sendToInstance(players, game.getServerId(), gameId).whenComplete((result, ex) -> {
+                sendToInstance(players, game.getInstanceId(), gameId).whenComplete((result, ex) -> {
                     if(ex == null) future.complete(result);
                     else future.completeExceptionally(ex);
                 });
