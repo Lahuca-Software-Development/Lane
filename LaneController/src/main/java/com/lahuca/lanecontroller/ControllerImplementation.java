@@ -2,6 +2,7 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.message.LaneMessage;
+import com.lahuca.lanecontroller.events.QueueStageEvent;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -38,6 +39,13 @@ public interface ControllerImplementation {
      * @return the instance to go to, if the optional is null, then no instance could be found
      */
     Optional<ControllerLaneInstance> getNewInstance(Controller controller, ControllerPlayer player, Collection<ControllerLaneInstance> exclude);
+
+    /**
+     * Lets the implemented controller handle the {@link QueueStageEvent}.
+     * Do not do blocking actions while handling the event, as often a "direct" response is needed.
+     * @param event The event to handle.
+     */
+    void handleQueueStageEvent(QueueStageEvent event);
 
 
 }

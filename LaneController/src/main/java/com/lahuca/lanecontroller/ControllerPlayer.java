@@ -17,6 +17,7 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
+import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.*;
@@ -27,6 +28,7 @@ public class ControllerPlayer implements LanePlayer {
     private final String name;
     private String displayName;
     private Locale language;
+    private QueueRequest queueRequest;
     private String instanceId = null;
     private Long gameId = null;
     private ControllerPlayerState state = null;
@@ -66,6 +68,11 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     @Override
+    public Optional<QueueRequest> getQueueRequest() {
+        return Optional.ofNullable(queueRequest);
+    }
+
+    @Override
     public Optional<String> getInstanceId() {
         return Optional.ofNullable(instanceId);
     }
@@ -92,6 +99,11 @@ public class ControllerPlayer implements LanePlayer {
      */
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+        updateInstancePlayer();
+    }
+
+    public void setQueueRequest(QueueRequest queueRequest) {
+        this.queueRequest = queueRequest;
         updateInstancePlayer();
     }
 
@@ -143,7 +155,7 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
     }
 
     @Override
