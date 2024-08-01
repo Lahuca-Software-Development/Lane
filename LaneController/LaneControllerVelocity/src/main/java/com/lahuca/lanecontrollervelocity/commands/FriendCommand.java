@@ -67,15 +67,11 @@ public class FriendCommand implements SimpleCommand {
                 return;
             }
 
-            VelocityController.getInstance().getServer().getPlayer(args[1]).ifPresentOrElse(friend -> {
-
-                if(!controllerPlayer.hasRelationshipWith(friend.getUniqueId())) {
-                    //TODO send message they are not friends
-                    return;
-                }
-
-                controllerPlayer.removeRelationship(controllerPlayer.getRelationship(friend.getUniqueId()).getId());
-            }, () -> {
+            VelocityController.getInstance().getServer().getPlayer(args[1]).ifPresentOrElse(friend ->
+                    controllerPlayer.getRelationshipWith(friend.getUniqueId()).ifPresentOrElse(relationship ->
+                            controllerPlayer.removeRelationship(relationship.getId()), () -> {
+                        //TODO send message they are not friends
+                    }), () -> {
                 //TODO send message couldn't find the player
             });
 

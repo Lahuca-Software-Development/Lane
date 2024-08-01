@@ -39,14 +39,15 @@ public class PartyCommand implements SimpleCommand {
 
             /*
              *
-             * /party <Player> - Sends a request to the requested
+             * /party <Player> - Sends a request to the requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
              * /party info - Sends an information about the party
              * /party accept <Player> - Accepts the request from the given requested
              * /party deny <Player> - Denies the request from the given requested
-             * /party disband - Disbands the party
-             * /party kick <Player> - Kicks the requested from the party
-             * /party warp - Sends all players to the leader's server
+             * /party disband - Disbands the party [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+             * /party kick <Player> - Kicks the requested from the party [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+             * /party warp - Sends all players to the leader's server [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
              * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+             * /party leave
              *
              */
 
@@ -160,6 +161,21 @@ public class PartyCommand implements SimpleCommand {
                     //TODO send message that given player is offline.
                 });
             });
+        } else if(args[0].equalsIgnoreCase("leave")) {
+            playerParty.ifPresentOrElse(party -> {
+                Controller.getInstance().getPlayer(player.getUniqueId()).ifPresent(target -> {
+                    if(!party.contains(target.getUuid())) {
+                        //TODO: send message that player is no longer in the party
+                        return;
+                    }
+
+                    party.removePlayer(target);
+                    //TODO: send message that player left the party
+                });
+            }, () -> {
+                //TODO: send message that player is not in the party
+            });
+
         } else {
             // /party <Player> - Will send invitation
             String name = args[0];
@@ -167,7 +183,6 @@ public class PartyCommand implements SimpleCommand {
             Controller.getInstance().getPlayerByName(name).ifPresentOrElse(target -> {
                 if(playerParty.isEmpty()) {
                     Controller.getInstance().createParty(controllerPlayer, target);
-                    return;
                 } else {
                     playerParty.get().sendRequest(target);
                 }
