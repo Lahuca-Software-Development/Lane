@@ -43,6 +43,10 @@ public enum QueueStageResult {
     /**
      * Data is not being handled properly somewhere.
      */
-    INVALID_STATE;
+    INVALID_STATE,
+    /**
+     * The server has kicked the player.
+     */
+    SERVER_KICKED;
 
 }

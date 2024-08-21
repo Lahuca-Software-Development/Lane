@@ -103,7 +103,8 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     public void setQueueRequest(QueueRequest queueRequest) {
-        this.queueRequest = queueRequest;
+        this.queueRequest = queueRequest; // TODO This should be cleared when the request is succesfully done!
+        // TODO The instance should reset this. Or we interact when we receive the updated player state.
         updateInstancePlayer();
     }
 

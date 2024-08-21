@@ -293,6 +293,8 @@ public class VelocityController {
                 } else {
                     // We are at the incorrect state
                     // TODO Make methods to handle this case, for now, we do nothing.
+                    // How could this happen? This controller should have updated the player state, so this could not happen.
+                    // Probably some network issues.
                 }
             });
         }, null);
@@ -313,6 +315,26 @@ public class VelocityController {
         // TODO, if the player is still on a lobby, we should revert the state to the lobby instead.
         // TODO, if the player was trying to join a game, we should retry it
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            if(player.getQueueRequest().isPresent()) {
+                // The player is in a queue, but the last state has failed. Retrieve its data and fetch new stages.
+                ControllerPlayerState playerState = player.getState();
+                String instanceId = null;
+                Long gameId = null;
+                if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                    instanceId = String.valueOf(playerState.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue());
+                }
+                if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.GAME_ID)) {
+                    Object value = playerState.getProperties().get(LaneStateProperty.GAME_ID).getValue();
+                    if(value instanceof Long parsed) gameId = parsed;
+                }
+                QueueStage stage = new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId);
+                // TODO Run the stages until we are done.
+            } else {
+                // TODO Create new request and then run until we are done.
+                return;
+            }
+
+            QueueRequest request = new QueueRequest(QueueRequestReason.NETWORK_JOIN);
             HashSet<ControllerLaneInstance> exclude = new HashSet<>();
             controller.getInstance(event.getServer().getServerInfo().getName()).ifPresent(exclude::add);
             AtomicBoolean done = new AtomicBoolean(false);
