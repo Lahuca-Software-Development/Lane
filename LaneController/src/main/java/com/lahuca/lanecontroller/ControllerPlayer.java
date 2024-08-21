@@ -143,6 +143,17 @@ public class ControllerPlayer implements LanePlayer {
         updateInstancePlayer();
     }
 
+    public Optional<ControllerRelationship> getRelationshipWith(UUID uuid) {
+        for(Long relationship : relationships) {
+            ControllerRelationship cRelationship = Controller.getInstance().getRelationship(relationship).orElse(null);
+            if(cRelationship == null) continue;
+            if(!cRelationship.players().contains(uuid)) continue;
+            return Optional.of(cRelationship);
+        }
+
+        return Optional.empty();
+    }
+
     @Override
     public PlayerRecord convertRecord() {
         return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
