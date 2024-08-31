@@ -34,8 +34,23 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
     /**
      * The class consisting of the data for doing nothing with the event.
      * This should be set when the player should stay at its server and the queue should be closed.
+     * An additional message can be provided to be sent to the player is possible, useful when trying to join a different instance/game which fails.
      */
     public final static class None extends QueueStageEventResult {
+
+        private final String message;
+
+        public None() {
+            message = null;
+        }
+
+        public None(String message) {
+            this.message = message;
+        }
+
+        public String getMessage() {
+            return message;
+        }
 
     }
 
