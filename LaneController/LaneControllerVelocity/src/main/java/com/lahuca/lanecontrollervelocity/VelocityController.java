@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
@@ -318,128 +317,122 @@ public class VelocityController {
             QueueRequest request;
             if(player.getQueueRequest().isPresent()) {
                 request = player.getQueueRequest().get(); // TODO Fix. Anything other than the QueueRequest should be the same.
+            } else {
+                request = new QueueRequest(QueueRequestReason.SERVER_KICKED, QueueRequestParameters.lobbyParameters);
             }
 
-                // The player is in a queue, but the last state has failed. Retrieve its data and fetch new stages.
-                ControllerPlayerState playerState = player.getState();
-                String instanceId = null;
-                Long gameId = null;
-                if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
-                    instanceId = String.valueOf(playerState.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue());
-                }
-                if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.GAME_ID)) {
-                    Object value = playerState.getProperties().get(LaneStateProperty.GAME_ID).getValue();
-                    if(value instanceof Long parsed) gameId = parsed;
-                }
-                QueueRequest request = player.getQueueRequest().get();
-                request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
+            // The player is in a queue, but the last state has failed. Retrieve its data and fetch new stages.
+            ControllerPlayerState playerState = player.getState();
+            String instanceId = null;
+            Long gameId = null;
+            if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                instanceId = String.valueOf(playerState.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue());
+            }
+            if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.GAME_ID)) {
+                Object value = playerState.getProperties().get(LaneStateProperty.GAME_ID).getValue();
+                if(value instanceof Long parsed) gameId = parsed;
+            }
+            request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
 
-                QueueStageEvent stageEvent = new QueueStageEvent(player, request);
-                boolean nextStage = true;
-                while(nextStage) {
-                    nextStage = false;
-                    implementation.handleQueueStageEvent(stageEvent);
-                    QueueStageEventResult result = stageEvent.getResult();
-                    if(result instanceof QueueStageEventResult.None none) {
-                        TextComponent message;
-                        if(none.getMessage() == null || none.getMessage().isEmpty()) {
-                            message = Component.text(getMessage("none", player.getLanguage())); // TODO Different key!
-                        } else {
-                            message = Component.text(none.getMessage());
-                        }
-                        event.setResult(KickedFromServerEvent.Notify.create(message));
-                    } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
-                        TextComponent message;
-                        if(disconnect.getMessage() == null || disconnect.getMessage().isEmpty()) {
-                            message = Component.text(getMessage("disconnect", player.getLanguage())); // TODO Different key!
-                        } else {
-                            message = Component.text(disconnect.getMessage());
-                        }
-                        event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
-                    } else if(result instanceof QueueStageEventResult.QueueStageEventStageableResult stageable) {
-                        ControllerLaneInstance instance;
-                        String resultInstanceId = null;
-                        Long resultGameId = null;
-                        if(stageable instanceof QueueStageEventResult.JoinGame joinGame) {
-                            resultGameId = joinGame.getGameId();
-                            Optional<ControllerGame> gameOptional = controller.getGame(joinGame.getGameId());
-                            if(gameOptional.isEmpty()) {
-                                request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, null, joinGame.getGameId()));
-                                nextStage = true;
-                                continue;
-                            }
-                            ControllerGame game = gameOptional.get();
-                            Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
-                            if(instanceOptional.isEmpty()) {
-                                // Run the stage event again to determine a new ID.
-                                request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, game.getInstanceId(), null));
-                                nextStage = true;
-                                continue;
-                            }
-                            instance = instanceOptional.get();
-                        } else {
-                            QueueStageEventResult.JoinInstance joinInstance = (QueueStageEventResult.JoinInstance) result;
-                            resultInstanceId = joinInstance.getInstanceId();
-                            Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(joinInstance.getInstanceId());
-                            if(instanceOptional.isEmpty()) {
-                                // Run the stage event again to determine a new ID.
-                                request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, joinInstance.getInstanceId(), null));
-                                nextStage = true;
-                                continue;
-                            }
-                            instance = instanceOptional.get();
-                        }
-                        if(instance.isJoinable() && instance.isNonPlayable() &&
-                                instance.getCurrentPlayers() + 1 <= instance.getMaxPlayers()) {
-                            // Run the stage event again to find a joinable instance.
-                            request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, resultInstanceId, resultGameId));
+            QueueStageEvent stageEvent = new QueueStageEvent(player, request);
+            boolean nextStage = true;
+            while(nextStage) {
+                nextStage = false;
+                implementation.handleQueueStageEvent(stageEvent);
+                QueueStageEventResult result = stageEvent.getResult();
+                if(result instanceof QueueStageEventResult.None none) {
+                    TextComponent message;
+                    if(none.getMessage() == null || none.getMessage().isEmpty()) {
+                        message = Component.text(getMessage("none", player.getLanguage())); // TODO Different key!
+                    } else {
+                        message = Component.text(none.getMessage());
+                    }
+                    event.setResult(KickedFromServerEvent.Notify.create(message));
+                } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
+                    TextComponent message;
+                    if(disconnect.getMessage() == null || disconnect.getMessage().isEmpty()) {
+                        message = Component.text(getMessage("disconnect", player.getLanguage())); // TODO Different key!
+                    } else {
+                        message = Component.text(disconnect.getMessage());
+                    }
+                    event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
+                } else if(result instanceof QueueStageEventResult.QueueStageEventStageableResult stageable) {
+                    ControllerLaneInstance instance;
+                    String resultInstanceId = null;
+                    Long resultGameId = null;
+                    if(stageable instanceof QueueStageEventResult.JoinGame joinGame) {
+                        resultGameId = joinGame.getGameId();
+                        Optional<ControllerGame> gameOptional = controller.getGame(joinGame.getGameId());
+                        if(gameOptional.isEmpty()) {
+                            request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, null, joinGame.getGameId()));
                             nextStage = true;
                             continue;
                         }
-                        // TODO Check whether the game actually has a place left. ONLY WHEN result is JoinGame
-                        // We found a hopefully free instance, try do send the packet.
-                        ControllerPlayerState state;
-                        if(stageable instanceof QueueStageEventResult.JoinGame) {
-                            state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
-                                    Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
-                                            new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId),
-                                            new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
-                        } else {
-                            state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
-                                    Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
-                                            new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
-                        }
-                        player.setState(state); // TODO Better state handling!
-                        player.setQueueRequest(request);
-                        CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) ->
-                                new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
-                        try {
-                            Result<Void> joinResult = future.get();
-                            if(joinResult.isSuccessful()) {
-                                Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
-                                if(instanceServer.isEmpty()) {
-                                    // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
-                                    request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
-                                    nextStage = true;
-                                    continue;
-                                }
-                                // We can join
-                                event.setResult(KickedFromServerEvent.RedirectPlayer.create(instanceServer.get()));
-                            } else {
-                                // We are not allowing to join at this instance.
-                                request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
-                                nextStage = true;
-                                continue;
-                            }
-                        } catch (InterruptedException | ExecutionException e) {
-                            // We did not receive a valid response.
-                            request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
+                        ControllerGame game = gameOptional.get();
+                        Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
+                        if(instanceOptional.isEmpty()) {
+                            // Run the stage event again to determine a new ID.
+                            request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, game.getInstanceId(), null));
                             nextStage = true;
                             continue;
                         }
+                        instance = instanceOptional.get();
+                    } else {
+                        QueueStageEventResult.JoinInstance joinInstance = (QueueStageEventResult.JoinInstance) result;
+                        resultInstanceId = joinInstance.getInstanceId();
+                        Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(joinInstance.getInstanceId());
+                        if(instanceOptional.isEmpty()) {
+                            // Run the stage event again to determine a new ID.
+                            request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, joinInstance.getInstanceId(), null));
+                            nextStage = true;
+                            continue;
+                        }
+                        instance = instanceOptional.get();
+                    }
+                    if(instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + 1 <= instance.getMaxPlayers()) {
+                        // Run the stage event again to find a joinable instance.
+                        request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, resultInstanceId, resultGameId));
+                        nextStage = true;
+                        continue;
+                    }
+                    // TODO Check whether the game actually has a place left. ONLY WHEN result is JoinGame
+                    // We found a hopefully free instance, try do send the packet.
+                    ControllerPlayerState state;
+                    if(stageable instanceof QueueStageEventResult.JoinGame) {
+                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                    } else {
+                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                    }
+                    player.setState(state); // TODO Better state handling!
+                    player.setQueueRequest(request);
+                    CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
+                    try {
+                        Result<Void> joinResult = future.get();
+                        if(joinResult.isSuccessful()) {
+                            Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
+                            if(instanceServer.isEmpty()) {
+                                // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
+                                request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
+                                nextStage = true;
+                                continue;
+                            }
+                            // We can join
+                            event.setResult(KickedFromServerEvent.RedirectPlayer.create(instanceServer.get()));
+                        } else {
+                            // We are not allowing to join at this instance.
+                            request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
+                            nextStage = true;
+                            continue;
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        // We did not receive a valid response.
+                        request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
+                        nextStage = true;
+                        continue;
                     }
                 }
-                // The above is being ran until either the player should be notified, disconnected or redirected.
+            }
+            // The above is being run until either the player should be notified, disconnected or redirected.
         }, (message) -> {
             event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
             // TODO Maybe we should keep the player at the lobby?, or register the player back

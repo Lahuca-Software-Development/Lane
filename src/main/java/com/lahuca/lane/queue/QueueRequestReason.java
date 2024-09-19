@@ -31,6 +31,6 @@ public enum QueueRequestReason {
     /**
      * The player is being kicked from the server and is therefore requesting a new one.
      */
-    SERVER_KICK;
+    SERVER_KICKED;
 
 }
