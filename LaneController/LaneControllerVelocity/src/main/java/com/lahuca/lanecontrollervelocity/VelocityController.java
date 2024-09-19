@@ -315,7 +315,11 @@ public class VelocityController {
         // TODO, if the player is still on a lobby, we should revert the state to the lobby instead.
         // TODO, if the player was trying to join a game, we should retry it
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            QueueRequest request;
             if(player.getQueueRequest().isPresent()) {
+                request = player.getQueueRequest().get(); // TODO Fix. Anything other than the QueueRequest should be the same.
+            }
+
                 // The player is in a queue, but the last state has failed. Retrieve its data and fetch new stages.
                 ControllerPlayerState playerState = player.getState();
                 String instanceId = null;
@@ -329,6 +333,7 @@ public class VelocityController {
                 }
                 QueueRequest request = player.getQueueRequest().get();
                 request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
+
                 QueueStageEvent stageEvent = new QueueStageEvent(player, request);
                 boolean nextStage = true;
                 while(nextStage) {
@@ -367,7 +372,7 @@ public class VelocityController {
                             Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
                             if(instanceOptional.isEmpty()) {
                                 // Run the stage event again to determine a new ID.
-                                request.stages().add(new QueueStage(QueueStageResult.INVALID_STATE, null, joinGame.getGameId()));
+                                request.stages().add(new QueueStage(QueueStageResult.UNKNOWN_ID, game.getInstanceId(), null));
                                 nextStage = true;
                                 continue;
                             }
@@ -413,12 +418,13 @@ public class VelocityController {
                             if(joinResult.isSuccessful()) {
                                 Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
                                 if(instanceServer.isEmpty()) {
+                                    // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                                     request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
                                     nextStage = true;
                                     continue;
                                 }
                                 // We can join
-                                event.setInitialServer(instanceServer.get());
+                                event.setResult(KickedFromServerEvent.RedirectPlayer.create(instanceServer.get()));
                             } else {
                                 // We are not allowing to join at this instance.
                                 request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
@@ -433,46 +439,7 @@ public class VelocityController {
                         }
                     }
                 }
-                // TODO Run the stages until we are done.
-            } else {
-                // TODO Create new request and then run until we are done.
-                return;
-            }
-
-            QueueRequest request = new QueueRequest(QueueRequestReason.NETWORK_JOIN);
-            HashSet<ControllerLaneInstance> exclude = new HashSet<>();
-            controller.getInstance(event.getServer().getServerInfo().getName()).ifPresent(exclude::add);
-            AtomicBoolean done = new AtomicBoolean(false);
-            AtomicBoolean success = new AtomicBoolean(false);
-            do {
-                implementation.getNewInstance(controller, player, exclude).ifPresentOrElse(instance -> {
-                    ControllerPlayerState state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
-                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
-                                    new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
-                    player.setState(state);
-                    CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) ->
-                            new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
-                    try {
-                        Result<Void> result = future.get();
-                        if(result.isSuccessful()) {
-                            server.getServer(instance.getId()).ifPresentOrElse(server -> {
-                                event.setResult(KickedFromServerEvent.RedirectPlayer.create(server)); // TODO Maybe message?
-                                done.set(true);
-                                success.set(true);
-                            }, () -> exclude.add(instance));
-                        } else {
-                            exclude.add(instance);
-                        }
-                    } catch (InterruptedException | ExecutionException e) {
-                        exclude.add(instance);
-                    }
-                }, () -> done.set(true));
-            } while(!done.get());
-            if(!success.get()) {
-                TextComponent message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
-                event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
-                // TODO Maybe we should keep the player at the lobby?, but we somehow could not find one
-            }
+                // The above is being ran until either the player should be notified, disconnected or redirected.
         }, (message) -> {
             event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
             // TODO Maybe we should keep the player at the lobby?, or register the player back

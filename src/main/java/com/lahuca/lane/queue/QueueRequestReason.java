@@ -27,6 +27,10 @@ public enum QueueRequestReason {
     /**
      * The player has joined the queue due to it being in a party.
      */
-    PARTY_JOIN;
+    PARTY_JOIN,
+    /**
+     * The player is being kicked from the server and is therefore requesting a new one.
+     */
+    SERVER_KICK;
 
 }
