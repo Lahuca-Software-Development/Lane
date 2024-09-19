@@ -134,6 +134,11 @@ public class Controller extends RequestHandler {
         return result;
     }
 
+    public void queue() {
+
+    }
+
+
     /**
      * Sends the given players to the instance.
      * If the players are trying to join a game, it will also send the game they are willing/trying to join.

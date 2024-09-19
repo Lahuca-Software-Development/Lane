@@ -316,23 +316,22 @@ public class VelocityController {
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
             QueueRequest request;
             if(player.getQueueRequest().isPresent()) {
-                request = player.getQueueRequest().get(); // TODO Fix. Anything other than the QueueRequest should be the same.
+                request = player.getQueueRequest().get();
+                // The player is in a queue, but the last state has failed. Retrieve its data and fetch new stages.
+                ControllerPlayerState playerState = player.getState();
+                String instanceId = null;
+                Long gameId = null;
+                if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                    instanceId = String.valueOf(playerState.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue());
+                }
+                if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.GAME_ID)) {
+                    Object value = playerState.getProperties().get(LaneStateProperty.GAME_ID).getValue();
+                    if(value instanceof Long parsed) gameId = parsed;
+                }
+                request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
             } else {
                 request = new QueueRequest(QueueRequestReason.SERVER_KICKED, QueueRequestParameters.lobbyParameters);
             }
-
-            // The player is in a queue, but the last state has failed. Retrieve its data and fetch new stages.
-            ControllerPlayerState playerState = player.getState();
-            String instanceId = null;
-            Long gameId = null;
-            if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
-                instanceId = String.valueOf(playerState.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue());
-            }
-            if(playerState != null && playerState.getProperties().containsKey(LaneStateProperty.GAME_ID)) {
-                Object value = playerState.getProperties().get(LaneStateProperty.GAME_ID).getValue();
-                if(value instanceof Long parsed) gameId = parsed;
-            }
-            request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
 
             QueueStageEvent stageEvent = new QueueStageEvent(player, request);
             boolean nextStage = true;
@@ -399,9 +398,9 @@ public class VelocityController {
                     // We found a hopefully free instance, try do send the packet.
                     ControllerPlayerState state;
                     if(stageable instanceof QueueStageEventResult.JoinGame) {
-                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                     } else {
-                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                        state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                     }
                     player.setState(state); // TODO Better state handling!
                     player.setQueueRequest(request);

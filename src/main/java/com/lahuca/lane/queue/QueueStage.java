@@ -23,5 +23,5 @@ package com.lahuca.lane.queue;
  * @param instanceId The ID of an instance to join.
  * @param gameId The ID of a game to join.
  */
-public record QueueStage(QueueStageResult result, String instanceId, Long gameId) {
+public record QueueStage(QueueStageResult result, String instanceId, Long gameId) { // TODO Maybe also do the joinTogetherPlayers? As defined in the QueueStageEventResult.JoinGame/.JoinInstance.
 }
