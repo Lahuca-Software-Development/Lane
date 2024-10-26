@@ -48,7 +48,7 @@ public abstract class LaneInstance extends RequestHandler {
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
     private final HashMap<Long, LaneGame> games = new HashMap<>();
     private boolean joinable;
-    private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
+    private boolean nonPlayable; // Tells whether the instance is also non-playable: e.g. lobby
 
     public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
         if(instance != null) throw new InstanceInstantiationException();
@@ -132,7 +132,7 @@ public abstract class LaneInstance extends RequestHandler {
     public abstract int getMaxPlayers();
     public abstract void disconnectPlayer(UUID player, String message);
 
-    private void sendController(Packet packet) {
+    public void sendController(Packet packet) {
         connection.sendPacket(packet, null);
     }
 

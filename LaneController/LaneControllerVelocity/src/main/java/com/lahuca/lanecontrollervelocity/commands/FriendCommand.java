@@ -45,13 +45,13 @@ public class FriendCommand implements SimpleCommand {
         ControllerPlayer controllerPlayer = optionalPlayer.get();
 
         if(args.length == 0) {
-            //Send help message
+            //TODO Send help message
             return;
         }
 
         if(args[0].equalsIgnoreCase("add")) {
             if(args.length < 2) {
-                //Send add help message
+                //TODO Send help message
                 return;
             }
 
@@ -63,7 +63,7 @@ public class FriendCommand implements SimpleCommand {
             });
         } else if(args[0].equalsIgnoreCase("remove")) {
             if(args.length < 2) {
-                //Send remove help message
+                //TODO Send remove help message
                 return;
             }
 

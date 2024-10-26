@@ -3,6 +3,7 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.queue.QueueRequest;
+import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.Locale;
@@ -41,13 +42,12 @@ public class InstancePlayer implements LanePlayer {
     }
 
     public void setLanguage(String languageTag) {
-        // TODO Really? Simple setter?
-        this.language = Locale.forLanguageTag(languageTag);
+        setLanguage(Locale.forLanguageTag(languageTag));
     }
 
     public void setLanguage(Locale language) {
-        // TODO Really? Simple setter?
         this.language = language;
+        LaneInstance.getInstance().sendController(new InstanceUpdatePlayerPacket(convertRecord()));
     }
 
     @Override
@@ -66,8 +66,8 @@ public class InstancePlayer implements LanePlayer {
     }
 
     public void setGameId(long gameId) {
-        // TODO Really? Simple setter?
         this.gameId = gameId;
+        LaneInstance.getInstance().sendController(new InstanceUpdatePlayerPacket(convertRecord()));
     }
 
     @Override
