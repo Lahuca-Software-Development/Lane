@@ -15,8 +15,10 @@
  */
 package com.lahuca.lane.records;
 
+import com.lahuca.lane.queue.QueueRequest;
+
 import java.util.UUID;
 
-public record PlayerRecord(UUID uuid, String name, String displayName, String languageTag,
+public record PlayerRecord(UUID uuid, String name, String displayName, String languageTag, QueueRequest queueRequest,
 						   String instanceId, Long gameId, PlayerStateRecord state, Long partyId) {
 }

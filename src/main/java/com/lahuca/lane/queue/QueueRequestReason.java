@@ -31,6 +31,14 @@ public enum QueueRequestReason {
     /**
      * The player is being kicked from the server and is therefore requesting a new one.
      */
-    SERVER_KICKED;
+    SERVER_KICKED,
+    /**
+     * A plugin attached to the controller is starting a new queue request.
+     */
+    PLUGIN_CONTROLLER,
+    /**
+     * A plugin attached to an instance is starting a new queue request.
+     */
+    PLUGIN_INSTANCE;
 
 }

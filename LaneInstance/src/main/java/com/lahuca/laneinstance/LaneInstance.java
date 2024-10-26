@@ -21,6 +21,7 @@ import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.*;
+import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
@@ -156,6 +157,19 @@ public abstract class LaneInstance extends RequestHandler {
     }
 
     /**
+     * Request the given player to be queued with the given parameters.
+     * @param playerId the player's uuid
+     * @param requestParameters the queue request parameters
+     * @return The result of if the request has successfully be applied.
+     */
+    public CompletableFuture<Result<Void>> queue(UUID playerId, QueueRequestParameters requestParameters) {
+        long id = System.currentTimeMillis();
+        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
+        connection.sendPacket(new QueueRequestPacket(id, playerId, requestParameters), null);
+        return completableFuture;
+    }
+
+    /**
      * This method is to be called when a player joins the instance.
      * This will transfer the player to the correct game, if applicable.
      *
@@ -233,7 +247,6 @@ public abstract class LaneInstance extends RequestHandler {
      */
     public void quitInstance(UUID uuid) {
         getInstancePlayer(uuid).ifPresent(player -> quitGame(uuid));
-
     }
 
     /**

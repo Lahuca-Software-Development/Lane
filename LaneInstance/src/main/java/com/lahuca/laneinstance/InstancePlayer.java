@@ -2,8 +2,10 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -18,7 +20,8 @@ public class InstancePlayer implements LanePlayer {
     private final UUID uuid;
     private final String name;
     private String displayName;
-    private String language;
+    private Locale language;
+    private QueueRequest queueRequest;
     private String instanceId = null;
     private Long gameId = null;
     private InstancePlayerState state = null;
@@ -37,14 +40,24 @@ public class InstancePlayer implements LanePlayer {
         applyRecord(record);
     }
 
-    public void setLanguage(String language) {
+    public void setLanguage(String languageTag) {
+        // TODO Really? Simple setter?
+        this.language = Locale.forLanguageTag(languageTag);
+    }
+
+    public void setLanguage(Locale language) {
         // TODO Really? Simple setter?
         this.language = language;
     }
 
     @Override
-    public String getLanguage() {
+    public Locale getLanguage() {
         return language;
+    }
+
+    @Override
+    public Optional<QueueRequest> getQueueRequest() {
+        return Optional.ofNullable(queueRequest);
     }
 
     @Override
@@ -94,14 +107,15 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, name, displayName, language, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
 
     @Override
     public void applyRecord(PlayerRecord record) {
         // TODO Maybe better recode?
         displayName = record.displayName();
-        language = record.language();
+        language = Locale.forLanguageTag(record.languageTag());
+        queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
         if(state == null) state = new InstancePlayerState();

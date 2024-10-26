@@ -31,6 +31,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
     public static final String gameType = "GAME.TYPE";
     public static final String gameMap = "GAME.MAP";
     public static final String gameMode = "GAME.MODE";
+    public static final String partySkip = "PARTY.SKIP";
 
     public static Builder create() {
         return new Builder();
@@ -126,6 +127,18 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          */
         public final Builder gameMode(String gameMode) {
             data.put(QueueRequestParameter.gameMode, gameMode);
+            return this;
+        }
+
+        /**
+         * Tells the controller to join without/with a player's party.
+         * Examples: FFA, Duos, etc.
+         *
+         * @param partySkip True if the player's party's players should not join as well, false otherwise.
+         * @return This builder.
+         */
+        public final Builder partySkip(boolean partySkip) {
+            data.put(QueueRequestParameter.partySkip, partySkip);
             return this;
         }
 
