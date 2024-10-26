@@ -152,32 +152,32 @@ public class VelocityController {
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
             QueueRequest request = new QueueRequest(QueueRequestReason.NETWORK_JOIN, QueueRequestParameters.lobbyParameters);
             QueueStageEvent requestEvent = new QueueStageEvent(player, request);
+            player.setQueueRequest(request);
             boolean nextStage = true;
             // We run the queue request as long as we are trying to find instances/games.
             while(nextStage) {
                 nextStage = false;
+                requestEvent.setNoneResult();
                 implementation.handleQueueStageEvent(requestEvent);
                 QueueStageEventResult result = requestEvent.getResult();
-                if(result instanceof QueueStageEventResult.Disconnect disconnect) {
+                if(result instanceof QueueStageEventResult.QueueStageEventMessageableResult messageableResult) {
                     // We should disconnect the player.
                     TextComponent message;
-                    if(disconnect.getMessage() == null || disconnect.getMessage().isEmpty()) {
+                    if(messageableResult.getMessage() == null || messageableResult.getMessage().isEmpty()) {
                         message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
                     } else {
-                        message = Component.text(disconnect.getMessage());
+                        message = Component.text(messageableResult.getMessage());
                     }
                     event.getPlayer().disconnect(message); // TODO Will this actually work here?
                     event.setInitialServer(null);
-                } else if(result instanceof QueueStageEventResult.None) {
-                    // Since we are at the initial server event, we have to disconnect the player.
-                    event.getPlayer().disconnect(Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()))); // TODO Will this actually work here?
-                    event.setInitialServer(null);
-                } else if(result instanceof QueueStageEventResult.QueueStageEventStageableResult stageableResult) {
+                    player.setQueueRequest(null);
+                } else if(result instanceof QueueStageEventResult.QueueStageEventJoinableResult joinableResult) {
                     // We want to let the player join a specific instance or game.
                     ControllerLaneInstance instance;
                     String instanceId = null;
                     Long gameId = null;
-                    if(stageableResult instanceof QueueStageEventResult.JoinGame joinGame) {
+                    // TODO playTogetherPlayers!
+                    if(joinableResult instanceof QueueStageEventResult.JoinGame joinGame) {
                         gameId = joinGame.getGameId();
                         Optional<ControllerGame> gameOptional = controller.getGame(joinGame.getGameId());
                         if(gameOptional.isEmpty()) {
@@ -216,7 +216,7 @@ public class VelocityController {
                     // TODO Check whether the game actually has a place left. ONLY WHEN result is JoinGame
                     // We found a hopefully free instance, try do send the packet.
                     ControllerPlayerState state;
-                    if(stageableResult instanceof QueueStageEventResult.JoinGame) {
+                    if(joinableResult instanceof QueueStageEventResult.JoinGame) {
                         state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
                                 Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
                                         new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId),
@@ -331,12 +331,14 @@ public class VelocityController {
                 request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
             } else {
                 request = new QueueRequest(QueueRequestReason.SERVER_KICKED, QueueRequestParameters.lobbyParameters);
+                player.setQueueRequest(request);
             }
 
             QueueStageEvent stageEvent = new QueueStageEvent(player, request);
             boolean nextStage = true;
             while(nextStage) {
                 nextStage = false;
+                stageEvent.setNoneResult();
                 implementation.handleQueueStageEvent(stageEvent);
                 QueueStageEventResult result = stageEvent.getResult();
                 if(result instanceof QueueStageEventResult.None none) {
@@ -347,6 +349,7 @@ public class VelocityController {
                         message = Component.text(none.getMessage());
                     }
                     event.setResult(KickedFromServerEvent.Notify.create(message));
+                    player.setQueueRequest(null);
                 } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
                     TextComponent message;
                     if(disconnect.getMessage() == null || disconnect.getMessage().isEmpty()) {
@@ -355,11 +358,13 @@ public class VelocityController {
                         message = Component.text(disconnect.getMessage());
                     }
                     event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
-                } else if(result instanceof QueueStageEventResult.QueueStageEventStageableResult stageable) {
+                    player.setQueueRequest(null);
+                } else if(result instanceof QueueStageEventResult.QueueStageEventJoinableResult joinable) {
                     ControllerLaneInstance instance;
                     String resultInstanceId = null;
                     Long resultGameId = null;
-                    if(stageable instanceof QueueStageEventResult.JoinGame joinGame) {
+                    // TODO playTogetherPlayers!
+                    if(joinable instanceof QueueStageEventResult.JoinGame joinGame) {
                         resultGameId = joinGame.getGameId();
                         Optional<ControllerGame> gameOptional = controller.getGame(joinGame.getGameId());
                         if(gameOptional.isEmpty()) {
@@ -397,7 +402,7 @@ public class VelocityController {
                     // TODO Check whether the game actually has a place left. ONLY WHEN result is JoinGame
                     // We found a hopefully free instance, try do send the packet.
                     ControllerPlayerState state;
-                    if(stageable instanceof QueueStageEventResult.JoinGame) {
+                    if(joinable instanceof QueueStageEventResult.JoinGame) {
                         state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                     } else {
                         state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
@@ -515,6 +520,22 @@ public class VelocityController {
         @Override
         public void handleQueueStageEvent(QueueStageEvent event) {
             // TODO
+        }
+
+        @Override
+        public boolean sendMessage(UUID player, String message) {
+            Optional<Player> optionalPlayer = server.getPlayer(player);
+            if(optionalPlayer.isEmpty()) return false;
+            optionalPlayer.get().sendMessage(Component.text(message));
+            return true;
+        }
+
+        @Override
+        public boolean disconnectPlayer(UUID player, String message) {
+            Optional<Player> optionalPlayer = server.getPlayer(player);
+            if(optionalPlayer.isEmpty()) return false;
+            optionalPlayer.get().disconnect(Component.text(message));
+            return true;
         }
 
     }

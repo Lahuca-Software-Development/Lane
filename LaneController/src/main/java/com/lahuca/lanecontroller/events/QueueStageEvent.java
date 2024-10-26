@@ -33,6 +33,7 @@ public class QueueStageEvent implements ControllerPlayerEvent {
     public QueueStageEvent(ControllerPlayer player, QueueRequest queueRequest) {
         this.player = player;
         this.queueRequest = queueRequest;
+        setNoneResult();
     }
 
     @Override
@@ -64,6 +65,10 @@ public class QueueStageEvent implements ControllerPlayerEvent {
 
     public void setNoneResult() {
         result = new QueueStageEventResult.None();
+    }
+
+    public void setNoneResult(String message) {
+        result = new QueueStageEventResult.None(message);
     }
 
     public void setDisconnectResult() {

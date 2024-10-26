@@ -156,7 +156,7 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
+        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
     }
 
     @Override
@@ -164,6 +164,7 @@ public class ControllerPlayer implements LanePlayer {
         // TODO Recode this. When is this even called on the ControllerPlayer object? Never?
         displayName = record.displayName();
         language = Locale.forLanguageTag(record.languageTag());
+        queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
         if(state == null) state = new ControllerPlayerState();

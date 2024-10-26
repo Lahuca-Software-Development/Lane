@@ -47,5 +47,21 @@ public interface ControllerImplementation {
      */
     void handleQueueStageEvent(QueueStageEvent event);
 
+    /**
+     * Send a message to the player with the given UUID.
+     * @param player The player's UUID
+     * @param message The message to send
+     * @return true whether the message was successfully sent
+     */
+    boolean sendMessage(UUID player, String message);
+
+    /**
+     * Disconnect the player with the given message from the network.
+     * @param player The player's UUID
+     * @param message The message to show when disconnecting
+     * @return true whether the player was successfully disconnected.
+     */
+    boolean disconnectPlayer(UUID player, String message);
+
 
 }
