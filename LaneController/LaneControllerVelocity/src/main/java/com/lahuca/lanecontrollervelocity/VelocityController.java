@@ -158,7 +158,7 @@ public class VelocityController {
             while(nextStage) {
                 nextStage = false;
                 requestEvent.setNoneResult();
-                implementation.handleQueueStageEvent(requestEvent);
+                implementation.handleQueueStageEvent(controller, requestEvent);
                 QueueStageEventResult result = requestEvent.getResult();
                 if(result instanceof QueueStageEventResult.QueueStageEventMessageableResult messageableResult) {
                     // We should disconnect the player.
@@ -339,7 +339,7 @@ public class VelocityController {
             while(nextStage) {
                 nextStage = false;
                 stageEvent.setNoneResult();
-                implementation.handleQueueStageEvent(stageEvent);
+                implementation.handleQueueStageEvent(controller, stageEvent);
                 QueueStageEventResult result = stageEvent.getResult();
                 if(result instanceof QueueStageEventResult.None none) {
                     TextComponent message;
@@ -517,9 +517,175 @@ public class VelocityController {
             return Optional.empty();
         }
 
+        private boolean isInstanceJoinable(ControllerLaneInstance instance, int spots) {
+            return instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + spots <= instance.getMaxPlayers();
+        }
+
+        private Optional<ControllerGame> findByGameId(Controller controller, Object gameIdObject, HashSet<String> excludeInstances,
+                                                      HashSet<Long> excludeGames, int spots) {
+            if(gameIdObject instanceof Long gameId && !excludeGames.contains(gameId)) {
+                Optional<ControllerGame> game = controller.getGame(gameId);
+                if(game.isPresent()) {
+                    Optional<ControllerLaneInstance> instance = controller.getInstance(game.get().getInstanceId());
+                    return Optional.ofNullable(instance.isPresent() && !excludeInstances.contains(instance.get().getId()) && isInstanceJoinable(instance.get(), spots) ? game.get() : null);
+                }
+            }
+            return Optional.empty();
+        }
+
+        private Optional<ControllerGame> findByGameData(Controller controller, Object instanceIdObject, Object gameTypeObject,
+                                                        Object gameMapObject, Object gameModeObject, HashSet<String> excludeInstances,
+                                                        HashSet<Long> excludeGames, int spots) {
+            String instanceId = instanceIdObject instanceof String id ? id : null;
+            if(instanceId != null && excludeInstances.contains(instanceId)) return Optional.empty();
+            String gameType = gameTypeObject instanceof String type ? type : null;
+            String gameMap = gameMapObject instanceof String map ? map : null;
+            String gameMode = gameModeObject instanceof String mode ? mode : null;
+            if(gameType == null && gameMap == null && gameMode == null) {
+                return Optional.empty();
+            }
+            for(ControllerGame game : controller.getGames()) {
+                if(excludeGames.contains(game.getGameId())) continue;
+                if(instanceId != null && !game.getInstanceId().equals(instanceId)) continue;
+                if(gameType != null && !game.getState().getName().equals(gameType)) continue;
+                if(gameMap != null) {
+                    if(game.getState().getProperties().containsKey(LaneStateProperty.GAME_MAP)) {
+                        if(!game.getState().getProperties().get(LaneStateProperty.GAME_MAP).getValue().equals(gameMap)) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                if(gameMode != null) {
+                    if(game.getState().getProperties().containsKey(LaneStateProperty.GAME_MODE)) {
+                        if(!game.getState().getProperties().get(LaneStateProperty.GAME_MODE).getValue().equals(gameMap)) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                // We must have matched the given data. Check if spots are available
+                Optional<ControllerLaneInstance> instance = controller.getInstance(instanceId);
+                if(instance.isPresent() && isInstanceJoinable(instance.get(), spots)) {
+                    return Optional.of(game);
+                }
+            }
+            return Optional.empty();
+        }
+
+        private Optional<ControllerLaneInstance> findByInstanceId(Controller controller, Object instanceIdObject, HashSet<String> excludeInstances, int spots) {
+            if(instanceIdObject instanceof String instanceId && !excludeInstances.contains(instanceId)) {
+                Optional<ControllerLaneInstance> instance = controller.getInstance(instanceId);
+                if(instance.isPresent()) {
+                    return Optional.ofNullable(isInstanceJoinable(instance.get(), spots) ? instance.get() : null);
+                }
+            }
+            return Optional.empty();
+        }
+
+        /**
+         * Fetch the correct games/instances and set the state.
+         * @param controller The controller
+         * @param event The event
+         * @param useParty If we should also forward parties after this is done
+         * @param allowExclude Exclude games/instances that have already been tried
+         * @return True if an instance/game has been found
+         */
+        private boolean handleQueueStageEventParameters(Controller controller, QueueStageEvent event, boolean useParty, boolean allowExclude) {
+            // Fetch potential party members
+            HashSet<UUID> partyMembers = new HashSet<>();
+            Optional<Long> partyIdOptional = event.getPlayer().getPartyId();
+            if(useParty && partyIdOptional.isPresent()) {
+                Optional<ControllerParty> partyOptional = controller.getParty(partyIdOptional.get());
+                if(partyOptional.isPresent()) {
+                    ControllerParty party = partyOptional.get();
+                    if(party.getOwner().equals(event.getPlayer().getUuid())) {
+                        // The owner is trying to join, so we should join other players as well
+                        for(UUID partyMemberUuid : party.getPlayers()) {
+                            Optional<ControllerPlayer> partyMemberOptional = controller.getPlayer(partyMemberUuid);
+                            partyMemberOptional.ifPresent(player -> partyMembers.add(partyMemberUuid));
+                        }
+                    }
+                }
+            }
+
+            // Fetch potential excluded instances/games
+            HashSet<String> excludeInstances = new HashSet<>();
+            HashSet<Long> excludeGames = new HashSet<>();
+            if(allowExclude && !event.isInitialRequest()) {
+                for(QueueStage stage : event.getQueueRequest().stages()) {
+                    if(stage.instanceId() != null) excludeInstances.add(stage.instanceId());
+                    if(stage.gameId() != null) excludeGames.add(stage.gameId());
+                }
+            }
+
+            // Actually try to fetch a instance/game
+            ArrayList<Set<QueueRequestParameter>> params = event.getQueueRequest().parameters().parameters();
+            if(params.isEmpty()) {
+                // We do not have the params to know what to do.
+                event.setNoneResult();
+                return false;
+            }
+            for(Set<QueueRequestParameter> priority : params) {
+                if(priority.isEmpty()) continue;
+                ArrayList<QueueRequestParameter> shuffled = new ArrayList<>(priority);
+                Collections.shuffle(shuffled);
+                for(QueueRequestParameter parameter : shuffled) {
+                    HashMap<String, Object> data = parameter.data();
+                    HashSet<UUID> joinTogether = partyMembers;
+                    if(data.containsKey(QueueRequestParameter.partySkip) && data.get(QueueRequestParameter.partySkip) instanceof Boolean partySkip && partySkip) {
+                        joinTogether = new HashSet<>();
+                    }
+                    // Find something with this parameter
+                    if(data.containsKey(QueueRequestParameter.gameId)) {
+                        Optional<ControllerGame> value = findByGameId(controller, data.get(QueueRequestParameter.gameId), excludeInstances, excludeGames, joinTogether.size());
+                        if(value.isPresent()) {
+                            if(joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId());
+                            else event.setJoinGameResult(value.get().getGameId(), joinTogether);
+                            return true;
+                        }
+                    }
+                    if(data.containsKey(QueueRequestParameter.gameType) || data.containsKey(QueueRequestParameter.gameMap) || data.containsKey(QueueRequestParameter.gameMode)) {
+                        Optional<ControllerGame> value = findByGameData(controller, data.get(QueueRequestParameter.instanceId), data.get(QueueRequestParameter.gameType),
+                                data.get(QueueRequestParameter.gameMap), data.get(QueueRequestParameter.gameMode), excludeInstances, excludeGames, joinTogether.size());
+                        if(value.isPresent()) {
+                            if(joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId());
+                            else event.setJoinGameResult(value.get().getGameId(), joinTogether);
+                            return true;
+                        }
+                    }
+                    if(data.containsKey(QueueRequestParameter.instanceId)) {
+                        Optional<ControllerLaneInstance> value = findByInstanceId(controller, data.get(QueueRequestParameter.instanceId), excludeInstances, joinTogether.size());
+                        if(value.isPresent()) {
+                            if(joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
+                            else event.setJoinInstanceResult(value.get().getId(), joinTogether);
+                            return true;
+                        }
+                    }
+                    if(data.containsKey(QueueRequestParameter.instanceType)) {
+                        // TODO Well, we do not have an instance type.
+                    }
+                }
+            }
+            // We did not find anything that is left to join for the whole party and that has not tried before.
+            event.setNoneResult();
+            return false;
+        }
+
         @Override
-        public void handleQueueStageEvent(QueueStageEvent event) {
-            // TODO
+        public void handleQueueStageEvent(Controller controller, QueueStageEvent event) {
+            // TODO Let other plugins handle this
+            switch(event.getQueueRequest().reason()) {
+                case NETWORK_JOIN, SERVER_KICKED -> {
+                    if(!handleQueueStageEventParameters(controller, event, false, true)) {
+                        event.setDisconnectResult(); // TODO Maybe add message?
+                    }
+                }
+                case PARTY_JOIN -> handleQueueStageEventParameters(controller, event, false, true);
+                case PLUGIN_INSTANCE, PLUGIN_CONTROLLER -> handleQueueStageEventParameters(controller, event, true, true);
+            }
         }
 
         @Override

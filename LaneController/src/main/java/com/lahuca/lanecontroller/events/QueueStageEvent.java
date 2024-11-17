@@ -18,6 +18,9 @@ package com.lahuca.lanecontroller.events;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lanecontroller.ControllerPlayer;
 
+import java.util.Set;
+import java.util.UUID;
+
 /**
  * This event is called when a queue stage is taking place.
  * Either when a queue request has been called, then there are no {@link com.lahuca.lane.queue.QueueStage} objects in the request.
@@ -83,8 +86,16 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.JoinInstance(instanceId);
     }
 
+    public void setJoinInstanceResult(String instanceId, Set<UUID> joinTogetherPlayers) {
+        result = new QueueStageEventResult.JoinInstance(instanceId, joinTogetherPlayers);
+    }
+
     public void setJoinGameResult(long gameId) {
         result = new QueueStageEventResult.JoinGame(gameId);
+    }
+
+    public void setJoinGameResult(long gameId, Set<UUID> joinTogetherPlayers) {
+        result = new QueueStageEventResult.JoinGame(gameId, joinTogetherPlayers);
     }
 
 }

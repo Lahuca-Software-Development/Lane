@@ -20,6 +20,14 @@ import java.util.function.Function;
 
 /**
  * The queue parameter data. The controller decides what to do with the parameter data provided.
+ *
+ * When this parameter is provided, this is the priority of how data is being looked at when multiple values are given:
+ * <ol>
+ * <li>Game ID</li>
+ * <li>Instance ID & Game Type/Game Map/Game Mode</li>
+ * <li>Game Type/Game Map/Game Mode</li>
+ * <li>Instance ID</li>
+ * <li>Instance Type</li></ol>
  */
 public record QueueRequestParameter(HashMap<String, Object> data) {
 
@@ -138,7 +146,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          * @return This builder.
          */
         public final Builder partySkip(boolean partySkip) {
-            data.put(QueueRequestParameter.partySkip, partySkip);
+            data.put(QueueRequestParameter.partySkip, partySkip); // TODO Maybe add config setting to change default way of doing?
             return this;
         }
 

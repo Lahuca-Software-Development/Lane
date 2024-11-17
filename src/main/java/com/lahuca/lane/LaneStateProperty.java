@@ -34,6 +34,14 @@ public interface LaneStateProperty extends RecordApplier<StatePropertyRecord> {
 	 * Constant for the timestamp property.
 	 */
 	String TIMESTAMP = "timestamp";
+	/**
+	 * Constant for the game map property.
+	 */
+	String GAME_MAP = "gameMap";
+	/**
+	 * Constant for the game mode property.
+	 */
+	String GAME_MODE = "gameMode";
 
 	/**
 	 * Gets the ID of this property.

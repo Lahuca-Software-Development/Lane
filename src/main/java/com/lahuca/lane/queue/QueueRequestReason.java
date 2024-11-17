@@ -22,14 +22,17 @@ public enum QueueRequestReason {
 
     /**
      * The player has joined the network and is looking for its first server.
+     * By default contains the lobby parameters {@link QueueRequestParameters#lobbyParameters}.
      */
     NETWORK_JOIN,
     /**
      * The player has joined the queue due to it being in a party.
+     * By default contains the final instance ID and optionally the game ID of what has been joined by the party owner.
      */
     PARTY_JOIN,
     /**
      * The player is being kicked from the server and is therefore requesting a new one.
+     * By default contains the lobby parameters {@link QueueRequestParameters#lobbyParameters}.
      */
     SERVER_KICKED,
     /**

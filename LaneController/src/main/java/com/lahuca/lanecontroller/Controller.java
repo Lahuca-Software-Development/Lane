@@ -183,7 +183,7 @@ public class Controller extends RequestHandler {
     private void handleQueueStage(ControllerPlayer player, QueueStageEvent stageEvent) {
         QueueRequest request = stageEvent.getQueueRequest();
         stageEvent.setNoneResult();
-        implementation.handleQueueStageEvent(stageEvent);
+        implementation.handleQueueStageEvent(this, stageEvent);
         QueueStageEventResult result = stageEvent.getResult();
         if(result instanceof QueueStageEventResult.None none) {
             // Queue is being cancelled
@@ -274,7 +274,18 @@ public class Controller extends RequestHandler {
                             handleQueueStage(player, stageEvent);
                             return;
                         }
-                        // WOOO, we have joined!, we are done
+                        // WOOO, we have joined!, we are done for THIS player
+
+                        if(!playTogetherPlayers.isEmpty()) {
+                            QueueRequestParameter partyJoinParameter;
+                            if(resultGameId != null) {
+                                partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(instance.getId()).build();
+                            } else {
+                                partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstanceId).build();
+                            }
+                            QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
+                            playTogetherPlayers.forEach(uuid -> getPlayer(uuid).ifPresent(controllerPlayer -> queue(controllerPlayer, partyRequest)));
+                        }
                     });
                 } else {
                     // We are not allowing to join at this instance.

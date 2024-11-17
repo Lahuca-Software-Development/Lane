@@ -43,9 +43,10 @@ public interface ControllerImplementation {
     /**
      * Lets the implemented controller handle the {@link QueueStageEvent}.
      * Do not do blocking actions while handling the event, as often a "direct" response is needed.
+     * @param controller The controller that is handling this queue event
      * @param event The event to handle.
      */
-    void handleQueueStageEvent(QueueStageEvent event);
+    void handleQueueStageEvent(Controller controller, QueueStageEvent event);
 
     /**
      * Send a message to the player with the given UUID.
