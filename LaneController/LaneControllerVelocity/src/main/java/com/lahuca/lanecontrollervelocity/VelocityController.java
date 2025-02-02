@@ -62,7 +62,7 @@ public class VelocityController {
 
     private static VelocityController instance;
 
-    public static final int port = 776;
+    public static final int port = 7766;
     public static final Gson gson = new GsonBuilder().create();
 
     private final ProxyServer server;
@@ -302,10 +302,15 @@ public class VelocityController {
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            if(player.getState() == null) {
+                // TODO Even after X seconds it should unregister: timer
+                controller.unregisterPlayer(player.getUuid());
+            }
             if(player.getState().getName().equals(LanePlayerState.OFFLINE)) {
                 controller.unregisterPlayer(player.getUuid());
             }
             // TODO Even after X seconds it should unregister: timer
+            controller.unregisterPlayer(player.getUuid());
         }, null);
     }
 

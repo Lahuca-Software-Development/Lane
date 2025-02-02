@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    `java-library`
 }
 
 group = "com.lahuca"
@@ -19,9 +20,15 @@ dependencies {
     implementation(project(":LaneController"))
     compileOnly("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
-    implementation(project(":"))
+    api(project(":"))
+    api(project(":LaneController"))
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.jar {
+    from(project(":").sourceSets["main"].output)
+    from(project(":LaneController").sourceSets["main"].output)
 }
