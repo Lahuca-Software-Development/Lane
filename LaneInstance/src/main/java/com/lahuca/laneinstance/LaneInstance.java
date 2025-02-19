@@ -21,6 +21,7 @@ import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.*;
+import com.lahuca.lane.connection.socket.SocketConnectPacket;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
@@ -47,12 +48,32 @@ public abstract class LaneInstance extends RequestHandler {
     private final Connection connection;
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
     private final HashMap<Long, LaneGame> games = new HashMap<>();
+    private String type;
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non-playable: e.g. lobby
 
-    public LaneInstance(Connection connection, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+    public LaneInstance(Connection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
         if(instance != null) throw new InstanceInstantiationException();
         instance = this;
+        this.type = type;
+
+        Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
+        Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
+        Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
+        Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);
+        Packet.registerPacket(InstanceUpdatePlayerPacket.packetId, InstanceUpdatePlayerPacket.class);
+        Packet.registerPacket(PartyPacket.Player.Add.packetId, PartyPacket.Player.Add.class);
+        Packet.registerPacket(PartyPacket.Player.Remove.packetId, PartyPacket.Player.Remove.class);
+        Packet.registerPacket(PartyPacket.Disband.Request.packetId, PartyPacket.Disband.Request.class);
+        Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
+        Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
+        Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
+        Packet.registerPacket(RelationshipPacket.Create.Request.packetId, RelationshipPacket.Create.Request.class);
+        Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
+        Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
+        Packet.registerPacket(SocketConnectPacket.packetId, SocketConnectPacket.class);
+        Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
+
         this.connection = connection;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
@@ -109,6 +130,15 @@ public abstract class LaneInstance extends RequestHandler {
         return connection;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+        sendInstanceStatus();
+    }
+
     public boolean isJoinable() {
         return joinable;
     }
@@ -145,7 +175,7 @@ public abstract class LaneInstance extends RequestHandler {
     }
 
     private void sendInstanceStatus() {
-        sendController(new InstanceStatusUpdatePacket(joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers()));
+        sendController(new InstanceStatusUpdatePacket(type, joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers()));
     }
 
     public Optional<InstancePlayer> getInstancePlayer(UUID player) {
@@ -176,6 +206,7 @@ public abstract class LaneInstance extends RequestHandler {
      * @param uuid the player's uuid
      */
     public void joinInstance(UUID uuid) {
+        System.out.println("Player: " + getInstancePlayer(uuid));
         getInstancePlayer(uuid).ifPresentOrElse(player -> player.getGameId().ifPresentOrElse(gameId -> getInstanceGame(gameId).ifPresentOrElse(game -> {
             // TODO Change the player's state
             String instanceId = player.getInstanceId().get(); // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
@@ -211,12 +242,14 @@ public abstract class LaneInstance extends RequestHandler {
             }
             // We can also join the instance instead, although we want to join a game.
             // TODO Join a game instead, game logic on controller.
-            String instanceId = player.getInstanceId().get(); // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
-            InstancePlayerState state = new InstancePlayerState(LanePlayerState.INSTANCE_ONLINE,
-                    Set.of(new StateProperty(LaneStateProperty.INSTANCE_ID, instanceId),
-                            new StateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
-            player.getState().applyRecord(state.convertRecord());
-            sendController(new InstanceUpdatePlayerPacket(player.convertRecord()));
+            if(player.getInstanceId().isPresent()) {
+                String instanceId = player.getInstanceId().get(); // TODO WE SHOULD NOT DO THIS, SAVE THE ID in Instance rather than connection
+                InstancePlayerState state = new InstancePlayerState(LanePlayerState.INSTANCE_ONLINE,
+                        Set.of(new StateProperty(LaneStateProperty.INSTANCE_ID, instanceId),
+                                new StateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))); // TODO Better state handling!
+                player.getState().applyRecord(state.convertRecord());
+                sendController(new InstanceUpdatePlayerPacket(player.convertRecord()));
+            }
         }), () -> {
             // Join the instance's lobby, if possible.
             // Cannot find game, find new lobby. TODO Cancel join

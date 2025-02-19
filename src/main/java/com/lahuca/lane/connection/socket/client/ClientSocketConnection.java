@@ -70,6 +70,7 @@ public class ClientSocketConnection implements Connection {
     }
 
     private void readInput(String line) {
+        System.out.println("Got: " + line);
         // TODO Add cryptography
         SocketTransfer transfer = gson.fromJson(line, SocketTransfer.class);
         if(!transfer.to().equals(id)) return; // TODO Not meant for the client? Strange
@@ -92,6 +93,7 @@ public class ClientSocketConnection implements Connection {
                 destination, System.currentTimeMillis());
         // TODO Add cryptography
         out.println(gson.toJson(outputPacket));
+        System.out.println("Send to " + destination + ": " + packetString);
     }
 
     @Override
