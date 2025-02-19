@@ -59,6 +59,7 @@ public class ServerSocketConnection implements Connection {
 			try {
 				Socket client = socket.accept();
 				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId));
+				System.out.println("Unassigned: " + unassignedClients);
 			} catch (IOException e) {
 				// TODO What to do? Couldn't open?
 				throw new RuntimeException(e);
@@ -74,6 +75,7 @@ public class ServerSocketConnection implements Connection {
 		}
 
 		ClientSocket client = clients.get(destination);
+		System.out.println("Clients: " + clients + ", " + destination + " " + client);
 		if(client != null) client.sendPacket(packet);
 	}
 

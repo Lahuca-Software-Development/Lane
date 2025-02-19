@@ -21,6 +21,7 @@ import com.lahuca.lane.records.StatePropertyRecord;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 public class InstancePlayerState implements LanePlayerState {
@@ -72,7 +73,7 @@ public class InstancePlayerState implements LanePlayerState {
     @Override
     public void applyRecord(PlayerStateRecord record) {
         name = record.name();
-        Set<String> keys = properties.keySet();
+        Set<String> keys = new HashSet<>(properties.keySet());
         record.properties().forEach((k, v) -> {
             if(keys.contains(k)) {
                 properties.get(k).applyRecord(v);

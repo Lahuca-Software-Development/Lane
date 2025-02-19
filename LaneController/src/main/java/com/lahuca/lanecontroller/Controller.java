@@ -24,6 +24,7 @@ import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
+import com.lahuca.lane.connection.socket.SocketConnectPacket;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
@@ -59,8 +60,26 @@ public class Controller extends RequestHandler {
         this.connection = connection;
         this.implementation = implementation;
 
+        Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
+        Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
+        Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
+        Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);
+        Packet.registerPacket(InstanceUpdatePlayerPacket.packetId, InstanceUpdatePlayerPacket.class);
+        Packet.registerPacket(PartyPacket.Player.Add.packetId, PartyPacket.Player.Add.class);
+        Packet.registerPacket(PartyPacket.Player.Remove.packetId, PartyPacket.Player.Remove.class);
+        Packet.registerPacket(PartyPacket.Disband.Request.packetId, PartyPacket.Disband.Request.class);
+        Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
+        Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
+        Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
+        Packet.registerPacket(RelationshipPacket.Create.Request.packetId, RelationshipPacket.Create.Request.class);
+        Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
+        Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
+        Packet.registerPacket(SocketConnectPacket.packetId, SocketConnectPacket.class);
+        Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
+
         connection.initialise(input -> {
             Packet iPacket = input.packet();
+            System.out.println("Got Packet: " + input.from());
             if(iPacket instanceof GameStatusUpdatePacket packet) {
                 if(!games.containsKey(packet.gameId())) {
                     // A new game has been created, yeey!
@@ -79,7 +98,7 @@ public class Controller extends RequestHandler {
                 games.get(packet.gameId()).update(packet.name(), packet.state());
                 connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
-                createGetInstance(input.from()).update(packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
+                createGetInstance(input.from()).update(packet.type(), packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
                 if(request != null) {
@@ -129,7 +148,7 @@ public class Controller extends RequestHandler {
     }
 
     private ControllerLaneInstance createGetInstance(String id) {
-        if(!instances.containsKey(id)) return instances.put(id, new ControllerLaneInstance(id));
+        if(!instances.containsKey(id)) instances.put(id, new ControllerLaneInstance(id, null));
         return instances.get(id);
     }
 

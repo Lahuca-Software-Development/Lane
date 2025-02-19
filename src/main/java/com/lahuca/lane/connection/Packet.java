@@ -24,6 +24,7 @@ public interface Packet {
 
 	static void registerPacket(String typeId, Class<? extends Packet> classType) {
 		packetTypes.put(typeId, classType);
+		System.out.println("Register Packet"+ typeId);
 	}
 
 	static Optional<Class<? extends Packet>> getPacket(String typeId) {

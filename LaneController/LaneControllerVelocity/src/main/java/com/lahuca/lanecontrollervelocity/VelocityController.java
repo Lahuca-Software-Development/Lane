@@ -206,8 +206,8 @@ public class VelocityController {
                         }
                         instance = instanceOptional.get();
                     }
-                    if(instance.isJoinable() && instance.isNonPlayable() &&
-                            instance.getCurrentPlayers() + 1 <= instance.getMaxPlayers()) {
+                    if(!instance.isJoinable() || !instance.isNonPlayable() ||
+                            instance.getCurrentPlayers() + 1 > instance.getMaxPlayers()) {
                         // Run the stage event again to find a joinable instance.
                         request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, instanceId, gameId));
                         nextStage = true;
@@ -222,7 +222,7 @@ public class VelocityController {
                                         new ControllerStateProperty(LaneStateProperty.GAME_ID, gameId),
                                         new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                     } else {
-                        state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
+                        state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
                                 Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()),
                                         new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                     }
@@ -305,9 +305,11 @@ public class VelocityController {
             if(player.getState() == null) {
                 // TODO Even after X seconds it should unregister: timer
                 controller.unregisterPlayer(player.getUuid());
+                return;
             }
             if(player.getState().getName().equals(LanePlayerState.OFFLINE)) {
                 controller.unregisterPlayer(player.getUuid());
+                return;
             }
             // TODO Even after X seconds it should unregister: timer
             controller.unregisterPlayer(player.getUuid());
@@ -504,7 +506,8 @@ public class VelocityController {
                         Map.entry("cannotReachController", "Cannot reach controller"),
                         Map.entry("failedToRegister", "Failed to register"),
                         Map.entry("notRegisteredPlayer", "Not registered player"),
-                        Map.entry("cannotFindFreeInstance", "Cannot find free instance")))));
+                        Map.entry("cannotFindFreeInstance", "Cannot find free instance"),
+                        Map.entry("disconnect", "Disconnecting")))));
 
         @Override
         public LaneMessage getTranslator() {
@@ -550,6 +553,7 @@ public class VelocityController {
                 return Optional.empty();
             }
             for(ControllerGame game : controller.getGames()) {
+                if(excludeInstances.contains(game.getInstanceId())) continue;
                 if(excludeGames.contains(game.getGameId())) continue;
                 if(instanceId != null && !game.getInstanceId().equals(instanceId)) continue;
                 if(gameType != null && !game.getState().getName().equals(gameType)) continue;
@@ -585,6 +589,19 @@ public class VelocityController {
                 Optional<ControllerLaneInstance> instance = controller.getInstance(instanceId);
                 if(instance.isPresent()) {
                     return Optional.ofNullable(isInstanceJoinable(instance.get(), spots) ? instance.get() : null);
+                }
+            }
+            return Optional.empty();
+        }
+
+        private Optional<ControllerLaneInstance> findByInstanceType(Controller controller, Object instanceTypeObject, HashSet<String> excludeInstances, int spots) {
+            if(instanceTypeObject instanceof String instanceType) {
+                for(ControllerLaneInstance instance : controller.getInstances()) {
+                    if(excludeInstances.contains(instance.getId())) continue;
+                    if(instance.getType().isEmpty()) continue;
+                    if(instance.getType().get().equals(instanceType) && isInstanceJoinable(instance, spots)) {
+                        return Optional.of(instance);
+                    }
                 }
             }
             return Optional.empty();
@@ -670,7 +687,12 @@ public class VelocityController {
                         }
                     }
                     if(data.containsKey(QueueRequestParameter.instanceType)) {
-                        // TODO Well, we do not have an instance type.
+                        Optional<ControllerLaneInstance> value = findByInstanceType(controller, data.get(QueueRequestParameter.instanceType), excludeInstances, joinTogether.size());
+                        if(value.isPresent()) {
+                            if(joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
+                            else event.setJoinInstanceResult(value.get().getId(), joinTogether);
+                            return true;
+                        }
                     }
                 }
             }

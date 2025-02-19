@@ -38,6 +38,7 @@ public class ClientSocket {
 	private final Consumer<InputPacket> input;
 	private final Gson gson;
 	private String id = null;
+	private String type = null;
 	private final BiConsumer<String, ClientSocket> assignId;
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
@@ -65,6 +66,7 @@ public class ClientSocket {
 	}
 
 	private void readInput(String line) {
+		System.out.println("Got: " + line);
 		// TODO Add cryptography
 		SocketTransfer transfer = gson.fromJson(line, SocketTransfer.class);
 		Packet.getPacket(transfer.typeId()).ifPresent(packetClass -> {
@@ -86,6 +88,7 @@ public class ClientSocket {
 	public void sendPacket(Packet packet) {
 		if(id == null) return; // TODO Wait for id announcement first
 		String packetString = gson.toJson(packet);
+		System.out.println("Send to " + id + ": " + packetString);
 		SocketTransfer outputPacket = new SocketTransfer(packet.getPacketId(), packetString, null,
 				id, System.currentTimeMillis());
 		// TODO Add cryptography
@@ -99,6 +102,10 @@ public class ClientSocket {
 			// TODO What should happen?
 			throw new RuntimeException(e);
 		}
+	}
+
+	public String getType() {
+		return type;
 	}
 
 }

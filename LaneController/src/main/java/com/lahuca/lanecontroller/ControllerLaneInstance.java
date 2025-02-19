@@ -15,23 +15,28 @@
  */
 package com.lahuca.lanecontroller;
 
+import java.util.Optional;
+
 public class ControllerLaneInstance {
 
     private String id;
+    private String type;
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
     private int currentPlayers;
     private int maxPlayers; // Maximum number of players on the instance, negative = unlimited
     // TODO Add: boolean isMaintanance (only for on the controller)
 
-    public ControllerLaneInstance(String id) {
+    public ControllerLaneInstance(String id, String type) {
         this.id = id;
+        this.type = type;
         joinable = true;
         nonPlayable = false;
     }
 
-    public ControllerLaneInstance(String id, boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) {
+    public ControllerLaneInstance(String id, String type, boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) {
         this.id = id;
+        this.type = type;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
         this.currentPlayers = currentPlayers;
@@ -40,6 +45,10 @@ public class ControllerLaneInstance {
 
     public String getId() {
         return id;
+    }
+
+    public Optional<String> getType() {
+        return Optional.ofNullable(type);
     }
 
     public boolean isJoinable() {
@@ -58,7 +67,8 @@ public class ControllerLaneInstance {
         return maxPlayers;
     }
 
-    public void update(boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) {
+    public void update(String type, boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) {
+        this.type = type;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
         this.currentPlayers = currentPlayers;

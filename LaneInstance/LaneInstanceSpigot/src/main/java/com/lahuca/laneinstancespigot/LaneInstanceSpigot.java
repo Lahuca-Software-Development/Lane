@@ -22,7 +22,6 @@ import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -44,12 +43,14 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 //    public static final boolean joinable = true;
 //    public static final boolean nonPlayable = false;
 
+    // TODO onDisable
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
 
-        FileConfiguration configuration = getConfig();
+        /*FileConfiguration configuration = getConfig();
 
         Connection connection = null;
         if(configuration.getBoolean("socketConnection")) {
@@ -57,8 +58,11 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
                     configuration.getInt("port"), gson);
         }
 
-        boolean joinable = configuration.getBoolean("joinable");
-        boolean nonPlayable = configuration.getBoolean("nonPlayable");
+        boolean joinable = configuration.getBoolean("joinable"); TODO Undo
+        boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
+        Connection connection = new ClientSocketConnection("Lobby", "localhost", 7766, gson);
+        boolean joinable = true;
+        boolean nonPlayable = true;
         try {
             new Implementation(connection, joinable, nonPlayable); // TODO We should not be able to instantiate, as this will create multiple
         } catch(IOException e) {
