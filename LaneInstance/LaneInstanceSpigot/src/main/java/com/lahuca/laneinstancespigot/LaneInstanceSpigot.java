@@ -33,6 +33,11 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Base point for Lane Instances running on Spigot.
+ * This provides the base LaneInstance code with the required code that is platform specific.
+ * To retrieve a Lane Instance object use {@link #get()} or {@link #implementation()}.
+ */
 public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     //    public static final boolean socketConnection = true;
@@ -61,10 +66,11 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         boolean joinable = configuration.getBoolean("joinable"); TODO Undo
         boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
         Connection connection = new ClientSocketConnection("Lobby", "localhost", 7766, gson);
+        String type = "Lobby";
         boolean joinable = true;
         boolean nonPlayable = true;
         try {
-            new Implementation(connection, joinable, nonPlayable); // TODO We should not be able to instantiate, as this will create multiple
+            new Implementation(connection, type, joinable, nonPlayable);
         } catch(IOException e) {
             e.printStackTrace(); // TODO Send message with exception
             getPluginLoader().disablePlugin(this);
@@ -75,7 +81,15 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
     }
 
     public Optional<LaneInstance> impl() {
+        return implementation();
+    }
+
+    public Optional<LaneInstance> implementation() {
         return Optional.ofNullable(LaneInstance.getInstance());
+    }
+
+    public Optional<LaneInstance> get() {
+        return implementation();
     }
 
     @EventHandler
@@ -88,10 +102,10 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         impl().ifPresent(impl -> impl.quitInstance(event.getPlayer().getUniqueId()));
     }
 
-    public class Implementation extends LaneInstance {
+    private class Implementation extends LaneInstance {
 
-        public Implementation(Connection connection, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
-            super(connection, joinable, nonPlayable);
+        private Implementation(Connection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+            super(connection, type, joinable, nonPlayable);
         }
 
         @Override
