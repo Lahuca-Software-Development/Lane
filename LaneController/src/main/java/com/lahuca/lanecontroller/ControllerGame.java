@@ -3,6 +3,8 @@ package com.lahuca.lanecontroller;
 import com.lahuca.lane.LaneGameState;
 import com.lahuca.lane.records.GameStateRecord;
 
+import java.util.StringJoiner;
+
 /**
  * @author _Neko1
  * @date 14.03.2024
@@ -50,4 +52,8 @@ public class ControllerGame {
         setState(state);
     }
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ControllerGame.class.getSimpleName() + "[", "]").add("gameId=" + gameId).add("instanceId='" + instanceId + "'").add("name='" + name + "'").add("state=" + state).toString();
+    }
 }

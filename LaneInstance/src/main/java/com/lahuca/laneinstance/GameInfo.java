@@ -16,6 +16,7 @@
 package com.lahuca.laneinstance;
 
 import java.util.HashSet;
+import java.util.StringJoiner;
 import java.util.UUID;
 
 public class GameInfo {
@@ -45,6 +46,11 @@ public class GameInfo {
 
 	public GameState getGameState() {
 		return gameState;
+	}
+
+	@Override
+	public String toString() {
+		return new StringJoiner(", ", GameInfo.class.getSimpleName() + "[", "]").add("gameId=" + gameId).add("name='" + name + "'").add("gameState=" + gameState).add("players=" + players).toString();
 	}
 
 }

@@ -26,4 +26,9 @@ public abstract class LaneGame extends GameInfo {
 	public abstract void onJoin(InstancePlayer instancePlayer);
 	public abstract void onQuit(InstancePlayer instancePlayer);
 
+	@Override
+	public String toString() {
+		return super.toString();
+	}
+
 }

@@ -175,4 +175,9 @@ public class ControllerPlayer implements LanePlayer {
     public void updateInstancePlayer() {
         getInstanceId().ifPresent(instanceId -> Controller.getInstance().getConnection().sendPacket(new InstanceUpdatePlayerPacket(convertRecord()), instanceId));
     }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("name='" + name + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).add("relationships=" + relationships).toString();
+    }
 }

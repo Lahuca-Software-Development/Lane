@@ -19,10 +19,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.records.PlayerStateRecord;
 import com.lahuca.lane.records.StatePropertyRecord;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class InstancePlayerState implements LanePlayerState {
 
@@ -85,4 +82,8 @@ public class InstancePlayerState implements LanePlayerState {
         keys.forEach(properties::remove);
     }
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", InstancePlayerState.class.getSimpleName() + "[", "]").add("name='" + name + "'").add("properties=" + properties).toString();
+    }
 }

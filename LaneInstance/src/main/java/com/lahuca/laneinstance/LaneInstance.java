@@ -28,10 +28,7 @@ import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -344,4 +341,13 @@ public abstract class LaneInstance extends RequestHandler {
         connection.sendPacket(new PartyPacket.Player.Remove(id, partyId, player), null);
         return completableFuture;
     }
+
+    public Collection<InstancePlayer> getPlayers() {
+        return players.values(); // TODO REDO
+    }
+
+    public Collection<LaneGame> getGames() {
+        return games.values();
+    } // TODO Redo
+
 }

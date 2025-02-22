@@ -7,6 +7,7 @@ import com.lahuca.lane.records.StatePropertyRecord;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.StringJoiner;
 
 /**
  * @author _Neko1
@@ -73,4 +74,8 @@ public class ControllerPlayerState implements LanePlayerState {
         keys.forEach(properties::remove);
     }
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ControllerPlayerState.class.getSimpleName() + "[", "]").add("name='" + name + "'").add("properties=" + properties).toString();
+    }
 }

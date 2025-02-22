@@ -80,15 +80,15 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         }
     }
 
-    public Optional<LaneInstance> impl() {
+    public static Optional<LaneInstance> impl() {
         return implementation();
     }
 
-    public Optional<LaneInstance> implementation() {
+    public static Optional<LaneInstance> implementation() {
         return Optional.ofNullable(LaneInstance.getInstance());
     }
 
-    public Optional<LaneInstance> get() {
+    public static Optional<LaneInstance> get() {
         return implementation();
     }
 

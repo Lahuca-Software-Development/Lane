@@ -69,7 +69,7 @@ public class VelocityController {
     private final Logger logger;
     private final Implementation implementation;
     private final Connection connection;
-    private Optional<Controller> controller = Optional.empty();
+    private Controller controller = null;
 
     @Inject
     public VelocityController(ProxyServer server, Logger logger) {
@@ -81,7 +81,7 @@ public class VelocityController {
         connection = new ServerSocketConnection(port, gson);
 
         try {
-            controller = Optional.of(new Controller(connection, implementation));
+            controller = new Controller(connection, implementation);
         } catch (IOException e) {
             //TODO: Handle that exception
             e.printStackTrace();
@@ -89,6 +89,10 @@ public class VelocityController {
 
         server.getCommandManager().register("friends", new FriendCommand(), "f", "friend");
         server.getCommandManager().register("party", new PartyCommand(), "p");
+    }
+
+    public Optional<Controller> getController() {
+        return Optional.ofNullable(controller);
     }
 
     /**
@@ -115,7 +119,7 @@ public class VelocityController {
     public void onLogin(LoginEvent event) {
         Player player = event.getPlayer();
         Locale locale = getLocale(player);
-        controller.ifPresentOrElse(ctrl -> {
+        getController().ifPresentOrElse(ctrl -> {
             String name = player.getUsername(); // TODO Load custom display name (maybe nicked name)?
             boolean registered = ctrl.registerPlayer(new ControllerPlayer(player.getUniqueId(), name, name, locale));
             if(!registered) {
@@ -132,7 +136,7 @@ public class VelocityController {
 
     private void runOnControllerPlayer(Player player, BiConsumer<Controller, ControllerPlayer> accept, Consumer<Component> failed) {
         Locale locale = getLocale(player);
-        controller.ifPresentOrElse(ctrl -> ctrl.getPlayer(player.getUniqueId()).ifPresentOrElse(cPlayer -> {
+        getController().ifPresentOrElse(ctrl -> ctrl.getPlayer(player.getUniqueId()).ifPresentOrElse(cPlayer -> {
             accept.accept(ctrl, cPlayer);
         }, () -> {
             if(failed != null) failed.accept(Component.text(getMessage("notRegisteredPlayer", locale)));

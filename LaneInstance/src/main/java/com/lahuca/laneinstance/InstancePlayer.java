@@ -6,10 +6,7 @@ import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.records.PlayerRecord;
 
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @author _Neko1
@@ -121,6 +118,11 @@ public class InstancePlayer implements LanePlayer {
         if(state == null) state = new InstancePlayerState();
         state.applyRecord(record.state());
         partyId = record.partyId();
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("name='" + name + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).add("relationships=" + relationships).toString();
     }
 
 }

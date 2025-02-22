@@ -3,6 +3,8 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.records.StatePropertyRecord;
 
+import java.util.StringJoiner;
+
 /**
  * @author _Neko1
  * @date 14.03.2024
@@ -53,4 +55,10 @@ public class StateProperty implements LaneStateProperty {
         value = record.value();
         extraData = record.extraData();
     }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", StateProperty.class.getSimpleName() + "[", "]").add("id='" + id + "'").add("value=" + value).add("extraData=" + extraData).toString();
+    }
+
 }

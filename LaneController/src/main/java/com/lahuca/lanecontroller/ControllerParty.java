@@ -5,6 +5,7 @@ import com.lahuca.lane.records.PartyRecord;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.UUID;
 
 /**
@@ -88,5 +89,10 @@ public class ControllerParty implements LaneParty {
 
     public PartyRecord convertToRecord() {
         return new PartyRecord(owner, players, creationTimestamp);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ControllerParty.class.getSimpleName() + "[", "]").add("partyId=" + partyId).add("owner=" + owner).add("players=" + players).add("invited=" + invited).add("creationTimestamp=" + creationTimestamp).toString();
     }
 }

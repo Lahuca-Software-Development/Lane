@@ -16,6 +16,7 @@
 package com.lahuca.lanecontroller;
 
 import java.util.Optional;
+import java.util.StringJoiner;
 
 public class ControllerLaneInstance {
 
@@ -75,4 +76,8 @@ public class ControllerLaneInstance {
         this.maxPlayers = maxPlayers;
     }
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ControllerLaneInstance.class.getSimpleName() + "[", "]").add("id='" + id + "'").add("type='" + type + "'").add("joinable=" + joinable).add("nonPlayable=" + nonPlayable).add("currentPlayers=" + currentPlayers).add("maxPlayers=" + maxPlayers).toString();
+    }
 }
