@@ -4,10 +4,11 @@ import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.records.PlayerRecord;
 
 /**
- * @author _Neko1
- * @date 04.05.2024
- **/
-
+ * Sends the instance an update about the player.
+ * This should not be sent the other way around, i.e. to the controller.
+ * The controller never changes full player objects.
+ * @param playerRecord The record to send
+ */
 public record InstanceUpdatePlayerPacket(PlayerRecord playerRecord) implements Packet {
 
     public static final String packetId = "instanceUpdatePlayer";

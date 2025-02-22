@@ -58,12 +58,13 @@ public class PartyCommand implements SimpleCommand {
         if(args[0].equalsIgnoreCase("disband")) {
             runAsPartyLeader(controllerPlayer, party -> Controller.getInstance().disbandParty(party));
         } else if(args[0].equalsIgnoreCase("warp")) {
-            runAsPartyLeader(controllerPlayer, party -> controllerPlayer.getGameId()
+            // TODO Make sure to actually queue instead!
+           /* runAsPartyLeader(controllerPlayer, party -> controllerPlayer.getGameId()
                     .flatMap(game -> Controller.getInstance().getGame(game))
                     .ifPresent(gameServer -> {
                         Controller.getInstance().joinInstance(party.getId(), gameServer.getInstanceId());//TODO check if its really serverId
                         //TODO: Send message that party was warped
-                    }));
+                    }));*/
         } else if(args[0].equalsIgnoreCase("kick")) {
             if(args.length < 2) {
                 //TODO: send help message

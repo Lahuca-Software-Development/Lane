@@ -18,42 +18,42 @@ public interface LanePlayerState extends RecordApplier<PlayerStateRecord> {
     /**
      * Constant for the state name of an undefined state.
      */
-    String UNDEFINED = "undefined";
+    String UNDEFINED = "UNDEFINED";
     /**
      * Constant for the state name of a player trying to join an instance.
      * Properties set: instanceId -> String, timestamp -> long
      */
-    String INSTANCE_TRANSFER = "instance.transfer";
+    String INSTANCE_TRANSFER = "INSTANCE_TRANSFER";
     /**
      * Constant for the state name of a player trying to join a game (therefore sub of {@link #INSTANCE_TRANSFER}).
      * Properties set: gameId -> Long, instanceId -> String, timestamp -> long
      */
-    String GAME_TRANSFER = "game.transfer";
+    String GAME_TRANSFER = "GAME_TRANSFER";
     /**
      * Constant for the state name of a player that has joined an instance, but the data has not yet been retrieved by the instance.
      * Properties set: instanceId -> String, timestamp -> long
      */
-    String INSTANCE_TRANSFERRED = "instance.transferred";
+    String INSTANCE_TRANSFERRED = "INSTANCE_TRANSFERRED";
     /**
      * Constant for the state name of a player that has joined a game (therefore sub of {@link #INSTANCE_TRANSFERRED}), but the data has not yet been retrieved by the instance.
      * Properties set: instanceId -> String, timestamp -> long
      */
-    String GAME_TRANSFERRED = "game.transferred";
+    String GAME_TRANSFERRED = "GAME_TRANSFERRED";
     /**
      * Constant for the state name of a player that is online on an instance.
      * Properties set: instanceId -> String
      */
-    String INSTANCE_ONLINE = "instance.online";
+    String INSTANCE_ONLINE = "INSTANCE_ONLINE";
     /**
      * Constant for the state name of a player that is online on a game (therefore sub of {@link #INSTANCE_ONLINE}.
      * Properties set: gameId -> Long, instanceId -> String
      */
-    String GAME_ONLINE = "game.online";
+    String GAME_ONLINE = "GAME_ONLINE";
     /**
      * Constant for when the instance has retrieved a disconnect, but there is not yet a connect state change.
      * Properties set: timestamp -> long
      */
-    String OFFLINE = "offline";
+    String OFFLINE = "OFFLINE";
 
 
     /**

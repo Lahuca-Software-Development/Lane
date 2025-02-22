@@ -138,6 +138,11 @@ public class ControllerPlayer implements LanePlayer {
         updateInstancePlayer();
     }
 
+    public void setInstanceId(String instanceId) {
+        this.instanceId = instanceId;
+        updateInstancePlayer();
+    }
+
     public void setGameId(long gameId) {
         this.gameId = gameId;
         updateInstancePlayer();
@@ -159,9 +164,13 @@ public class ControllerPlayer implements LanePlayer {
         return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
     }
 
+    /**
+     * Update this player object with the given data.
+     * This should never be called after initialization.
+     * @param record the record with the data
+     */
     @Override
     public void applyRecord(PlayerRecord record) {
-        // TODO Recode this. When is this even called on the ControllerPlayer object? Never?
         displayName = record.displayName();
         language = Locale.forLanguageTag(record.languageTag());
         queueRequest = record.queueRequest();

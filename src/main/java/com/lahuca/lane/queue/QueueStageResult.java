@@ -21,6 +21,10 @@ package com.lahuca.lane.queue;
 public enum QueueStageResult {
 
     /**
+     * Data is not being handled properly somewhere.
+     */
+    INVALID_STATE,
+    /**
      * The given ID could not be identified to a game or instance.
      */
     UNKNOWN_ID,
@@ -40,10 +44,6 @@ public enum QueueStageResult {
      * The proxy cannot connect the player with the instance/game.
      */
     SERVER_UNAVAILABLE,
-    /**
-     * Data is not being handled properly somewhere.
-     */
-    INVALID_STATE,
     /**
      * The server has kicked the player.
      */

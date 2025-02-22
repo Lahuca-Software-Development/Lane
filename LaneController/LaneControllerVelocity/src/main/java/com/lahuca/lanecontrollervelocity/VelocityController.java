@@ -154,6 +154,7 @@ public class VelocityController {
     @Subscribe
     public void onChooseInitialServer(PlayerChooseInitialServerEvent event) {
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
+            System.out.println("DEBUG 0: " + player.toString());
             QueueRequest request = new QueueRequest(QueueRequestReason.NETWORK_JOIN, QueueRequestParameters.lobbyParameters);
             QueueStageEvent requestEvent = new QueueStageEvent(player, request);
             player.setQueueRequest(request);

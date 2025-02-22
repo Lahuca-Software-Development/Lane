@@ -65,12 +65,13 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
         boolean joinable = configuration.getBoolean("joinable"); TODO Undo
         boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
-        Connection connection = new ClientSocketConnection("Lobby", "localhost", 7766, gson);
+        String id = "Lobby";
+        Connection connection = new ClientSocketConnection(id, "localhost", 7766, gson);
         String type = "Lobby";
         boolean joinable = true;
         boolean nonPlayable = true;
         try {
-            new Implementation(connection, type, joinable, nonPlayable);
+            new Implementation(id, connection, type, joinable, nonPlayable);
         } catch(IOException e) {
             e.printStackTrace(); // TODO Send message with exception
             getPluginLoader().disablePlugin(this);
@@ -94,18 +95,18 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        impl().ifPresent(impl -> impl.joinInstance(event.getPlayer().getUniqueId()));
+        implementation().ifPresent(impl -> impl.joinInstance(event.getPlayer().getUniqueId()));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        impl().ifPresent(impl -> impl.quitInstance(event.getPlayer().getUniqueId()));
+        implementation().ifPresent(impl -> impl.quitInstance(event.getPlayer().getUniqueId()));
     }
 
     private class Implementation extends LaneInstance {
 
-        private Implementation(Connection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
-            super(connection, type, joinable, nonPlayable);
+        private Implementation(String id, Connection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+            super(id, connection, type, joinable, nonPlayable);
         }
 
         @Override

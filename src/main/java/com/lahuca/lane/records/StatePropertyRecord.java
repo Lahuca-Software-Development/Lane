@@ -16,4 +16,5 @@
 package com.lahuca.lane.records;
 
 public record StatePropertyRecord(String id, Object value, Object extraData) {
+
 }

@@ -76,6 +76,7 @@ public class Controller extends RequestHandler {
         Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
         Packet.registerPacket(SocketConnectPacket.packetId, SocketConnectPacket.class);
         Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
+        Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
 
         connection.initialise(input -> {
             Packet iPacket = input.packet();
@@ -99,13 +100,6 @@ public class Controller extends RequestHandler {
                 connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).update(packet.type(), packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
-            } else if(input.packet() instanceof ResponsePacket<?> response) {
-                CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
-                if(request != null) {
-                    // TODO How could it happen that the request is null?
-                    request.complete(response.transformResult());
-                    getRequests().remove(response.getRequestId());
-                }
             } else if(iPacket instanceof PartyPacket.Retrieve.Request packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
@@ -134,7 +128,53 @@ public class Controller extends RequestHandler {
                         }
                         connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), response), input.from());
                     });
-                }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+            } else if(iPacket instanceof QueueFinishedPacket packet) {
+                getPlayer(packet.player()).ifPresentOrElse(player -> {
+                    // Player should have finished its queue, check whether it is allowed.
+                    player.getQueueRequest().ifPresentOrElse(queue -> {
+                        // There is a queue, check if the state of the player was to transfer to the retrieved instance/game.
+                        ControllerPlayerState state = player.getState();
+                        if(state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                            // Check if we either joined the correct instance or game.
+                            if(state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
+                                // We joined an instance.
+                                ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE,
+                                        Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()),
+                                                new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                                player.setState(newState);
+                                player.setQueueRequest(null);
+                                player.setInstanceId(input.from());
+                                connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                            } else if(packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID)
+                                    && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId())
+                                    && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
+                                // We joined a game.
+                                ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.GAME_ONLINE,
+                                        Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()),
+                                                new ControllerStateProperty(LaneStateProperty.GAME_ID, packet.gameId()),
+                                                new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
+                                player.setState(newState);
+                                player.setQueueRequest(null);
+                                player.setGameId(packet.gameId());
+                                player.setInstanceId(input.from());
+                                connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                            } else {
+                                // We cannot accept this queue finalization.
+                                connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
+                            }
+                            return;
+                        }
+                        connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
+                    }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
+                }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+            } else if(input.packet() instanceof ResponsePacket<?> response) {
+                CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
+                if(request != null) {
+                    // TODO How could it happen that the request is null?
+                    request.complete(response.transformResult());
+                    getRequests().remove(response.getRequestId());
+                }
             }
         });
     }
