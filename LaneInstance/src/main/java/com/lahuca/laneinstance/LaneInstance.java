@@ -225,7 +225,7 @@ public abstract class LaneInstance extends RequestHandler {
                     // TODO Maybe game also has slots? Or limitations?
                     // Send queue finished to controller
                     long requestId = getNewRequestId();
-                    buildVoidFuture(requestId).thenAccept(result -> {
+                    buildVoidFuture(requestId).thenAccept(result -> { // TODO Maybe sync?
                         if(!result.isSuccessful()) {
                             disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                             return;
@@ -247,7 +247,7 @@ public abstract class LaneInstance extends RequestHandler {
                 }
                 // Join allowed, finalize
                 long requestId = getNewRequestId();
-                buildVoidFuture(requestId).thenAccept(result -> {
+                buildVoidFuture(requestId).thenAccept(result -> {  // TODO Maybe sync?
                     if(!result.isSuccessful()) {
                         disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                         return;

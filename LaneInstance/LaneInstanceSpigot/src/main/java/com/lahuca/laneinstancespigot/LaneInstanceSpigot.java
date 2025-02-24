@@ -22,6 +22,7 @@ import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import org.bukkit.Bukkit;
+import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -52,6 +53,9 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+
+        // TODO Current status: Try rejoining!
+        // TODO Maaybe response is not clearing!
         saveDefaultConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
 
@@ -109,6 +113,10 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
             super(id, connection, type, joinable, nonPlayable);
         }
 
+        private Server getServer() {
+            return LaneInstanceSpigot.this.getServer();
+        }
+
         @Override
         public int getCurrentPlayers() {
             return LaneInstanceSpigot.this.getServer().getOnlinePlayers().size();
@@ -121,8 +129,14 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
         @Override
         public void disconnectPlayer(UUID player, String message) {
-            Player p = LaneInstanceSpigot.this.getServer().getPlayer(player);
-            if(p != null && p.isOnline()) p.kickPlayer(message);
+            Player p = getServer().getPlayer(player);
+            if(p != null && p.isOnline()) {
+                if(getServer().isPrimaryThread()) {
+                    p.kickPlayer(message);
+                } else {
+                    getServer().getScheduler().runTask(LaneInstanceSpigot.this, () -> p.kickPlayer(message));
+                }
+            }
         }
     }
 

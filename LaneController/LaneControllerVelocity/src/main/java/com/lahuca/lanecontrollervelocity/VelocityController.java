@@ -39,7 +39,7 @@ import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
-import com.velocitypowered.api.event.player.ServerPostConnectEvent;
+import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
@@ -272,40 +272,42 @@ public class VelocityController {
      * @param event
      */
     @Subscribe
-    public void onServerPostConnect(ServerPostConnectEvent event) {
+    public void onServerConnectedEvent(ServerConnectedEvent event) {
+        // TODO Move code to Controller: serverTransferred(player, serverName)
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
-            event.getPlayer().getCurrentServer().ifPresent(connection -> {
-                String state = player.getState().getName();
-                if(state.equals(LanePlayerState.INSTANCE_TRANSFER) || state.equals(LanePlayerState.GAME_TRANSFER)) {
-                    // Correct state
-                    String connectedWith = connection.getServer().getServerInfo().getName();
-                    Object connectTo = player.getState().getProperties().get(LaneStateProperty.INSTANCE_ID).getValue();
-                    if(connectTo instanceof String text && text.equals(connectedWith)) {
-                        // Correctly transferred
-                        HashMap<String, ControllerStateProperty> properties = player.getState().getProperties();
-                        if(state.equals(LanePlayerState.INSTANCE_TRANSFER)) {
-                            player.setState(new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFERRED,
-                                    Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, properties.get(LaneStateProperty.INSTANCE_ID).getValue()),
-                                            new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
-                        } else {
-                            player.setState(new ControllerPlayerState(LanePlayerState.GAME_TRANSFERRED,
-                                    Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, properties.get(LaneStateProperty.INSTANCE_ID).getValue()),
-                                            new ControllerStateProperty(LaneStateProperty.GAME_ID, properties.get(LaneStateProperty.GAME_ID).getValue()),
-                                            new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
-                        }
+            RegisteredServer server = event.getServer();
+            String state = player.getState().getName();
+            System.out.println("DEBUG ON POSTConnect: " + player + ": " + state);
+            if(state.equals(LanePlayerState.INSTANCE_TRANSFER) || state.equals(LanePlayerState.GAME_TRANSFER)) {
+                // Correct state
+                String connectedWith = server.getServerInfo().getName();
+                Object connectTo = player.getState().getProperties().get(LaneStateProperty.INSTANCE_ID).getValue();
+                if(connectTo instanceof String text && text.equals(connectedWith)) {
+                    // Correctly transferred
+                    HashMap<String, ControllerStateProperty> properties = player.getState().getProperties();
+                    if(state.equals(LanePlayerState.INSTANCE_TRANSFER)) {
+                        player.setState(new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFERRED,
+                                Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, properties.get(LaneStateProperty.INSTANCE_ID).getValue()),
+                                        new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
+                    } else {
+                        player.setState(new ControllerPlayerState(LanePlayerState.GAME_TRANSFERRED,
+                                Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, properties.get(LaneStateProperty.INSTANCE_ID).getValue()),
+                                        new ControllerStateProperty(LaneStateProperty.GAME_ID, properties.get(LaneStateProperty.GAME_ID).getValue()),
+                                        new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
                     }
-                } else {
-                    // We are at the incorrect state
-                    // TODO Make methods to handle this case, for now, we do nothing.
-                    // How could this happen? This controller should have updated the player state, so this could not happen.
-                    // Probably some network issues.
                 }
-            });
+            } else {
+                // We are at the incorrect state
+                // TODO Make methods to handle this case, for now, we do nothing.
+                // How could this happen? This controller should have updated the player state, so this could not happen.
+                // Probably some network issues.
+            }
         }, null);
     }
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
+        // TODO Move to Controller
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
             if(player.getState() == null) {
                 // TODO Even after X seconds it should unregister: timer
