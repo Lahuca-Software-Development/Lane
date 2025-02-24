@@ -137,9 +137,7 @@ public class Controller extends RequestHandler {
                         ControllerPlayerState state = player.getState();
                         if(state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
                             // Check if we either joined the correct instance or game.
-                            boolean instanceTransfer = state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) || state.getName().equals(LanePlayerState.INSTANCE_TRANSFERRED);
-                            boolean gameTransfer = state.getName().equals(LanePlayerState.GAME_TRANSFER) || state.getName().equals(LanePlayerState.GAME_TRANSFERRED);
-                            if(instanceTransfer && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
+                            if(state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
                                 // We joined an instance.
                                 ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE,
                                         Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()),
@@ -150,7 +148,7 @@ public class Controller extends RequestHandler {
                                 connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                             } else if(packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID)
                                     && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId())
-                                    && gameTransfer) {
+                                    && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
                                 // We joined a game.
                                 ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.GAME_ONLINE,
                                         Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()),

@@ -30,16 +30,6 @@ public interface LanePlayerState extends RecordApplier<PlayerStateRecord> {
      */
     String GAME_TRANSFER = "GAME_TRANSFER";
     /**
-     * Constant for the state name of a player that has joined an instance, but the data has not yet been retrieved by the instance.
-     * Properties set: instanceId -> String, timestamp -> long
-     */
-    String INSTANCE_TRANSFERRED = "INSTANCE_TRANSFERRED";
-    /**
-     * Constant for the state name of a player that has joined a game (therefore sub of {@link #INSTANCE_TRANSFERRED}), but the data has not yet been retrieved by the instance.
-     * Properties set: instanceId -> String, timestamp -> long
-     */
-    String GAME_TRANSFERRED = "GAME_TRANSFERRED";
-    /**
      * Constant for the state name of a player that is online on an instance.
      * Properties set: instanceId -> String
      */

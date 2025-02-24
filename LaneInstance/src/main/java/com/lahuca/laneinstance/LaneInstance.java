@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
@@ -113,8 +114,7 @@ public abstract class LaneInstance extends RequestHandler {
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
                 PlayerRecord record = packet.playerRecord();
-                getInstancePlayer(record.uuid()).ifPresentOrElse(player -> player.applyRecord(record),
-                        () -> players.put(record.uuid(), new InstancePlayer(record)));
+                getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
                 if(request != null) {
@@ -225,15 +225,17 @@ public abstract class LaneInstance extends RequestHandler {
                     // TODO Maybe game also has slots? Or limitations?
                     // Send queue finished to controller
                     long requestId = getNewRequestId();
-                    buildVoidFuture(requestId).thenAccept(result -> { // TODO Maybe sync?
+                    sendController(new QueueFinishedPacket(requestId, uuid, gameId));
+                    try {
+                        Result<Void> result = buildVoidFuture(requestId).get();
                         if(!result.isSuccessful()) {
                             disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                             return;
                         }
                         game.onJoin(player);
-                        return;
-                    });
-                    sendController(new QueueFinishedPacket(requestId, uuid, gameId));
+                    } catch (InterruptedException | ExecutionException e) {
+                        disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
+                    }
                 }, () -> {
                     // The given game ID does not exist on this instance. Disconnect
                     disconnectPlayer(uuid, "Invalid game ID on instance."); // TODO Translateable
@@ -247,15 +249,17 @@ public abstract class LaneInstance extends RequestHandler {
                 }
                 // Join allowed, finalize
                 long requestId = getNewRequestId();
-                buildVoidFuture(requestId).thenAccept(result -> {  // TODO Maybe sync?
+                sendController(new QueueFinishedPacket(requestId, uuid, null));
+                try {
+                    Result<Void> result = buildVoidFuture(requestId).get();
                     if(!result.isSuccessful()) {
                         disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                         return;
                     }
                     // TODO Handle, like TP, etc. Only after response.
-                    return;
-                });
-                sendController(new QueueFinishedPacket(requestId, uuid, null));
+                } catch (InterruptedException | ExecutionException e) {
+                    disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
+                }
             });
         }, () -> {
             // We do not have the details about this player. Controller did not send it.

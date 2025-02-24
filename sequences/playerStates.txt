@@ -13,10 +13,8 @@ Controller<-Instance:Accept
 deactivate Instance
 
 
+note over Controller:INSTANCE_TRANSFER
 Controller->Instance:Send player to Instance
-note over Controller: INSTANCE_TRANSFER
-Controller->Controller:Velocity: ServerPostConnect
-note over Controller: INSTANCE_TRANSFERRED
 Player->Instance:Joined Instance
 Controller<-Instance:Has joined
 note over Controller: INSTANCE_ONLINE
