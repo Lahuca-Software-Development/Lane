@@ -232,6 +232,7 @@ public abstract class LaneInstance extends RequestHandler {
                             disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                             return;
                         }
+                        sendInstanceStatus();
                         game.onJoin(player);
                     } catch (InterruptedException | ExecutionException e) {
                         disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
@@ -256,6 +257,7 @@ public abstract class LaneInstance extends RequestHandler {
                         disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                         return;
                     }
+                    sendInstanceStatus();
                     // TODO Handle, like TP, etc. Only after response.
                 } catch (InterruptedException | ExecutionException e) {
                     disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
