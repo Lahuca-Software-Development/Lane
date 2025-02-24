@@ -143,7 +143,7 @@ public class ControllerPlayer implements LanePlayer {
         updateInstancePlayer();
     }
 
-    public void setGameId(long gameId) {
+    public void setGameId(Long gameId) {
         this.gameId = gameId;
         updateInstancePlayer();
     }

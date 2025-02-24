@@ -292,7 +292,36 @@ public abstract class LaneInstance extends RequestHandler {
             // TODO Remove player actually from player list in the game
         }));
     }
-
+    /*
+    13:59 INFO]: [LiteBans] litebans-pool - Shutdown initiated...
+            [23:13:59 INFO]: [LiteBans] litebans-pool - Shutdown completed.
+            [23:14:00 INFO]: [LiteBans] v2.15.1 disabled.
+[23:14:00 INFO]: [LPC] Disabling LPC v3.6.0
+            [23:14:00 INFO]: [LaneInstance] Disabling LaneInstance v1.0
+            [23:14:00 INFO]: [Citizens] Disabling Citizens v2.0.35-SNAPSHOT (build 3479)
+[23:14:00 INFO]: [SluxAPI] Disabling SluxAPI v1.0.0
+            [23:14:00 INFO]: Deleting old maps
+[23:14:00 INFO]: [ViaBackwards] Disabling ViaBackwards v5.2.1
+            [23:14:00 INFO]: [Vault] Disabling Vault v1.7.3-b131
+[23:14:00 INFO]: [PlaceholderAPI] Disabling PlaceholderAPI v2.11.6
+            [23:14:00 INFO]: [ProtocolLib] Disabling ProtocolLib v5.3.0-SNAPSHOT-726
+            [23:14:00 INFO]: [LuckPerms] Disabling LuckPerms v5.4.126
+            [23:14:00 INFO]: [LuckPerms] Starting shutdown process...
+            [23:14:00 INFO]: [LuckPerms] Closing messaging service...
+            [23:14:00 INFO]: [LuckPerms] Closing storage...
+            [23:14:00 INFO]: [me.lucko.luckperms.lib.hikari.HikariDataSource] luckperms-hikari - Shutdown initiated...
+            [23:14:00 INFO]: [me.lucko.luckperms.lib.hikari.HikariDataSource] luckperms-hikari - Shutdown completed.
+            [23:14:00 INFO]: [LuckPerms] Goodbye!
+            [23:14:00 INFO]: [ViaVersion] Disabling ViaVersion v5.2.1
+            [23:14:00 INFO]: [ViaVersion] ViaVersion has been disabled; uninjected the platform and shut down the scheduler.
+            [23:14:00 INFO]: Saving players
+[23:14:00 INFO]: Laurenshup lost connection: Server closed
+[23:14:00 INFO]: [LaneInstance] [STDOUT] Got: {"typeId":"instanceUpdatePlayer","data":"{\"playerRecord\":{\"uuid\":\"e8cfb5f7-3505-4bd5-b9c0-5ca9a6967daa\",\"name\":\"Laurenshup\",\"displayName\":\"Laurenshup\",\"languageTag\":\"en\",\"queueRequest\":{\"reason\":\"SERVER_KICKED\",\"parameters\":{\"parameters\":[[{\"data\":{\"INSTANCE.TYPE\":\"Lobby\"}}]]},\"stages\":[]},\"instanceId\":\"Lobby\",\"state\":{\"name\":\"INSTANCE_ONLINE\",\"properties\":{\"instanceId\":{\"id\":\"instanceId\",\"value\":\"Lobby\"},\"timestamp\":{\"id\":\"timestamp\",\"value\":1740435039123}}}}}","to":"Lobby","sentAt":1740435240310}
+[23:14:00 INFO]: [LaneInstance] [STDOUT] Got: {"typeId":"instanceUpdatePlayer","data":"{\"playerRecord\":{\"uuid\":\"e8cfb5f7-3505-4bd5-b9c0-5ca9a6967daa\",\"name\":\"Laurenshup\",\"displayName\":\"Laurenshup\",\"languageTag\":\"en\",\"instanceId\":\"Lobby\",\"state\":{\"name\":\"INSTANCE_ONLINE\",\"properties\":{\"instanceId\":{\"id\":\"instanceId\",\"value\":\"Lobby\"},\"timestamp\":{\"id\":\"timestamp\",\"value\":1740435039123}}}}}","to":"Lobby","sentAt":1740435240311}
+[23:14:00 INFO]: Laurenshup left the game
+[23:14:00 INFO]: Saving worlds
+[23:14:00 INFO]: Saving chunks for level 'ServerLevel[world]'/minecra
+*/
     public CompletableFuture<Result<Void>> registerGame(LaneGame game) {
         if(game == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
         if(games.containsKey(game.getGameId())) return simpleFuture(ResponsePacket.INVALID_ID);

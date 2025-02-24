@@ -288,6 +288,7 @@ public class VelocityController {
     public void onKickedFromServer(KickedFromServerEvent event) {
         // TODO, if the player is still on a lobby, we should revert the state to the lobby instead.
         // TODO, if the player was trying to join a game, we should retry it
+        // TODO Maybe use event.getServerKickReason
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
             QueueRequest request;
             if(player.getQueueRequest().isPresent()) {
@@ -306,6 +307,8 @@ public class VelocityController {
                 request.stages().add(new QueueStage(QueueStageResult.SERVER_KICKED, instanceId, gameId));
             } else {
                 request = new QueueRequest(QueueRequestReason.SERVER_KICKED, QueueRequestParameters.lobbyParameters);
+                player.setInstanceId(null);
+                player.setGameId(null);
                 player.setQueueRequest(request);
             }
 
