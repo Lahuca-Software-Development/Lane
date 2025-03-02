@@ -13,20 +13,21 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lane.connection.request;
+package com.lahuca.lane.connection.packet.connection;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponsePacket;
 
-public record SimpleResultPacket(long requestId, String result) implements ResponsePacket<Void> {
+public record ConnectionKeepAliveResultPacket(long requestId, String result) implements ResponsePacket<Void>, ConnectionPacket {
 
-    public static final String packetId = "simpleResult";
+    public static final String packetId = "connectionKeepAliveResult";
 
-    public static SimpleResultPacket ok(long requestId) {
-        return new SimpleResultPacket(requestId, ResponsePacket.OK);
+    public static ConnectionKeepAliveResultPacket ok(long requestId) {
+        return new ConnectionKeepAliveResultPacket(requestId, ResponsePacket.OK);
     }
 
     static {
-        Packet.registerPacket(packetId, SimpleResultPacket.class);
+        Packet.registerPacket(packetId, ConnectionKeepAliveResultPacket.class);
     }
 
     @Override

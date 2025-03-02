@@ -20,11 +20,9 @@ import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
-import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
-import com.lahuca.lane.connection.socket.SocketConnectPacket;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
@@ -32,12 +30,11 @@ import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 /**
  * This is the main class for operations on the controller side of the Lane system.
  */
-public class Controller extends RequestHandler {
+public class Controller {
 
     private static Controller instance;
 
@@ -60,23 +57,7 @@ public class Controller extends RequestHandler {
         this.connection = connection;
         this.implementation = implementation;
 
-        Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
-        Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
-        Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
-        Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);
-        Packet.registerPacket(InstanceUpdatePlayerPacket.packetId, InstanceUpdatePlayerPacket.class);
-        Packet.registerPacket(PartyPacket.Player.Add.packetId, PartyPacket.Player.Add.class);
-        Packet.registerPacket(PartyPacket.Player.Remove.packetId, PartyPacket.Player.Remove.class);
-        Packet.registerPacket(PartyPacket.Disband.Request.packetId, PartyPacket.Disband.Request.class);
-        Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
-        Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
-        Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
-        Packet.registerPacket(RelationshipPacket.Create.Request.packetId, RelationshipPacket.Create.Request.class);
-        Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
-        Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
-        Packet.registerPacket(SocketConnectPacket.packetId, SocketConnectPacket.class);
-        Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
-        Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
+        Packet.registerPackets();
 
         connection.initialise(input -> {
             Packet iPacket = input.packet();
@@ -169,12 +150,7 @@ public class Controller extends RequestHandler {
                     }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
                 }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
-                CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
-                if(request != null) {
-                    // TODO How could it happen that the request is null?
-                    request.complete(response.transformResult());
-                    getRequests().remove(response.getRequestId());
-                }
+                connection.retrieveResponse(response.getRequestId(), response.transformResult()); // TODO Handle output
             }
         });
     }
@@ -198,14 +174,6 @@ public class Controller extends RequestHandler {
 
     public Collection<ControllerLaneInstance> getInstances() { // TODO Really public?
         return instances.values();
-    }
-
-    public CompletableFuture<Result<Void>> buildUnsafeVoidPacket(Function<Long, Packet> packet, String destination) {
-        // TODO DO NOT USE!, very unsafe for other plugins to send unhandled packets like this!
-        long id = getNewRequestId();
-        CompletableFuture<Result<Void>> result = buildVoidFuture(id);
-        connection.sendPacket(packet.apply(id), destination);
-        return result;
     }
 
     /**
@@ -312,7 +280,7 @@ public class Controller extends RequestHandler {
             }
             player.setState(state); // TODO Better state handling!
             player.setQueueRequest(request);
-            CompletableFuture<Result<Void>> future = buildUnsafeVoidPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
+            CompletableFuture<Result<Void>> future = connection.<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
             future.whenComplete((joinPacketResult, exception) -> {
                 if(exception != null) {
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));

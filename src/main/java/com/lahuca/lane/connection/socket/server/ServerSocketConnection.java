@@ -19,6 +19,11 @@ import com.google.gson.Gson;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.packet.connection.ConnectionClosePacket;
+import com.lahuca.lane.connection.request.Request;
+import com.lahuca.lane.connection.request.RequestHandler;
+import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.Result;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -27,8 +32,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
-public class ServerSocketConnection implements Connection {
+public class ServerSocketConnection extends RequestHandler implements Connection {
 
 	private final int port;
 	private ServerSocket socket = null;
@@ -67,6 +73,11 @@ public class ServerSocketConnection implements Connection {
 		}
 	}
 
+	/**
+	 * Send a packet over the connection identified by the given destination.
+	 * @param packet The packet to send.
+	 * @param destination The destination of the packet, null meaning the controller.
+	 */
 	@Override
 	public void sendPacket(Packet packet, String destination) {
 		if(destination == null) {
@@ -79,11 +90,103 @@ public class ServerSocketConnection implements Connection {
 		if(client != null) client.sendPacket(packet);
 	}
 
+	/**
+	 * Sends a request packet to the given destination, and it handles the response.
+	 * A request ID is generated that is being used to construct the request packet.
+	 * The request is saved and forwarded to its destination.
+	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * Any generic results are cast by default.
+	 * @param packetConstruction the function that created a packet based upon the request ID.
+	 * @return the request with the future and request ID bundled within it. Null if there is no client with the given destination found.
+	 * @param <T> the type of the expected result.
+	 */
 	@Override
-	public void stop() throws IOException {
+	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination) {
+		ClientSocket client = clients.get(destination);
+		if(client == null) return null;
+		Request<T> request = request();
+		RequestPacket packet = packetConstruction.apply(request.getRequestId());
+		client.sendPacket(packet);
+		return request;
+	}
+
+	/**
+	 * Sends a request packet to the given destination, and it handles the response.
+	 * A request ID is generated that is being used to construct the request packet.
+	 * The request is saved and forwarded to its destination.
+	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * Any generic results are cast by default.
+	 * @param packetConstruction the function that created a packet based upon the request ID.
+	 * @param timeoutSeconds the number of seconds to wait for the response.
+	 * @return the request with the future and request ID bundled within it. Null if there is no client with the given destination found.
+	 * @param <T> the type of the expected result.
+	 */
+	@Override
+	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, int timeoutSeconds) {
+		ClientSocket client = clients.get(destination);
+		if(client == null) return null;
+		Request<T> request = request(timeoutSeconds);
+		RequestPacket packet = packetConstruction.apply(request.getRequestId());
+		client.sendPacket(packet);
+		return request;
+	}
+
+	/**
+	 * Sends a request packet to the given destination, and it handles the response.
+	 * A request ID is generated that is being used to construct the request packet.
+	 * The request is saved and forwarded to its destination.
+	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * Any generic results are cast by default.
+	 * @param packetConstruction the function that created a packet based upon the request ID.
+	 * @param resultParser the generic to specific result parser.
+	 * @return the request with the future and request ID bundled within it. Null if there is no client with the given destination found.
+	 * @param <T> the type of the expected result.
+	 */
+	@Override
+	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser) {
+		ClientSocket client = clients.get(destination);
+		if(client == null) return null;
+		Request<T> request = request(resultParser);
+		RequestPacket packet = packetConstruction.apply(request.getRequestId());
+		client.sendPacket(packet);
+		return request;
+	}
+
+	/**
+	 * Sends a request packet to the given destination, and it handles the response.
+	 * A request ID is generated that is being used to construct the request packet.
+	 * The request is saved and forwarded to its destination.
+	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * Any generic results are cast by default.
+	 * @param packetConstruction the function that created a packet based upon the request ID.
+	 * @param resultParser the generic to specific result parser.
+	 * @param timeoutSeconds the number of seconds to wait for the response.
+	 * @return the request with the future and request ID bundled within it.
+	 * Null if there is no client with the given destination found.
+	 * @param <T> the type of the expected result.
+	 */
+	@Override
+	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
+		ClientSocket client = clients.get(destination);
+		if(client == null) return null; // TODO Handle if client is closed!
+		Request<T> request = request(resultParser, timeoutSeconds);
+		RequestPacket packet = packetConstruction.apply(request.getRequestId());
+		client.sendPacket(packet);
+		return request;
+	}
+
+	@Override
+	public boolean retrieveResponse(long requestId, Result<?> result) {
+		return response(requestId, result);
+	}
+
+	@Override
+	public void close() throws IOException {
 		if(socket == null) return;
 		if(socket.isClosed() || !socket.isBound()) return;
-		// TODO Send close to clients
+		ConnectionClosePacket closure = new ConnectionClosePacket();
+		clients.keySet().forEach(client -> sendPacket(closure, client));
+		unassignedClients.forEach(client -> client.sendPacket(closure));
 		clients.values().forEach(ClientSocket::close);
 		unassignedClients.forEach(ClientSocket::close);
 		socket.close();

@@ -233,8 +233,8 @@ public class VelocityController {
                     }
                     player.setState(state); // TODO Better state handling!
                     player.setQueueRequest(request);
-                    CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) ->
-                            new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
+                    CompletableFuture<Result<Void>> future = controller.getConnection().<Void>sendRequestPacket((id) ->
+                            new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
                     try {
                         Result<Void> joinResult = future.get();
                         if(joinResult.isSuccessful()) {
@@ -387,7 +387,7 @@ public class VelocityController {
                     }
                     player.setState(state); // TODO Better state handling!
                     player.setQueueRequest(request);
-                    CompletableFuture<Result<Void>> future = controller.buildUnsafeVoidPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId());
+                    CompletableFuture<Result<Void>> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
                     try {
                         Result<Void> joinResult = future.get();
                         if(joinResult.isSuccessful()) {

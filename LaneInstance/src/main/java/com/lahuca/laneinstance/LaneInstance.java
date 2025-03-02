@@ -19,7 +19,6 @@ import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.*;
-import com.lahuca.lane.connection.socket.SocketConnectPacket;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
@@ -36,7 +35,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
  */
-public abstract class LaneInstance extends RequestHandler {
+public abstract class LaneInstance {
 
     private static LaneInstance instance;
 
@@ -58,24 +57,7 @@ public abstract class LaneInstance extends RequestHandler {
         this.id = id;
         this.type = type;
 
-        Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
-        Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
-        Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
-        Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);
-        Packet.registerPacket(InstanceUpdatePlayerPacket.packetId, InstanceUpdatePlayerPacket.class);
-        Packet.registerPacket(PartyPacket.Player.Add.packetId, PartyPacket.Player.Add.class);
-        Packet.registerPacket(PartyPacket.Player.Remove.packetId, PartyPacket.Player.Remove.class);
-        Packet.registerPacket(PartyPacket.Disband.Request.packetId, PartyPacket.Disband.Request.class);
-        Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
-        Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
-        Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
-        Packet.registerPacket(RelationshipPacket.Create.Request.packetId, RelationshipPacket.Create.Request.class);
-        Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
-        Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId,
-                RelationshipPacket.Retrieve.Response.class);
-        Packet.registerPacket(SocketConnectPacket.packetId, SocketConnectPacket.class);
-        Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
-        Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
+        Packet.registerPackets();
 
         this.connection = connection;
         this.joinable = joinable;
@@ -116,12 +98,7 @@ public abstract class LaneInstance extends RequestHandler {
                 PlayerRecord record = packet.playerRecord();
                 getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
-                CompletableFuture<Result<?>> request = getRequests().get(response.getRequestId());
-                if(request != null) {
-                    // TODO How could it happen that the request is null?
-                    request.complete(response.transformResult());
-                    getRequests().remove(response.getRequestId());
-                }
+                connection.retrieveResponse(response.getRequestId(), response.transformResult()); // TODO Handle output
             }
         });
         sendInstanceStatus();
@@ -176,6 +153,19 @@ public abstract class LaneInstance extends RequestHandler {
         sendSimpleResult(request.getRequestId(), result);
     }
 
+    /**
+     * Constructs a CompletableFuture that contains the direct result.
+     * @param result The result.
+     * @return A CompletableFuture consisting of no additional data and the result.
+     */
+    public static CompletableFuture<Result<Void>> simpleFuture(String result) {
+        return CompletableFuture.completedFuture(new Result<>(result));
+    }
+
+    public static Request<Void> simpleRequest(String result) {
+        return new Request<>(new Result<>(result));
+    }
+
     private void sendInstanceStatus() {
         sendController(new InstanceStatusUpdatePacket(type, joinable, nonPlayable, getCurrentPlayers(),
                 getMaxPlayers()));
@@ -194,13 +184,10 @@ public abstract class LaneInstance extends RequestHandler {
      *
      * @param playerId          the player's uuid
      * @param requestParameters the queue request parameters
-     * @return The result of if the request has successfully be applied.
+     * @return The request
      */
-    public CompletableFuture<Result<Void>> queue(UUID playerId, QueueRequestParameters requestParameters) {
-        long id = System.currentTimeMillis();
-        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
-        connection.sendPacket(new QueueRequestPacket(id, playerId, requestParameters), null);
-        return completableFuture;
+    public Request<Void> queue(UUID playerId, QueueRequestParameters requestParameters) {
+        return connection.sendRequestPacket(id -> new QueueRequestPacket(id, playerId, requestParameters), null);
     }
 
     /**
@@ -224,10 +211,8 @@ public abstract class LaneInstance extends RequestHandler {
                     }
                     // TODO Maybe game also has slots? Or limitations?
                     // Send queue finished to controller
-                    long requestId = getNewRequestId();
-                    sendController(new QueueFinishedPacket(requestId, uuid, gameId));
                     try {
-                        Result<Void> result = buildVoidFuture(requestId).get();
+                        Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
                         if(!result.isSuccessful()) {
                             disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                             return;
@@ -249,10 +234,8 @@ public abstract class LaneInstance extends RequestHandler {
                     return;
                 }
                 // Join allowed, finalize
-                long requestId = getNewRequestId();
-                sendController(new QueueFinishedPacket(requestId, uuid, null));
                 try {
-                    Result<Void> result = buildVoidFuture(requestId).get();
+                    Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
                     if(!result.isSuccessful()) {
                         disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                         return;
@@ -292,86 +275,39 @@ public abstract class LaneInstance extends RequestHandler {
             // TODO Remove player actually from player list in the game
         }));
     }
-    /*
-    13:59 INFO]: [LiteBans] litebans-pool - Shutdown initiated...
-            [23:13:59 INFO]: [LiteBans] litebans-pool - Shutdown completed.
-            [23:14:00 INFO]: [LiteBans] v2.15.1 disabled.
-[23:14:00 INFO]: [LPC] Disabling LPC v3.6.0
-            [23:14:00 INFO]: [LaneInstance] Disabling LaneInstance v1.0
-            [23:14:00 INFO]: [Citizens] Disabling Citizens v2.0.35-SNAPSHOT (build 3479)
-[23:14:00 INFO]: [SluxAPI] Disabling SluxAPI v1.0.0
-            [23:14:00 INFO]: Deleting old maps
-[23:14:00 INFO]: [ViaBackwards] Disabling ViaBackwards v5.2.1
-            [23:14:00 INFO]: [Vault] Disabling Vault v1.7.3-b131
-[23:14:00 INFO]: [PlaceholderAPI] Disabling PlaceholderAPI v2.11.6
-            [23:14:00 INFO]: [ProtocolLib] Disabling ProtocolLib v5.3.0-SNAPSHOT-726
-            [23:14:00 INFO]: [LuckPerms] Disabling LuckPerms v5.4.126
-            [23:14:00 INFO]: [LuckPerms] Starting shutdown process...
-            [23:14:00 INFO]: [LuckPerms] Closing messaging service...
-            [23:14:00 INFO]: [LuckPerms] Closing storage...
-            [23:14:00 INFO]: [me.lucko.luckperms.lib.hikari.HikariDataSource] luckperms-hikari - Shutdown initiated...
-            [23:14:00 INFO]: [me.lucko.luckperms.lib.hikari.HikariDataSource] luckperms-hikari - Shutdown completed.
-            [23:14:00 INFO]: [LuckPerms] Goodbye!
-            [23:14:00 INFO]: [ViaVersion] Disabling ViaVersion v5.2.1
-            [23:14:00 INFO]: [ViaVersion] ViaVersion has been disabled; uninjected the platform and shut down the scheduler.
-            [23:14:00 INFO]: Saving players
-[23:14:00 INFO]: Laurenshup lost connection: Server closed
-[23:14:00 INFO]: [LaneInstance] [STDOUT] Got: {"typeId":"instanceUpdatePlayer","data":"{\"playerRecord\":{\"uuid\":\"e8cfb5f7-3505-4bd5-b9c0-5ca9a6967daa\",\"name\":\"Laurenshup\",\"displayName\":\"Laurenshup\",\"languageTag\":\"en\",\"queueRequest\":{\"reason\":\"SERVER_KICKED\",\"parameters\":{\"parameters\":[[{\"data\":{\"INSTANCE.TYPE\":\"Lobby\"}}]]},\"stages\":[]},\"instanceId\":\"Lobby\",\"state\":{\"name\":\"INSTANCE_ONLINE\",\"properties\":{\"instanceId\":{\"id\":\"instanceId\",\"value\":\"Lobby\"},\"timestamp\":{\"id\":\"timestamp\",\"value\":1740435039123}}}}}","to":"Lobby","sentAt":1740435240310}
-[23:14:00 INFO]: [LaneInstance] [STDOUT] Got: {"typeId":"instanceUpdatePlayer","data":"{\"playerRecord\":{\"uuid\":\"e8cfb5f7-3505-4bd5-b9c0-5ca9a6967daa\",\"name\":\"Laurenshup\",\"displayName\":\"Laurenshup\",\"languageTag\":\"en\",\"instanceId\":\"Lobby\",\"state\":{\"name\":\"INSTANCE_ONLINE\",\"properties\":{\"instanceId\":{\"id\":\"instanceId\",\"value\":\"Lobby\"},\"timestamp\":{\"id\":\"timestamp\",\"value\":1740435039123}}}}}","to":"Lobby","sentAt":1740435240311}
-[23:14:00 INFO]: Laurenshup left the game
-[23:14:00 INFO]: Saving worlds
-[23:14:00 INFO]: Saving chunks for level 'ServerLevel[world]'/minecra
-*/
-    public CompletableFuture<Result<Void>> registerGame(LaneGame game) {
-        if(game == null) return simpleFuture(ResponsePacket.INVALID_PARAMETERS);
-        if(games.containsKey(game.getGameId())) return simpleFuture(ResponsePacket.INVALID_ID);
+
+    public Request<Void> registerGame(LaneGame game) {
+        if(game == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if(games.containsKey(game.getGameId())) return simpleRequest(ResponsePacket.INVALID_ID);
         games.put(game.getGameId(), game);
-        long requestId = getNewRequestId();
-        CompletableFuture<Result<Void>> future = buildVoidFuture(requestId).thenApply(result -> {
+        Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
+                game.getGameState().convertRecord()), null);
+        return request.thenApply(result -> {
             if(!result.isSuccessful()) {
                 games.remove(game.getGameId());
             }
             return result;
         });
-        connection.sendPacket(new GameStatusUpdatePacket(requestId, game.getGameId(), game.getName(),
-                game.getGameState().convertRecord()), null);
-        return future;
     }
 
-    public CompletableFuture<Result<RelationshipRecord>> getRelationship(long relationshipId) {
-        long id = System.currentTimeMillis();
-        CompletableFuture<Result<RelationshipRecord>> completableFuture = buildFutureCast(id);
-        connection.sendPacket(new RelationshipPacket.Retrieve.Request(id, relationshipId), null);
-        return completableFuture;
+    public Request<RelationshipRecord> getRelationship(long relationshipId) {
+        return connection.sendRequestPacket(id -> new RelationshipPacket.Retrieve.Request(id, relationshipId), null);
     }
 
-    public CompletableFuture<Result<PartyRecord>> getParty(long partyId) {
-        long id = System.currentTimeMillis();
-        CompletableFuture<Result<PartyRecord>> completableFuture = buildFutureCast(id); // TODO Maybe save the
-        // funciton somewhere, to save CPU?
-        connection.sendPacket(new PartyPacket.Retrieve.Request(id, partyId), null);
-        return completableFuture;
+    public Request<PartyRecord> getParty(long partyId) {
+        return connection.sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null);
     }
 
-    public CompletableFuture<Result<Void>> disbandParty(long partyId) {
-        long id = System.currentTimeMillis();
-        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
-        connection.sendPacket(new PartyPacket.Disband.Request(id, partyId), null);
-        return completableFuture;
+    public Request<Void> disbandParty(long partyId) {
+        return connection.sendRequestPacket(id -> new PartyPacket.Disband.Request(id, partyId), null);
     }
 
-    public CompletableFuture<Result<Void>> addPartyPlayer(long partyId, UUID player) {
-        long id = System.currentTimeMillis();
-        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
-        connection.sendPacket(new PartyPacket.Player.Add(id, partyId, player), null);
-        return completableFuture;
+    public Request<Void> addPartyPlayer(long partyId, UUID player) {
+        return connection.sendRequestPacket(id -> new PartyPacket.Player.Add(id, partyId, player), null);
     }
 
-    public CompletableFuture<Result<Void>> removePartyPlayer(long partyId, UUID player) {
-        long id = System.currentTimeMillis();
-        CompletableFuture<Result<Void>> completableFuture = buildVoidFuture(id);
-        connection.sendPacket(new PartyPacket.Player.Remove(id, partyId, player), null);
-        return completableFuture;
+    public Request<Void> removePartyPlayer(long partyId, UUID player) {
+        return connection.sendRequestPacket(id -> new PartyPacket.Player.Remove(id, partyId, player), null);
     }
 
     public Collection<InstancePlayer> getPlayers() {

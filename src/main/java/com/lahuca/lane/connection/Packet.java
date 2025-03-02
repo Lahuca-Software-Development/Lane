@@ -15,6 +15,13 @@
  */
 package com.lahuca.lane.connection;
 
+import com.lahuca.lane.connection.packet.*;
+import com.lahuca.lane.connection.packet.connection.ConnectionClosePacket;
+import com.lahuca.lane.connection.packet.connection.ConnectionKeepAlivePacket;
+import com.lahuca.lane.connection.packet.connection.ConnectionKeepAliveResultPacket;
+import com.lahuca.lane.connection.request.SimpleResultPacket;
+import com.lahuca.lane.connection.packet.connection.ConnectionConnectPacket;
+
 import java.util.HashMap;
 import java.util.Optional;
 
@@ -24,11 +31,33 @@ public interface Packet {
 
 	static void registerPacket(String typeId, Class<? extends Packet> classType) {
 		packetTypes.put(typeId, classType);
-		System.out.println("Register Packet"+ typeId);
 	}
 
 	static Optional<Class<? extends Packet>> getPacket(String typeId) {
 		return Optional.ofNullable(packetTypes.get(typeId));
+	}
+
+	static void registerPackets() {
+		Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
+		Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
+		Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
+		Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);
+		Packet.registerPacket(InstanceUpdatePlayerPacket.packetId, InstanceUpdatePlayerPacket.class);
+		Packet.registerPacket(PartyPacket.Player.Add.packetId, PartyPacket.Player.Add.class);
+		Packet.registerPacket(PartyPacket.Player.Remove.packetId, PartyPacket.Player.Remove.class);
+		Packet.registerPacket(PartyPacket.Disband.Request.packetId, PartyPacket.Disband.Request.class);
+		Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
+		Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
+		Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
+		Packet.registerPacket(RelationshipPacket.Create.Request.packetId, RelationshipPacket.Create.Request.class);
+		Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
+		Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
+		Packet.registerPacket(ConnectionConnectPacket.packetId, ConnectionConnectPacket.class);
+		Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
+		Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
+		Packet.registerPacket(ConnectionClosePacket.packetId, ConnectionClosePacket.class);
+		Packet.registerPacket(ConnectionKeepAlivePacket.packetId, ConnectionKeepAlivePacket.class);
+		Packet.registerPacket(ConnectionKeepAliveResultPacket.packetId, ConnectionKeepAliveResultPacket.class);
 	}
 
 	String getPacketId();
