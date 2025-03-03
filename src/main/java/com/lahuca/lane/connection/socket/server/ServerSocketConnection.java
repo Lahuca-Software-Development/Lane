@@ -19,7 +19,6 @@ import com.google.gson.Gson;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
-import com.lahuca.lane.connection.packet.connection.ConnectionClosePacket;
 import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.RequestPacket;
@@ -48,6 +47,9 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 		unassignedClients.remove(client);
 	};
 
+	private Thread listenThread = null;
+	private boolean connected = false;
+
 	public ServerSocketConnection(int port, Gson gson) {
 		this.port = port;
 		this.gson = gson;
@@ -57,18 +59,19 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	public void initialise(Consumer<InputPacket> input) throws IOException {
 		this.input = input;
 		socket = new ServerSocket(port);
-		new Thread(this::listenForClients).start(); // TODO Maybe store thread somewhere?
+		listenThread = new Thread(this::listenForClients);
+		listenThread.start();
+		connected = true;
 	}
 
 	private void listenForClients() {
-		while(socket != null && !socket.isClosed() && socket.isBound()) {
+		while(socket != null && !socket.isClosed() && socket.isBound() && connected) {
 			try {
 				Socket client = socket.accept();
 				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId));
-				System.out.println("Unassigned: " + unassignedClients);
 			} catch (IOException e) {
-				// TODO What to do? Couldn't open?
-				throw new RuntimeException(e);
+				// Well, looks like server is down, or has to stop.
+				close();
 			}
 		}
 	}
@@ -81,7 +84,6 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	@Override
 	public void sendPacket(Packet packet, String destination) {
 		if(destination == null) {
-			// TODO Sending to controller? Controller to controller?
 			return;
 		}
 
@@ -168,7 +170,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	@Override
 	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
 		ClientSocket client = clients.get(destination);
-		if(client == null) return null; // TODO Handle if client is closed!
+		if(client == null || !client.isConnected()) return null; // TODO Handle if client is closed!
 		Request<T> request = request(resultParser, timeoutSeconds);
 		RequestPacket packet = packetConstruction.apply(request.getRequestId());
 		client.sendPacket(packet);
@@ -181,15 +183,16 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	}
 
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		if(socket == null) return;
 		if(socket.isClosed() || !socket.isBound()) return;
-		ConnectionClosePacket closure = new ConnectionClosePacket();
-		clients.keySet().forEach(client -> sendPacket(closure, client));
-		unassignedClients.forEach(client -> client.sendPacket(closure));
+		if(listenThread.isAlive()) listenThread.interrupt();
 		clients.values().forEach(ClientSocket::close);
 		unassignedClients.forEach(ClientSocket::close);
-		socket.close();
+		try {
+			socket.close();
+		} catch (IOException ignored) {} // TODO Is this correct?
+		// TODO Maybe run some other stuff when it is done? Like kicking players
 	}
 
 }

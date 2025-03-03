@@ -18,12 +18,12 @@ package com.lahuca.lane.connection.packet.connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.ResponsePacket;
 
-public record ConnectionKeepAliveResultPacket(long requestId, String result) implements ResponsePacket<Void>, ConnectionPacket {
+public record ConnectionKeepAliveResultPacket(long requestId, long requestTime, long retrievedAt, String result) implements ResponsePacket<Void>, ConnectionPacket {
 
     public static final String packetId = "connectionKeepAliveResult";
 
-    public static ConnectionKeepAliveResultPacket ok(long requestId) {
-        return new ConnectionKeepAliveResultPacket(requestId, ResponsePacket.OK);
+    public static ConnectionKeepAliveResultPacket ok(ConnectionKeepAlivePacket original) {
+        return new ConnectionKeepAliveResultPacket(original.requestId(), original.requestTime(), System.currentTimeMillis(), ResponsePacket.OK);
     }
 
     static {

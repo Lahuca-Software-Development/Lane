@@ -22,10 +22,11 @@ import java.util.function.Function;
 
 /**
  * Handler of requests: a request is defined by a packet that is expected for which a response is needed.
+ * This contains a {@link ScheduledExecutorService} that can be used for any threads that work on the same connection.
  */
 public class RequestHandler {
 
-    private ScheduledExecutorService scheduledExecutor;
+    private final ScheduledExecutorService scheduledExecutor;
     private int computeTimeoutSeconds;
     private ScheduledFuture<?> scheduledComputeTimeout;
     private final HashMap<Long, Request<?>> requests = new HashMap<>(); // TODO Definitely check for concurrency!
@@ -35,10 +36,18 @@ public class RequestHandler {
     }
 
     public RequestHandler(int computeTimeoutSeconds) {
-        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         if(computeTimeoutSeconds <= 0) computeTimeoutSeconds = 1;
         this.computeTimeoutSeconds = computeTimeoutSeconds;
         scheduledComputeTimeout = scheduledExecutor.scheduleAtFixedRate(this::removeTimedOutRequests, computeTimeoutSeconds, computeTimeoutSeconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Returns the scheduled executor that can be used for any threads that work on the same connection.
+     * @return the executor
+     */
+    public ScheduledExecutorService getScheduledExecutor() {
+        return scheduledExecutor;
     }
 
     /**
@@ -64,8 +73,11 @@ public class RequestHandler {
 
     /**
      * Cancels all requests and removes the timeout task.
+     * This also stops the scheduled executor service;
+     * therefore, any other tasks should be canceled before running this method.
+     * The service waits for a maximum of double the value of the timeout seconds.
      */
-    protected void stop() {
+    protected void stopExecutor() {
         if(isStopped()) return;
         scheduledComputeTimeout.cancel(true);
         scheduledExecutor.shutdown();
@@ -82,25 +94,12 @@ public class RequestHandler {
         }
     }
 
-    // TODO Move from Controller and Instance so that Connection handles.
-    // TODO Upon retrieval of ConnectionClosePacket or KeepAlive has passed, also shutdown this.
-    // TODO Actually properly schedule KeepAlive and set their parameters.
-
     /**
      * Returns whether the executor of the timeout check task is stopped.
      * @return True if it is stopped.
      */
     protected boolean isStopped() {
         return scheduledExecutor.isShutdown();
-    }
-
-    /**
-     * Starts the timeout task.
-     */
-    protected void start() {
-        if(!isStopped()) return;
-        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        scheduledComputeTimeout = scheduledExecutor.scheduleAtFixedRate(this::removeTimedOutRequests, computeTimeoutSeconds, computeTimeoutSeconds, TimeUnit.SECONDS);
     }
 
     /**

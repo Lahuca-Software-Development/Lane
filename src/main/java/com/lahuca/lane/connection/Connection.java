@@ -34,9 +34,8 @@ public interface Connection {
 
 	/**
 	 * Closes the connection by sending a close packet and closing the connection.
-	 * @throws IOException The exception that may occur during the closure.
 	 */
-	void close() throws IOException;
+	void close();
 
 	/**
 	 * Send a packet over the connection identified by the given destination.

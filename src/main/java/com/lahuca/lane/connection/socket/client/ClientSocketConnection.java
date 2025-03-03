@@ -28,14 +28,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class ClientSocketConnection extends RequestHandler implements Connection {
 
-    // TODO Handle ConnectionClosePacket!
-    // TODO KeepAlive
-    // TODO Connection randomly closed!
+    // TODO Connection randomly closed! Retry instead!!
 
     private final String id;
     private final String ip;
@@ -45,12 +45,28 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     private final Gson gson;
     private PrintWriter out;
     private BufferedReader in;
+    private boolean connected = false;
+    private Thread readThread = null;
+
+    // KeepAlive
+    private int maximumKeepAliveFails;
+    private int secondsBetweenKeepAliveChecks;
+    private ScheduledFuture<?> scheduledKeepAlive;
+    private int numberKeepAliveFails;
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson) {
+        this(id, ip, port, gson, 3, 10);
+    }
+
+    public ClientSocketConnection(String id, String ip, int port, Gson gson, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
         this.id = id;
         this.ip = ip;
         this.port = port;
         this.gson = gson;
+        if(maximumKeepAliveFails <= 0) maximumKeepAliveFails = 3;
+        this.maximumKeepAliveFails = maximumKeepAliveFails;
+        if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 10;
+        this.secondsBetweenKeepAliveChecks = secondsBetweenKeepAliveChecks;
     }
 
     @Override
@@ -59,8 +75,11 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         socket = new Socket(ip, port);
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        new Thread(this::listenForInput).start(); // TODO Maybe store thread somewhere?
+        readThread = new Thread(this::listenForInput);
+        readThread.start();
         sendPacket(new ConnectionConnectPacket(id), null);
+        scheduledKeepAlive = getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
+        connected = true;
     }
 
     private void listenForInput() {
@@ -68,11 +87,18 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         do {
             try {
                 inputLine = in.readLine();
-                if(inputLine != null) readInput(inputLine);
+                if(inputLine == null) {
+                    // End of stream, closed
+                    close();
+                    return;
+                }
+                readInput(inputLine);
             } catch(IOException e) {
-                throw new RuntimeException(e); // TODO What now?
+                // Error while reading.
+                close();
+                return;
             }
-        } while(inputLine != null);
+        } while(connected);
     }
 
     private void readInput(String line) {
@@ -106,7 +132,12 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         // TODO Use switch states for this! JAVA 21: 1.20.5 MC and above
         if(iPacket instanceof ConnectionKeepAlivePacket packet) {
             // Send packet back immediately.
-            sendPacket(ConnectionKeepAliveResultPacket.ok(packet.requestId()), inputPacket.from());
+            sendPacket(ConnectionKeepAliveResultPacket.ok(packet), inputPacket.from());
+        } else if(iPacket instanceof ConnectionKeepAliveResultPacket packet) {
+            retrieveResponse(packet.getRequestId(), packet.transformResult());
+        } else if(iPacket instanceof ConnectionClosePacket packet) {
+            // We are expecting a close, close immediately.
+            close();
         }
     }
 
@@ -252,11 +283,44 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     }
 
     @Override
-    public void close() throws IOException {
-        if(socket == null) return;
-        if(socket.isClosed() || !socket.isBound()) return;
-        sendPacket(new ConnectionClosePacket(), null);
-        socket.close();
+    public void close() {
+        if(socket == null || !connected) return;
+        connected = false;
+        if(!socket.isClosed() && socket.isBound()) sendPacket(new ConnectionClosePacket(), null);
+        scheduledKeepAlive.cancel(true);
+        stopExecutor();
+        if(readThread.isAlive()) readThread.interrupt();
+        try {
+            socket.close();
+        } catch (IOException ignored) {} // TODO Is this correct?
+        // TODO Maybe run some other stuff when it is done? Like kicking players
+    }
+
+    private void checkKeepAlive() {
+        sendRequestPacket(id -> new ConnectionKeepAlivePacket(id, System.currentTimeMillis()), null).getFutureResult().whenComplete((result, exception) -> {
+            if(exception != null || result == null || !result.isSuccessful()) {
+                numberKeepAliveFails++;
+                if(numberKeepAliveFails > maximumKeepAliveFails) {
+                    close();
+                }
+            } else {
+                numberKeepAliveFails = 0;
+            }
+        });
+    }
+
+    public void setMaximumKeepAliveFails(int maximumKeepAliveFails) {
+        if(maximumKeepAliveFails <= 0) return;
+        this.maximumKeepAliveFails = maximumKeepAliveFails;
+    }
+
+    public void setSecondsBetweenKeepAliveChecks(int secondsBetweenKeepAliveChecks) {
+        if(secondsBetweenKeepAliveChecks <= 0) return;
+        this.secondsBetweenKeepAliveChecks = secondsBetweenKeepAliveChecks;
+        if(scheduledKeepAlive != null && connected) {
+            scheduledKeepAlive.cancel(true);
+            scheduledKeepAlive = getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
+        }
     }
 
 }

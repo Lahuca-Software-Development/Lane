@@ -20,17 +20,14 @@ import com.lahuca.lane.connection.ConnectionTransfer;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.RawPacket;
-import com.lahuca.lane.connection.packet.connection.ConnectionKeepAlivePacket;
-import com.lahuca.lane.connection.packet.connection.ConnectionKeepAliveResultPacket;
-import com.lahuca.lane.connection.packet.connection.ConnectionPacket;
+import com.lahuca.lane.connection.packet.connection.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -44,21 +41,35 @@ public class ClientSocket {
 	private final Consumer<InputPacket> input;
 	private final Gson gson;
 	private String id = null;
-	private String type = null;
 	private final BiConsumer<String, ClientSocket> assignId;
+	private boolean connected = false;
+	private Thread readThread = null;
+
+	// KeepAlive
+	private int maximumKeepAliveFails;
+	private ScheduledFuture<?> scheduledKeepAlive;
+	private int numberKeepAliveFails;
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
 						Gson gson, BiConsumer<String, ClientSocket> assignId) throws IOException {
-        this.connection = connection;
+        this(connection, socket, input, gson, assignId, 3, 10);
+	}
+
+	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
+						Gson gson, BiConsumer<String, ClientSocket> assignId, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
+		this.connection = connection;
 		out = new PrintWriter(socket.getOutputStream(), true);
 		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		this.assignId = assignId;
 		this.socket = socket;
 		this.input = input;
 		this.gson = gson;
-		new Thread(this::listenForInput).start(); // TODO Store thread?
-		ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1); // TODO Store
-		scheduler.scheduleWithFixedDelay(this::handleKeepAlive, 10, 10, TimeUnit.SECONDS); // TODO Configurate the seconds!
+		readThread = new Thread(this::listenForInput);
+		readThread.start();
+		if(maximumKeepAliveFails <= 0) maximumKeepAliveFails = 3;
+		this.maximumKeepAliveFails = maximumKeepAliveFails;
+		if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 10;
+		scheduledKeepAlive = connection.getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
 	}
 
 	private void listenForInput() {
@@ -66,21 +77,18 @@ public class ClientSocket {
 		do {
 			try {
 				inputLine = in.readLine();
-				if(inputLine != null) readInput(inputLine);
-			} catch (IOException e) {
-				throw new RuntimeException(e); // TODO What now?
+				if(inputLine == null) {
+					// End of stream, closed
+					close();
+					return;
+				}
+				readInput(inputLine);
+			} catch(IOException e) {
+				// Error while reading.
+				close();
+				return;
 			}
 		} while(inputLine != null);
-	}
-
-	private int failedKeepAlives = 0;
-
-	/**
-	 * Sends a keep alive packet to the connected client.
-	 * After a certain number of packets have not been responded to, the connection is blocked.
-	 */
-	private void handleKeepAlive() {
-
 	}
 
 	private void readInput(String line) {
@@ -120,9 +128,17 @@ public class ClientSocket {
 	private void readConnectionPacket(InputPacket inputPacket) {
 		Packet iPacket = inputPacket.packet();
 		// TODO Use switch states for this! JAVA 21: 1.20.5 MC and above
-		if(iPacket instanceof ConnectionKeepAlivePacket packet) {
+		if(iPacket instanceof ConnectionConnectPacket packet) {
+			id = packet.clientId();
+			assignId.accept(id, this);
+		} else if(iPacket instanceof ConnectionKeepAlivePacket packet) {
 			// Send packet back immediately.
-			sendPacket(ConnectionKeepAliveResultPacket.ok(packet.requestId()));
+			sendPacket(ConnectionKeepAliveResultPacket.ok(packet));
+		} else if(iPacket instanceof ConnectionKeepAliveResultPacket packet) {
+			connection.retrieveResponse(packet.getRequestId(), packet.transformResult());
+		} else if(iPacket instanceof ConnectionClosePacket packet) {
+			// We are expecting a close, close immediately.
+			close();
 		}
 	}
 
@@ -141,16 +157,45 @@ public class ClientSocket {
 	}
 
 	public void close() {
+		if(socket == null || !connected) return;
+		connected = false;
+		if(!socket.isClosed() && socket.isBound()) sendPacket(new ConnectionClosePacket());
+		scheduledKeepAlive.cancel(true);
+		if(readThread.isAlive()) readThread.interrupt();
 		try {
 			socket.close();
-		} catch (IOException e) {
-			// TODO What should happen?
-			throw new RuntimeException(e);
+		} catch (IOException ignored) {} // TODO Is this correct?
+		// TODO Maybe run some other stuff when it is done? Like kicking players
+	}
+
+	private void checkKeepAlive() {
+		connection.sendRequestPacket(requestId -> new ConnectionKeepAlivePacket(requestId, System.currentTimeMillis()), id).getFutureResult().whenComplete((result, exception) -> {
+			if(exception != null || result == null || !result.isSuccessful()) {
+				numberKeepAliveFails++;
+				if(numberKeepAliveFails > maximumKeepAliveFails) {
+					close();
+				}
+			} else {
+				numberKeepAliveFails = 0;
+			}
+		});
+	}
+
+	public void setMaximumKeepAliveFails(int maximumKeepAliveFails) {
+		if(maximumKeepAliveFails <= 0) return;
+		this.maximumKeepAliveFails = maximumKeepAliveFails;
+	}
+
+	public void setSecondsBetweenKeepAliveChecks(int secondsBetweenKeepAliveChecks) {
+		if(secondsBetweenKeepAliveChecks <= 0) return;
+		if(scheduledKeepAlive != null && connected) {
+			scheduledKeepAlive.cancel(true);
+			scheduledKeepAlive = connection.getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
 		}
 	}
 
-	public String getType() {
-		return type;
+	public boolean isConnected() {
+		return connected;
 	}
 
 }

@@ -18,7 +18,7 @@ package com.lahuca.lane.connection.packet.connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.RequestPacket;
 
-public record ConnectionKeepAlivePacket(long requestId) implements RequestPacket, ConnectionPacket {
+public record ConnectionKeepAlivePacket(long requestId, long requestTime) implements RequestPacket, ConnectionPacket {
 
     public static final String packetId = "connectionKeepAlive";
 
