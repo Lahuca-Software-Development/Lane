@@ -70,7 +70,8 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         boolean joinable = configuration.getBoolean("joinable"); TODO Undo
         boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
         String id = "Lobby";
-        Connection connection = new ClientSocketConnection(id, "localhost", 7766, gson);
+        boolean useSSL = true;
+        Connection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL);
         String type = "Lobby";
         boolean joinable = true;
         boolean nonPlayable = true;

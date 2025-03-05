@@ -24,6 +24,7 @@ import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.Result;
 
+import javax.net.ssl.SSLServerSocketFactory;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -39,6 +40,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	private ServerSocket socket = null;
 	private Consumer<InputPacket> input = null;
 	private final Gson gson;
+	private final boolean useSSL;
 	private final HashMap<String, ClientSocket> clients = new HashMap<>();
 	private final HashSet<ClientSocket> unassignedClients = new HashSet<>();
 	private final BiConsumer<String, ClientSocket> assignId = (id, client) -> {
@@ -50,16 +52,22 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	private Thread listenThread = null;
 	private boolean started = false;
 
-	public ServerSocketConnection(int port, Gson gson) {
+	public ServerSocketConnection(int port, Gson gson, boolean useSSL) {
 		this.port = port;
 		this.gson = gson;
+		this.useSSL = useSSL;
 	}
 
 	@Override
 	public void initialise(Consumer<InputPacket> input) throws IOException {
 		this.input = input;
 		started = true;
-		socket = new ServerSocket(port);
+		if(useSSL) {
+			SSLServerSocketFactory factory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+			socket = factory.createServerSocket(port);
+		} else {
+			socket = new ServerSocket(port);
+		}
 		listenThread = new Thread(this::listenForClients);
 		listenThread.start();
 	}

@@ -63,6 +63,7 @@ public class VelocityController {
 
     public static final int port = 7766;
     public static final Gson gson = new GsonBuilder().create();
+    public static final boolean useSSL = true;
 
     private final ProxyServer server;
     private final Logger logger;
@@ -77,7 +78,7 @@ public class VelocityController {
         this.logger = logger;
 
         implementation = new Implementation(server);
-        connection = new ServerSocketConnection(port, gson);
+        connection = new ServerSocketConnection(port, gson, true);
 
         try {
             controller = new Controller(connection, implementation);

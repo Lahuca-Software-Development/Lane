@@ -94,7 +94,6 @@ public class ClientSocket {
 
 	private void readInput(String line) {
 		System.out.println("Got: " + line);
-		// TODO Add cryptography
 		ConnectionTransfer transfer = gson.fromJson(line, ConnectionTransfer.class);
 		Packet.getPacket(transfer.typeId()).ifPresentOrElse(packetClass -> {
 			// Known packet type received.
@@ -153,7 +152,6 @@ public class ClientSocket {
 		System.out.println("Send to " + id + ": " + packetString);
 		ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
 				id, System.currentTimeMillis());
-		// TODO Add cryptography
 		out.println(gson.toJson(outputPacket));
 	}
 

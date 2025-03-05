@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.request.RequestHandler;
 import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.Result;
 
+import javax.net.ssl.SSLSocketFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,6 +42,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     private Socket socket = null;
     private Consumer<InputPacket> input = null;
     private final Gson gson;
+    private final boolean useSSL;
     private PrintWriter out;
     private BufferedReader in;
     private Thread readThread = null;
@@ -59,15 +61,16 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     private ScheduledFuture<?> scheduledKeepAlive;
     private int numberKeepAliveFails;
 
-    public ClientSocketConnection(String id, String ip, int port, Gson gson) {
-        this(id, ip, port, gson, true, 10, 3, 10);
+    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL) {
+        this(id, ip, port, gson, useSSL, true, 10, 3, 10);
     }
 
-    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
+    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
         this.id = id;
         this.ip = ip;
         this.port = port;
         this.gson = gson;
+        this.useSSL = useSSL;
         this.reconnect = reconnect;
         if(secondsBetweenReconnections <= 0) secondsBetweenReconnections = 10;
         this.secondsBetweenReconnections = secondsBetweenReconnections;
@@ -81,7 +84,12 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     public void connect() throws IOException {
         if(started || isConnected()) return;
         started = true;
-        socket = new Socket(ip, port);
+        if (useSSL) {
+            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            socket = factory.createSocket(ip, port);
+        } else {
+            socket = new Socket(ip, port);
+        }
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         readThread = new Thread(this::listenForInput);
@@ -118,7 +126,6 @@ public class ClientSocketConnection extends RequestHandler implements Connection
 
     private void readInput(String line) {
         System.out.println("Got: " + line);
-        // TODO Add cryptography
         ConnectionTransfer transfer = gson.fromJson(line, ConnectionTransfer.class);
         if(!transfer.to().equals(id)) return; // Odd, not meant for this client. Strange
 
@@ -172,7 +179,6 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         String packetString = gson.toJson(packet);
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        // TODO Add cryptography
         out.println(gson.toJson(outputPacket));
         System.out.println("Send to " + destination + ": " + packetString);
     }
@@ -198,7 +204,6 @@ public class ClientSocketConnection extends RequestHandler implements Connection
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
                 destination, System.currentTimeMillis());
-        // TODO Add cryptography
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -225,7 +230,6 @@ public class ClientSocketConnection extends RequestHandler implements Connection
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
                 destination, System.currentTimeMillis());
-        // TODO Add cryptography
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -252,7 +256,6 @@ public class ClientSocketConnection extends RequestHandler implements Connection
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
                 destination, System.currentTimeMillis());
-        // TODO Add cryptography
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -280,7 +283,6 @@ public class ClientSocketConnection extends RequestHandler implements Connection
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
                 destination, System.currentTimeMillis());
-        // TODO Add cryptography
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -413,4 +415,8 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         }
     }
 
+    public void setSecondsBetweenReconnections(int secondsBetweenReconnections) {
+        if(secondsBetweenReconnections <= 0) return;
+        this.secondsBetweenReconnections = secondsBetweenReconnections;
+    }
 }
