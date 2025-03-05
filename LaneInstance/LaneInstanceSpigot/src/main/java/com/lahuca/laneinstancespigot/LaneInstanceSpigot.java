@@ -17,7 +17,7 @@ package com.lahuca.laneinstancespigot;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
@@ -70,8 +70,8 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         boolean joinable = configuration.getBoolean("joinable"); TODO Undo
         boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
         String id = "Lobby";
-        boolean useSSL = true;
-        Connection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL);
+        boolean useSSL = false;
+        ReconnectConnection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL);
         String type = "Lobby";
         boolean joinable = true;
         boolean nonPlayable = true;
@@ -84,6 +84,11 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
             LaneInstance.getInstance().setJoinable(joinable);
             LaneInstance.getInstance().setNonPlayable(nonPlayable);
         }
+    }
+
+    @Override
+    public void onDisable() {
+        implementation().ifPresent(LaneInstance::shutdown);
     }
 
     public static Optional<LaneInstance> impl() {
@@ -110,7 +115,7 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     private class Implementation extends LaneInstance {
 
-        private Implementation(String id, Connection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+        private Implementation(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
             super(id, connection, type, joinable, nonPlayable);
         }
 

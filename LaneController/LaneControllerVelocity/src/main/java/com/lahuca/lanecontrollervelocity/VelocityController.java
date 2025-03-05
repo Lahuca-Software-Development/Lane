@@ -39,6 +39,8 @@ import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
+import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
@@ -63,12 +65,10 @@ public class VelocityController {
 
     public static final int port = 7766;
     public static final Gson gson = new GsonBuilder().create();
-    public static final boolean useSSL = true;
+    public static final boolean useSSL = false;
 
     private final ProxyServer server;
     private final Logger logger;
-    private final Implementation implementation;
-    private final Connection connection;
     private Controller controller = null;
 
     @Inject
@@ -76,12 +76,14 @@ public class VelocityController {
         instance = this;
         this.server = server;
         this.logger = logger;
+    }
 
-        implementation = new Implementation(server);
-        connection = new ServerSocketConnection(port, gson, true);
+    @Subscribe
+    public void onProxyInitialization(ProxyInitializeEvent event) {
+        Connection connection = new ServerSocketConnection(port, gson, false);
 
         try {
-            controller = new Controller(connection, implementation);
+            controller = new Implementation(server, connection);
         } catch (IOException e) {
             //TODO: Handle that exception
             e.printStackTrace();
@@ -89,6 +91,11 @@ public class VelocityController {
 
         server.getCommandManager().register("friends", new FriendCommand(), "f", "friend");
         server.getCommandManager().register("party", new PartyCommand(), "p");
+    }
+
+    @Subscribe
+    public void onProxyInitialization(ProxyShutdownEvent event) {
+        controller.shutdown();
     }
 
     public Optional<Controller> getController() {
@@ -102,7 +109,7 @@ public class VelocityController {
      * @return the translated message
      */
     private String getMessage(String key, Locale locale) {
-        return implementation.getTranslator().retrieveMessage(key, locale);
+        return controller.getTranslator().retrieveMessage(key, locale);
     }
 
     private Locale getLocale(Player player) {
@@ -164,7 +171,7 @@ public class VelocityController {
             while(nextStage) {
                 nextStage = false;
                 requestEvent.setNoneResult();
-                implementation.handleQueueStageEvent(controller, requestEvent);
+                controller.handleQueueStageEvent(requestEvent);
                 QueueStageEventResult result = requestEvent.getResult();
                 if(result instanceof QueueStageEventResult.QueueStageEventMessageableResult messageableResult) {
                     // We should disconnect the player.
@@ -318,7 +325,7 @@ public class VelocityController {
             while(nextStage) {
                 nextStage = false;
                 stageEvent.setNoneResult();
-                implementation.handleQueueStageEvent(controller, stageEvent);
+                controller.handleQueueStageEvent(stageEvent);
                 QueueStageEventResult result = stageEvent.getResult();
                 if(result instanceof QueueStageEventResult.None none) {
                     TextComponent message;
@@ -434,11 +441,12 @@ public class VelocityController {
         return instance;
     }
 
-    public static class Implementation implements ControllerImplementation {
+    public static class Implementation extends Controller {
 
         private final ProxyServer server;
 
-        public Implementation(ProxyServer server) {
+        public Implementation(ProxyServer server, Connection connection) throws IOException {
+            super(connection);
             this.server = server;
         }
 
@@ -487,8 +495,8 @@ public class VelocityController {
         }
 
         @Override
-        public Optional<ControllerLaneInstance> getNewInstance(Controller controller, ControllerPlayer player, Collection<ControllerLaneInstance> exclude) {
-            for(ControllerLaneInstance instance : controller.getInstances()) {
+        public Optional<ControllerLaneInstance> getNewInstance(ControllerPlayer player, Collection<ControllerLaneInstance> exclude) {
+            for(ControllerLaneInstance instance : getInstances()) {
                 if(instance.isJoinable() && instance.isNonPlayable()
                         && instance.getCurrentPlayers() + 1 <= instance.getMaxPlayers() && !exclude.contains(instance)) {
                     return Optional.of(instance);
@@ -501,19 +509,19 @@ public class VelocityController {
             return instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + spots <= instance.getMaxPlayers();
         }
 
-        private Optional<ControllerGame> findByGameId(Controller controller, Object gameIdObject, HashSet<String> excludeInstances,
+        private Optional<ControllerGame> findByGameId(Object gameIdObject, HashSet<String> excludeInstances,
                                                       HashSet<Long> excludeGames, int spots) {
             if(gameIdObject instanceof Long gameId && !excludeGames.contains(gameId)) {
-                Optional<ControllerGame> game = controller.getGame(gameId);
+                Optional<ControllerGame> game = getGame(gameId);
                 if(game.isPresent()) {
-                    Optional<ControllerLaneInstance> instance = controller.getInstance(game.get().getInstanceId());
+                    Optional<ControllerLaneInstance> instance = getInstance(game.get().getInstanceId());
                     return Optional.ofNullable(instance.isPresent() && !excludeInstances.contains(instance.get().getId()) && isInstanceJoinable(instance.get(), spots) ? game.get() : null);
                 }
             }
             return Optional.empty();
         }
 
-        private Optional<ControllerGame> findByGameData(Controller controller, Object instanceIdObject, Object gameTypeObject,
+        private Optional<ControllerGame> findByGameData(Object instanceIdObject, Object gameTypeObject,
                                                         Object gameMapObject, Object gameModeObject, HashSet<String> excludeInstances,
                                                         HashSet<Long> excludeGames, int spots) {
             String instanceId = instanceIdObject instanceof String id ? id : null;
@@ -524,7 +532,7 @@ public class VelocityController {
             if(gameType == null && gameMap == null && gameMode == null) {
                 return Optional.empty();
             }
-            for(ControllerGame game : controller.getGames()) {
+            for(ControllerGame game : getGames()) {
                 if(excludeInstances.contains(game.getInstanceId())) continue;
                 if(excludeGames.contains(game.getGameId())) continue;
                 if(instanceId != null && !game.getInstanceId().equals(instanceId)) continue;
@@ -548,7 +556,7 @@ public class VelocityController {
                     }
                 }
                 // We must have matched the given data. Check if spots are available
-                Optional<ControllerLaneInstance> instance = controller.getInstance(instanceId);
+                Optional<ControllerLaneInstance> instance = getInstance(instanceId);
                 if(instance.isPresent() && isInstanceJoinable(instance.get(), spots)) {
                     return Optional.of(game);
                 }
@@ -556,9 +564,9 @@ public class VelocityController {
             return Optional.empty();
         }
 
-        private Optional<ControllerLaneInstance> findByInstanceId(Controller controller, Object instanceIdObject, HashSet<String> excludeInstances, int spots) {
+        private Optional<ControllerLaneInstance> findByInstanceId(Object instanceIdObject, HashSet<String> excludeInstances, int spots) {
             if(instanceIdObject instanceof String instanceId && !excludeInstances.contains(instanceId)) {
-                Optional<ControllerLaneInstance> instance = controller.getInstance(instanceId);
+                Optional<ControllerLaneInstance> instance = getInstance(instanceId);
                 if(instance.isPresent()) {
                     return Optional.ofNullable(isInstanceJoinable(instance.get(), spots) ? instance.get() : null);
                 }
@@ -566,9 +574,9 @@ public class VelocityController {
             return Optional.empty();
         }
 
-        private Optional<ControllerLaneInstance> findByInstanceType(Controller controller, Object instanceTypeObject, HashSet<String> excludeInstances, int spots) {
+        private Optional<ControllerLaneInstance> findByInstanceType(Object instanceTypeObject, HashSet<String> excludeInstances, int spots) {
             if(instanceTypeObject instanceof String instanceType) {
-                for(ControllerLaneInstance instance : controller.getInstances()) {
+                for(ControllerLaneInstance instance : getInstances()) {
                     if(excludeInstances.contains(instance.getId())) continue;
                     if(instance.getType().isEmpty()) continue;
                     if(instance.getType().get().equals(instanceType) && isInstanceJoinable(instance, spots)) {
@@ -581,24 +589,23 @@ public class VelocityController {
 
         /**
          * Fetch the correct games/instances and set the state.
-         * @param controller The controller
          * @param event The event
          * @param useParty If we should also forward parties after this is done
          * @param allowExclude Exclude games/instances that have already been tried
          * @return True if an instance/game has been found
          */
-        private boolean handleQueueStageEventParameters(Controller controller, QueueStageEvent event, boolean useParty, boolean allowExclude) {
+        private boolean handleQueueStageEventParameters(QueueStageEvent event, boolean useParty, boolean allowExclude) {
             // Fetch potential party members
             HashSet<UUID> partyMembers = new HashSet<>();
             Optional<Long> partyIdOptional = event.getPlayer().getPartyId();
             if(useParty && partyIdOptional.isPresent()) {
-                Optional<ControllerParty> partyOptional = controller.getParty(partyIdOptional.get());
+                Optional<ControllerParty> partyOptional = getParty(partyIdOptional.get());
                 if(partyOptional.isPresent()) {
                     ControllerParty party = partyOptional.get();
                     if(party.getOwner().equals(event.getPlayer().getUuid())) {
                         // The owner is trying to join, so we should join other players as well
                         for(UUID partyMemberUuid : party.getPlayers()) {
-                            Optional<ControllerPlayer> partyMemberOptional = controller.getPlayer(partyMemberUuid);
+                            Optional<ControllerPlayer> partyMemberOptional = getPlayer(partyMemberUuid);
                             partyMemberOptional.ifPresent(player -> partyMembers.add(partyMemberUuid));
                         }
                     }
@@ -634,7 +641,7 @@ public class VelocityController {
                     }
                     // Find something with this parameter
                     if(data.containsKey(QueueRequestParameter.gameId)) {
-                        Optional<ControllerGame> value = findByGameId(controller, data.get(QueueRequestParameter.gameId), excludeInstances, excludeGames, joinTogether.size());
+                        Optional<ControllerGame> value = findByGameId(data.get(QueueRequestParameter.gameId), excludeInstances, excludeGames, joinTogether.size());
                         if(value.isPresent()) {
                             if(joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId());
                             else event.setJoinGameResult(value.get().getGameId(), joinTogether);
@@ -642,7 +649,7 @@ public class VelocityController {
                         }
                     }
                     if(data.containsKey(QueueRequestParameter.gameType) || data.containsKey(QueueRequestParameter.gameMap) || data.containsKey(QueueRequestParameter.gameMode)) {
-                        Optional<ControllerGame> value = findByGameData(controller, data.get(QueueRequestParameter.instanceId), data.get(QueueRequestParameter.gameType),
+                        Optional<ControllerGame> value = findByGameData(data.get(QueueRequestParameter.instanceId), data.get(QueueRequestParameter.gameType),
                                 data.get(QueueRequestParameter.gameMap), data.get(QueueRequestParameter.gameMode), excludeInstances, excludeGames, joinTogether.size());
                         if(value.isPresent()) {
                             if(joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId());
@@ -651,7 +658,7 @@ public class VelocityController {
                         }
                     }
                     if(data.containsKey(QueueRequestParameter.instanceId)) {
-                        Optional<ControllerLaneInstance> value = findByInstanceId(controller, data.get(QueueRequestParameter.instanceId), excludeInstances, joinTogether.size());
+                        Optional<ControllerLaneInstance> value = findByInstanceId(data.get(QueueRequestParameter.instanceId), excludeInstances, joinTogether.size());
                         if(value.isPresent()) {
                             if(joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
                             else event.setJoinInstanceResult(value.get().getId(), joinTogether);
@@ -659,7 +666,7 @@ public class VelocityController {
                         }
                     }
                     if(data.containsKey(QueueRequestParameter.instanceType)) {
-                        Optional<ControllerLaneInstance> value = findByInstanceType(controller, data.get(QueueRequestParameter.instanceType), excludeInstances, joinTogether.size());
+                        Optional<ControllerLaneInstance> value = findByInstanceType(data.get(QueueRequestParameter.instanceType), excludeInstances, joinTogether.size());
                         if(value.isPresent()) {
                             if(joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
                             else event.setJoinInstanceResult(value.get().getId(), joinTogether);
@@ -674,16 +681,16 @@ public class VelocityController {
         }
 
         @Override
-        public void handleQueueStageEvent(Controller controller, QueueStageEvent event) {
+        public void handleQueueStageEvent(QueueStageEvent event) {
             // TODO Let other plugins handle this
             switch(event.getQueueRequest().reason()) {
                 case NETWORK_JOIN, SERVER_KICKED -> {
-                    if(!handleQueueStageEventParameters(controller, event, false, true)) {
+                    if(!handleQueueStageEventParameters(event, false, true)) {
                         event.setDisconnectResult(); // TODO Maybe add message?
                     }
                 }
-                case PARTY_JOIN -> handleQueueStageEventParameters(controller, event, false, true);
-                case PLUGIN_INSTANCE, PLUGIN_CONTROLLER -> handleQueueStageEventParameters(controller, event, true, true);
+                case PARTY_JOIN -> handleQueueStageEventParameters(event, false, true);
+                case PLUGIN_INSTANCE, PLUGIN_CONTROLLER -> handleQueueStageEventParameters(event, true, true);
             }
         }
 

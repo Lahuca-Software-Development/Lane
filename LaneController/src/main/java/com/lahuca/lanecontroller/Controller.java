@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
+import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
@@ -34,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * This is the main class for operations on the controller side of the Lane system.
  */
-public class Controller {
+public abstract class Controller {
 
     private static Controller instance;
 
@@ -43,7 +44,6 @@ public class Controller {
     }
 
     private final Connection connection;
-    private final ControllerImplementation implementation;
 
     private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
@@ -52,10 +52,9 @@ public class Controller {
     private final HashMap<Long, ControllerRelationship> relationships = new HashMap<>();
 
 
-    public Controller(Connection connection, ControllerImplementation implementation) throws IOException {
+    public Controller(Connection connection) throws IOException {
         instance = this;
         this.connection = connection;
-        this.implementation = implementation;
 
         Packet.registerPackets();
 
@@ -155,12 +154,13 @@ public class Controller {
         });
     }
 
-    public Connection getConnection() {
-        return connection;
+    public void shutdown() {
+        connection.close();
+        // TODO Probably more
     }
 
-    public ControllerImplementation getImplementation() {
-        return implementation;
+    public Connection getConnection() {
+        return connection;
     }
 
     private ControllerLaneInstance createGetInstance(String id) {
@@ -210,20 +210,20 @@ public class Controller {
     private void handleQueueStage(ControllerPlayer player, QueueStageEvent stageEvent) {
         QueueRequest request = stageEvent.getQueueRequest();
         stageEvent.setNoneResult();
-        implementation.handleQueueStageEvent(this, stageEvent);
+        handleQueueStageEvent(stageEvent);
         QueueStageEventResult result = stageEvent.getResult();
         if(result instanceof QueueStageEventResult.None none) {
             // Queue is being cancelled
             if(none.getMessage() != null && !none.getMessage().isEmpty()) {
-                implementation.sendMessage(player.getUuid(), none.getMessage());
+                sendMessage(player.getUuid(), none.getMessage());
             }
             player.setQueueRequest(null);
             return;
         } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
             if(disconnect.getMessage() != null && !disconnect.getMessage().isEmpty()) {
-                implementation.disconnectPlayer(player.getUuid(), disconnect.getMessage());
+                disconnectPlayer(player.getUuid(), disconnect.getMessage());
             } else {
-                implementation.disconnectPlayer(player.getUuid(), null);
+                disconnectPlayer(player.getUuid(), null);
             }
             player.setQueueRequest(null);
             return;
@@ -288,7 +288,7 @@ public class Controller {
                     return;
                 }
                 if(joinPacketResult.isSuccessful()) {
-                    CompletableFuture<Result<Void>> joinFuture = implementation.joinServer(player.getUuid(), instance.getId());
+                    CompletableFuture<Result<Void>> joinFuture = joinServer(player.getUuid(), instance.getId());
                     joinFuture.whenComplete((joinResult, joinException) -> {
                         if(joinException != null) {
                             request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
@@ -416,4 +416,52 @@ public class Controller {
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     } // TODO Redo
+
+    /**
+     * Method that will switch the server of the given player to the given server.
+     * This should not do anything when the player is already connected to the given server.
+     * @param uuid the player's uuid
+     * @param destination the server's id
+     * @return the completable future with the result
+     */
+    public abstract CompletableFuture<Result<Void>> joinServer(UUID uuid, String destination);
+
+    /**
+     * Gets the translator to be used for messages on the proxy.
+     * @return the translator
+     */
+    public abstract LaneMessage getTranslator();
+
+    /**
+     * Gets a new ControllerLaneInstance for the given ControllerPlayer to join.
+     * This instance is not intended to be played at a game at currently.
+     * @param player the player requesting a new instance
+     * @param exclude the collection of instances to exclude from the output
+     * @return the instance to go to, if the optional is null, then no instance could be found
+     */
+    public abstract Optional<ControllerLaneInstance> getNewInstance(ControllerPlayer player, Collection<ControllerLaneInstance> exclude);
+
+    /**
+     * Lets the implemented controller handle the {@link QueueStageEvent}.
+     * Do not do blocking actions while handling the event, as often a "direct" response is needed.
+     * @param event The event to handle.
+     */
+    public abstract void handleQueueStageEvent(QueueStageEvent event);
+
+    /**
+     * Send a message to the player with the given UUID.
+     * @param player The player's UUID
+     * @param message The message to send
+     * @return true whether the message was successfully sent
+     */
+    public abstract boolean sendMessage(UUID player, String message);
+
+    /**
+     * Disconnect the player with the given message from the network.
+     * @param player The player's UUID
+     * @param message The message to show when disconnecting
+     * @return true whether the player was successfully disconnected.
+     */
+    public abstract boolean disconnectPlayer(UUID player, String message);
+
 }

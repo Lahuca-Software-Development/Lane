@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class ClientSocketConnection extends RequestHandler implements Connection, ReconnectConnection {
+public class ClientSocketConnection extends RequestHandler implements ReconnectConnection {
 
     private final String id;
     private final String ip;
@@ -54,6 +54,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     private boolean reconnect = false;
     private int secondsBetweenReconnections;
+    private Runnable onReconnect;
 
     // KeepAlive
     private int maximumKeepAliveFails;
@@ -62,7 +63,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     private int numberKeepAliveFails;
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL) {
-        this(id, ip, port, gson, useSSL, true, 10, 3, 10);
+        this(id, ip, port, gson, useSSL, true, 60, 3, 60);
     }
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
@@ -72,11 +73,11 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         this.gson = gson;
         this.useSSL = useSSL;
         this.reconnect = reconnect;
-        if(secondsBetweenReconnections <= 0) secondsBetweenReconnections = 10;
+        if(secondsBetweenReconnections <= 0) secondsBetweenReconnections = 60;
         this.secondsBetweenReconnections = secondsBetweenReconnections;
         if(maximumKeepAliveFails <= 0) maximumKeepAliveFails = 3;
         this.maximumKeepAliveFails = maximumKeepAliveFails;
-        if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 10;
+        if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 60;
         this.secondsBetweenKeepAliveChecks = secondsBetweenKeepAliveChecks;
     }
 
@@ -112,13 +113,14 @@ public class ClientSocketConnection extends RequestHandler implements Connection
                 inputLine = in.readLine();
                 if(inputLine == null) {
                     // End of stream, closed
-                    close();
+                    closeAndReconnect();
                     return;
                 }
                 readInput(inputLine);
             } catch(IOException e) {
+                e.printStackTrace();
                 // Error while reading.
-                close();
+                closeAndReconnect();
                 return;
             }
         } while(isConnected());
@@ -159,7 +161,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
             retrieveResponse(packet.getRequestId(), packet.transformResult());
         } else if(iPacket instanceof ConnectionClosePacket packet) {
             // We are expecting a close, close immediately.
-            close();
+            closeAndReconnect();
         }
     }
 
@@ -179,8 +181,8 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         String packetString = gson.toJson(packet);
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        out.println(gson.toJson(outputPacket));
         System.out.println("Send to " + destination + ": " + packetString);
+        out.println(gson.toJson(outputPacket));
     }
 
     /**
@@ -317,6 +319,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     @Override
     public void close() {
+        System.out.println("DEBUG Close");
         if(isConnected()) sendPacket(new ConnectionClosePacket(), null);
         if(scheduledKeepAlive != null) scheduledKeepAlive.cancel(true);
         scheduledKeepAlive = null;
@@ -345,16 +348,18 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     @Override
     public void reconnect() {
         if(started || !reconnect) return;
-        started = true;
+        System.out.println("DEBUG Reconnect");
         Runnable reconnectRunnable = new Runnable() {
             @Override
             public void run() {
+                System.out.println("DEBUG Reconnect Run");
                 if(started) {
                     if(reconnect) getScheduledExecutor().schedule(this, secondsBetweenReconnections, TimeUnit.SECONDS);
                     return;
                 }
                 try {
                     connect();
+                    if(onReconnect != null) onReconnect.run();
                 } catch (IOException e) {
                     // We could not properly connect, fully restore.
                     close();
@@ -376,6 +381,11 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         if(reconnect) reconnect();
     }
 
+    @Override
+    public void setOnReconnect(Runnable onReconnect) {
+        this.onReconnect = onReconnect;
+    }
+
     /**
      * Disables reconnecting, this fully shutdown the executor tied to this connection.
      */
@@ -393,7 +403,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
             if(exception != null || result == null || !result.isSuccessful()) {
                 numberKeepAliveFails++;
                 if(numberKeepAliveFails > maximumKeepAliveFails) {
-                    close();
+                    closeAndReconnect();
                 }
             } else {
                 numberKeepAliveFails = 0;

@@ -52,11 +52,12 @@ public class ClientSocket {
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
 						Gson gson, BiConsumer<String, ClientSocket> assignId) throws IOException {
-        this(connection, socket, input, gson, assignId, 3, 10);
+        this(connection, socket, input, gson, assignId, 3, 60);
 	}
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
 						Gson gson, BiConsumer<String, ClientSocket> assignId, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
+		System.out.println("Created Clientsocket");
 		this.connection = connection;
 		started = true;
 		out = new PrintWriter(socket.getOutputStream(), true);
@@ -69,7 +70,7 @@ public class ClientSocket {
 		readThread.start();
 		if(maximumKeepAliveFails <= 0) maximumKeepAliveFails = 3;
 		this.maximumKeepAliveFails = maximumKeepAliveFails;
-		if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 10;
+		if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 60;
 		scheduledKeepAlive = connection.getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
 	}
 
@@ -78,14 +79,18 @@ public class ClientSocket {
 		do {
 			try {
 				inputLine = in.readLine();
+				System.out.println(inputLine);
 				if(inputLine == null) {
 					// End of stream, closed
+					System.out.println("Debug Close0");
 					close();
 					return;
 				}
 				readInput(inputLine);
 			} catch(IOException e) {
 				// Error while reading.
+				System.out.println("Debug Close1");
+				e.printStackTrace();
 				close();
 				return;
 			}
@@ -138,6 +143,7 @@ public class ClientSocket {
 			connection.retrieveResponse(packet.getRequestId(), packet.transformResult());
 		} else if(iPacket instanceof ConnectionClosePacket packet) {
 			// We are expecting a close, close immediately.
+			System.out.println("Debug Close2");
 			close();
 		}
 	}
@@ -156,6 +162,7 @@ public class ClientSocket {
 	}
 
 	public void close() {
+		System.out.println("DEBUG CLOSED");
 		if(scheduledKeepAlive != null) scheduledKeepAlive.cancel(true);
 		scheduledKeepAlive = null;
 		if(readThread != null && readThread.isAlive()) readThread.interrupt();
@@ -169,6 +176,7 @@ public class ClientSocket {
 			started = false;
 		}
 		// TODO Maybe run some other stuff when it is done? Like kicking players
+		// TODO Remove from ServerSocketConnection!
 	}
 
 	private void checkKeepAlive() {
@@ -176,6 +184,7 @@ public class ClientSocket {
 			if(exception != null || result == null || !result.isSuccessful()) {
 				numberKeepAliveFails++;
 				if(numberKeepAliveFails > maximumKeepAliveFails) {
+					System.out.println("Debug Close4");
 					close();
 				}
 			} else {

@@ -6,7 +6,7 @@ import java.io.IOException;
  * Extends the base class {@link Connection} by also providing methods to reconnect the connection when it is closed.
  * The default behaviour of {@link Connection#close()} is to not reconnect.
  */
-public interface ReconnectConnection {
+public interface ReconnectConnection extends Connection {
 
     /**
      * Tries to connect.
@@ -25,4 +25,10 @@ public interface ReconnectConnection {
      * This will only reconnect when it is allowed within the tied connection.
      */
     void closeAndReconnect();
+
+    /**
+     * Sets the runnable to run when a reconnect has happened.
+     * @param onReconnect the runnable to run.
+     */
+    void setOnReconnect(Runnable onReconnect);
 }

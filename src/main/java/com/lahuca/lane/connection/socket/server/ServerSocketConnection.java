@@ -79,6 +79,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId));
 			} catch (IOException e) {
 				// Well, looks like server is down, or has to stop.
+				System.out.println("DEBUG CLOSe5");
 				close();
 			}
 		}
@@ -94,7 +95,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 		if(destination == null || !isConnected()) {
 			return;
 		}
-
+		System.out.println("DEBUG SEND: " + packet.toString());
 		ClientSocket client = clients.get(destination);
 		System.out.println("Clients: " + clients + ", " + destination + " " + client);
 		if(client != null) client.sendPacket(packet);

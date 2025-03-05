@@ -17,6 +17,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.ReconnectConnection;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.*;
 import com.lahuca.lane.queue.QueueRequestParameters;
@@ -44,14 +45,14 @@ public abstract class LaneInstance {
     }
 
     private final String id;
-    private final Connection connection;
+    private final ReconnectConnection connection;
     private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
     private final HashMap<Long, LaneGame> games = new HashMap<>();
     private String type;
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non-playable: e.g. lobby
 
-    public LaneInstance(String id, Connection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+    public LaneInstance(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
         if(instance != null) throw new InstanceInstantiationException();
         instance = this;
         this.id = id;
@@ -62,6 +63,7 @@ public abstract class LaneInstance {
         this.connection = connection;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
+        connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
             if(input.packet() instanceof InstanceJoinPacket packet) {
                 if(!isJoinable()) {
@@ -91,17 +93,23 @@ public abstract class LaneInstance {
                 // We are here, so we can apply it.
                 PlayerRecord record = packet.player();
                 getInstancePlayer(record.uuid()).ifPresentOrElse(player -> player.applyRecord(record),
-                        () -> players.put(record.uuid(), new InstancePlayer(record))); // TODO What happens if the
-                // player fails the connect?
+                        () -> players.put(record.uuid(), new InstancePlayer(record))); // TODO What happens if the player fails the connect?
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
                 PlayerRecord record = packet.playerRecord();
                 getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
             } else if(input.packet() instanceof ResponsePacket<?> response) {
-                connection.retrieveResponse(response.getRequestId(), response.transformResult()); // TODO Handle output
+                if(!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
+                    // TODO Handle output: failed response
+                }
             }
         });
         sendInstanceStatus();
+    }
+
+    public void shutdown() {
+        connection.close();
+        // TODO Probably other stuff?
     }
 
     private Connection getConnection() {
