@@ -16,6 +16,12 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 .idea
+/.idea/
+/.gradle/
+/gradle/wrapper/gradle-wrapper.jar
+/gradle/wrapper/gradle-wrapper.properties
+/gradlew
+/gradlew.bat
 
 ### Eclipse ###
 .apt_generated
@@ -41,5 +47,3 @@ bin/
 
 ### Mac OS ###
 .DS_Store
-/.idea/
-/.gradle/
