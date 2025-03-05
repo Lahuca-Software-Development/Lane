@@ -42,7 +42,7 @@ public class ClientSocket {
 	private final Gson gson;
 	private String id = null;
 	private final BiConsumer<String, ClientSocket> assignId;
-	private boolean connected = false;
+	private boolean started = false;
 	private Thread readThread = null;
 
 	// KeepAlive
@@ -58,6 +58,7 @@ public class ClientSocket {
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
 						Gson gson, BiConsumer<String, ClientSocket> assignId, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
 		this.connection = connection;
+		started = true;
 		out = new PrintWriter(socket.getOutputStream(), true);
 		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		this.assignId = assignId;
@@ -88,7 +89,7 @@ public class ClientSocket {
 				close();
 				return;
 			}
-		} while(inputLine != null);
+		} while(isConnected());
 	}
 
 	private void readInput(String line) {
@@ -147,7 +148,7 @@ public class ClientSocket {
 	 * @param packet the packet to send.
 	 */
 	public void sendPacket(Packet packet) {
-		if(id == null) return; // TODO Wait for id announcement first
+		if(id == null || !isConnected()) return; // TODO Wait for id announcement first
 		String packetString = gson.toJson(packet);
 		System.out.println("Send to " + id + ": " + packetString);
 		ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
@@ -157,14 +158,18 @@ public class ClientSocket {
 	}
 
 	public void close() {
-		if(socket == null || !connected) return;
-		connected = false;
-		if(!socket.isClosed() && socket.isBound()) sendPacket(new ConnectionClosePacket());
-		scheduledKeepAlive.cancel(true);
-		if(readThread.isAlive()) readThread.interrupt();
-		try {
-			socket.close();
-		} catch (IOException ignored) {} // TODO Is this correct?
+		if(scheduledKeepAlive != null) scheduledKeepAlive.cancel(true);
+		scheduledKeepAlive = null;
+		if(readThread != null && readThread.isAlive()) readThread.interrupt();
+		if(isConnected()) sendPacket(new ConnectionClosePacket());
+        try {
+			if(in != null) in.close();
+			if(out != null) out.close();
+            if(socket != null) socket.close();
+        } catch (IOException e) {
+        } finally {
+			started = false;
+		}
 		// TODO Maybe run some other stuff when it is done? Like kicking players
 	}
 
@@ -188,14 +193,14 @@ public class ClientSocket {
 
 	public void setSecondsBetweenKeepAliveChecks(int secondsBetweenKeepAliveChecks) {
 		if(secondsBetweenKeepAliveChecks <= 0) return;
-		if(scheduledKeepAlive != null && connected) {
+		if(scheduledKeepAlive != null && isConnected()) {
 			scheduledKeepAlive.cancel(true);
 			scheduledKeepAlive = connection.getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
 		}
 	}
 
 	public boolean isConnected() {
-		return connected;
+		return socket != null && socket.isConnected() && socket.isBound() && !socket.isClosed();
 	}
 
 }

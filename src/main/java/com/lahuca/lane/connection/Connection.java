@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * Contains the base class for connections.
+ */
 public interface Connection {
 
 	/**
@@ -105,5 +108,11 @@ public interface Connection {
 	 * to transition to a completed state, else {@code false}.
 	 */
 	boolean retrieveResponse(long requestId, Result<?> result);
+
+	/**
+	 * Returns whether this connection is connected.
+	 * @return True if is it connected.
+	 */
+	boolean isConnected();
 
 }

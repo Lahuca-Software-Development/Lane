@@ -67,7 +67,29 @@ public class RequestHandler {
         if(computeTimeoutSeconds <= 0) return;
         this.computeTimeoutSeconds = computeTimeoutSeconds;
         if(isStopped()) return;
+        if(scheduledComputeTimeout != null) {
+            scheduledComputeTimeout.cancel(true);
+            scheduledComputeTimeout = scheduledExecutor.scheduleAtFixedRate(this::removeTimedOutRequests, computeTimeoutSeconds, computeTimeoutSeconds, TimeUnit.SECONDS);
+        }
+    }
+
+    /**
+     * Cancels all requests and removes the timeout task.
+     * This does not invalidise the request handler as the schedules executor service is not stopped.
+     */
+    protected void stopTask() {
+        if(scheduledComputeTimeout == null) return;
         scheduledComputeTimeout.cancel(true);
+        scheduledComputeTimeout = null;
+        requests.values().forEach(request -> request.getFutureResult().cancel(true));
+        requests.clear();
+    }
+
+    /**
+     * Starts the timeout task.
+     */
+    protected void startTask() {
+        if(scheduledComputeTimeout != null) return;
         scheduledComputeTimeout = scheduledExecutor.scheduleAtFixedRate(this::removeTimedOutRequests, computeTimeoutSeconds, computeTimeoutSeconds, TimeUnit.SECONDS);
     }
 
@@ -79,7 +101,7 @@ public class RequestHandler {
      */
     protected void stopExecutor() {
         if(isStopped()) return;
-        scheduledComputeTimeout.cancel(true);
+        if(scheduledComputeTimeout != null) scheduledComputeTimeout.cancel(true);
         scheduledExecutor.shutdown();
         try {
             if(!scheduledExecutor.awaitTermination(computeTimeoutSeconds * 2L, TimeUnit.SECONDS)) {
@@ -88,7 +110,7 @@ public class RequestHandler {
         } catch (InterruptedException e) {
             scheduledExecutor.shutdownNow();
         } finally {
-            scheduledComputeTimeout = null;
+            if(scheduledComputeTimeout != null) scheduledComputeTimeout = null;
             requests.values().forEach(request -> request.getFutureResult().cancel(true));
             requests.clear();
         }
@@ -153,6 +175,7 @@ public class RequestHandler {
      * @param <T> the type of the expected result.
      */
     protected <T> Request<T> request() {
+        // TODO Disable requests when it is disabled!!!
         CompletableFuture<Result<T>> future = new CompletableFuture<>();
         Request<T> request = new Request<>(getNewRequestId(), future);
         requests.put(request.getRequestId(), request);

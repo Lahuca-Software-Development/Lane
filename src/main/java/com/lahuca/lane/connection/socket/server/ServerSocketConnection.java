@@ -48,7 +48,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	};
 
 	private Thread listenThread = null;
-	private boolean connected = false;
+	private boolean started = false;
 
 	public ServerSocketConnection(int port, Gson gson) {
 		this.port = port;
@@ -58,14 +58,14 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	@Override
 	public void initialise(Consumer<InputPacket> input) throws IOException {
 		this.input = input;
+		started = true;
 		socket = new ServerSocket(port);
 		listenThread = new Thread(this::listenForClients);
 		listenThread.start();
-		connected = true;
 	}
 
 	private void listenForClients() {
-		while(socket != null && !socket.isClosed() && socket.isBound() && connected) {
+		while(isConnected() && started) {
 			try {
 				Socket client = socket.accept();
 				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId));
@@ -83,7 +83,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public void sendPacket(Packet packet, String destination) {
-		if(destination == null) {
+		if(destination == null || !isConnected()) {
 			return;
 		}
 
@@ -104,6 +104,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination) {
+		if(!isConnected()) return null; // TODO Return differently
 		ClientSocket client = clients.get(destination);
 		if(client == null) return null;
 		Request<T> request = request();
@@ -125,6 +126,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, int timeoutSeconds) {
+		if(!isConnected()) return null; // TODO Return differently
 		ClientSocket client = clients.get(destination);
 		if(client == null) return null;
 		Request<T> request = request(timeoutSeconds);
@@ -146,6 +148,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser) {
+		if(!isConnected()) return null; // TODO Return differently
 		ClientSocket client = clients.get(destination);
 		if(client == null) return null;
 		Request<T> request = request(resultParser);
@@ -169,6 +172,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
+		if(!isConnected()) return null; // TODO Return differently
 		ClientSocket client = clients.get(destination);
 		if(client == null || !client.isConnected()) return null; // TODO Handle if client is closed!
 		Request<T> request = request(resultParser, timeoutSeconds);
@@ -183,15 +187,25 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	}
 
 	@Override
+	public boolean isConnected() {
+		return socket != null && socket.isBound() && !socket.isClosed();
+	}
+
+	@Override
 	public void close() {
-		if(socket == null) return;
-		if(socket.isClosed() || !socket.isBound()) return;
-		if(listenThread.isAlive()) listenThread.interrupt();
+		if (listenThread != null && listenThread.isAlive()) listenThread.interrupt();
+		stopExecutor();
+		listenThread = null;
 		clients.values().forEach(ClientSocket::close);
 		unassignedClients.forEach(ClientSocket::close);
+		clients.clear();
+		unassignedClients.clear();
 		try {
-			socket.close();
-		} catch (IOException ignored) {} // TODO Is this correct?
+			if (socket != null) socket.close();
+		} catch (IOException ignored) {
+		} finally {
+			started = false;
+		}
 		// TODO Maybe run some other stuff when it is done? Like kicking players
 	}
 

@@ -33,9 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class ClientSocketConnection extends RequestHandler implements Connection {
-
-    // TODO Connection randomly closed! Retry instead!!
+public class ClientSocketConnection extends RequestHandler implements Connection, ReconnectConnection {
 
     private final String id;
     private final String ip;
@@ -45,8 +43,15 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     private final Gson gson;
     private PrintWriter out;
     private BufferedReader in;
-    private boolean connected = false;
     private Thread readThread = null;
+    private boolean started = false;
+
+    // Reconnect upon close
+    /**
+     * This value determines when the connection closes, whether it should try to reconnect.
+     */
+    private boolean reconnect = false;
+    private int secondsBetweenReconnections;
 
     // KeepAlive
     private int maximumKeepAliveFails;
@@ -55,14 +60,17 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     private int numberKeepAliveFails;
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson) {
-        this(id, ip, port, gson, 3, 10);
+        this(id, ip, port, gson, true, 10, 3, 10);
     }
 
-    public ClientSocketConnection(String id, String ip, int port, Gson gson, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
+    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
         this.id = id;
         this.ip = ip;
         this.port = port;
         this.gson = gson;
+        this.reconnect = reconnect;
+        if(secondsBetweenReconnections <= 0) secondsBetweenReconnections = 10;
+        this.secondsBetweenReconnections = secondsBetweenReconnections;
         if(maximumKeepAliveFails <= 0) maximumKeepAliveFails = 3;
         this.maximumKeepAliveFails = maximumKeepAliveFails;
         if(secondsBetweenKeepAliveChecks <= 0) secondsBetweenKeepAliveChecks = 10;
@@ -70,16 +78,23 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     }
 
     @Override
-    public void initialise(Consumer<InputPacket> input) throws IOException {
-        this.input = input;
+    public void connect() throws IOException {
+        if(started || isConnected()) return;
+        started = true;
         socket = new Socket(ip, port);
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         readThread = new Thread(this::listenForInput);
         readThread.start();
+        startTask();
         sendPacket(new ConnectionConnectPacket(id), null);
         scheduledKeepAlive = getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
-        connected = true;
+    }
+
+    @Override
+    public void initialise(Consumer<InputPacket> input) throws IOException {
+        this.input = input;
+        connect();
     }
 
     private void listenForInput() {
@@ -98,7 +113,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
                 close();
                 return;
             }
-        } while(connected);
+        } while(isConnected());
     }
 
     private void readInput(String line) {
@@ -148,6 +163,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     @Override
     public void sendPacket(Packet packet, String destination) {
+        if(!isConnected()) return;
         // TODO Maybe add function to make it async?
         if(destination != null && destination.equals(id)) {
             // TODO Sending to itself?
@@ -173,7 +189,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination) {
-        if(id == null) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
         Request<T> request = request();
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -200,7 +216,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, int timeoutSeconds) {
-        if(id == null) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
         Request<T> request = request(timeoutSeconds);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -227,7 +243,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser) {
-        if(id == null) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
         Request<T> request = request(resultParser);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -255,7 +271,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
-        if(id == null) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
         Request<T> request = request(resultParser, timeoutSeconds);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -282,18 +298,92 @@ public class ClientSocketConnection extends RequestHandler implements Connection
         return response(requestId, result);
     }
 
+    /**
+     * Returns whether this connection is connected.
+     * This is only the case when the connection is bound.
+     * @return True if is it connected.
+     */
+    @Override
+    public boolean isConnected() {
+        return socket != null && socket.isConnected() && socket.isBound() && !socket.isClosed();
+    }
+
+    /**
+     * Closes the connection by sending a close packet and closing the connection.
+     * This never tries to reconnect after closing, use either {@link #closeAndReconnect()} or run {@link #reconnect()} afterward.
+     * The close packet is only sent when the connection is properly started before.
+     */
     @Override
     public void close() {
-        if(socket == null || !connected) return;
-        connected = false;
-        if(!socket.isClosed() && socket.isBound()) sendPacket(new ConnectionClosePacket(), null);
-        scheduledKeepAlive.cancel(true);
-        stopExecutor();
-        if(readThread.isAlive()) readThread.interrupt();
+        if(isConnected()) sendPacket(new ConnectionClosePacket(), null);
+        if(scheduledKeepAlive != null) scheduledKeepAlive.cancel(true);
+        scheduledKeepAlive = null;
+        stopTask();
+        if(!reconnect) stopExecutor();
+        if(readThread != null && readThread.isAlive()) readThread.interrupt();
+        readThread = null;
         try {
-            socket.close();
-        } catch (IOException ignored) {} // TODO Is this correct?
-        // TODO Maybe run some other stuff when it is done? Like kicking players
+            if(in != null) in.close();
+            if(out != null) out.close();
+            if(socket != null) socket.close();
+        } catch (IOException ignored) {
+        } finally {
+            in = null;
+            out = null;
+            socket = null;
+            started = false;
+        }
+        // TODO Maybe run some other stuff when it is done? Like kicking players. Maybe do something when close() is called due to a connection stop.
+    }
+
+    /**
+     * Reconnects the connection.
+     * This will only reconnect {@link #reconnect} when is true, the reconnect will only start after the {@link #secondsBetweenReconnections}.
+     */
+    @Override
+    public void reconnect() {
+        if(started || !reconnect) return;
+        started = true;
+        Runnable reconnectRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if(started) {
+                    if(reconnect) getScheduledExecutor().schedule(this, secondsBetweenReconnections, TimeUnit.SECONDS);
+                    return;
+                }
+                try {
+                    connect();
+                } catch (IOException e) {
+                    // We could not properly connect, fully restore.
+                    close();
+                    if(reconnect) getScheduledExecutor().schedule(this, secondsBetweenReconnections, TimeUnit.SECONDS);
+                }
+            }
+        };
+        getScheduledExecutor().schedule(reconnectRunnable, secondsBetweenReconnections, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Closes the connection upon which it is being reconnected.
+     * This is useful for when the connection has gone down and a reconnect is preferred.
+     * This will only reconnect {@link #reconnect} when is true, the reconnect will only start after the {@link #secondsBetweenReconnections}.
+     */
+    @Override
+    public void closeAndReconnect() {
+        close();
+        if(reconnect) reconnect();
+    }
+
+    /**
+     * Disables reconnecting, this fully shutdown the executor tied to this connection.
+     */
+    public void disableReconnect() {
+        reconnect = false;
+        if(!started) stopExecutor();
+    }
+
+    public boolean isReconnect() {
+        return reconnect;
     }
 
     private void checkKeepAlive() {
@@ -317,7 +407,7 @@ public class ClientSocketConnection extends RequestHandler implements Connection
     public void setSecondsBetweenKeepAliveChecks(int secondsBetweenKeepAliveChecks) {
         if(secondsBetweenKeepAliveChecks <= 0) return;
         this.secondsBetweenKeepAliveChecks = secondsBetweenKeepAliveChecks;
-        if(scheduledKeepAlive != null && connected) {
+        if(scheduledKeepAlive != null && started) {
             scheduledKeepAlive.cancel(true);
             scheduledKeepAlive = getScheduledExecutor().scheduleAtFixedRate(this::checkKeepAlive, secondsBetweenKeepAliveChecks, secondsBetweenKeepAliveChecks, TimeUnit.SECONDS);
         }
