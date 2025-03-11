@@ -48,11 +48,22 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     private Thread readThread = null;
     private boolean started = false;
 
+    /**
+     * This method is run upon when the connection has closed.
+     * This is called when reconnects are tried after closure.
+     */
+    private final Runnable onClose;
+    /**
+     * This method is run when the connection is closed and reconnecting does not happen anymore.
+     * This is called instead of {@link #onClose}.
+     */
+    private final Runnable onFinalClose;
+
     // Reconnect upon close
     /**
      * This value determines when the connection closes, whether it should try to reconnect.
      */
-    private boolean reconnect = false;
+    private boolean reconnect = true;
     private int secondsBetweenReconnections;
     private Runnable onReconnect;
 
@@ -63,15 +74,21 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     private int numberKeepAliveFails;
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL) {
-        this(id, ip, port, gson, useSSL, true, 60, 3, 60);
+        this(id, ip, port, gson, useSSL, null, null, true, 60, 3, 60);
     }
 
-    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
+    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, Runnable onClose, Runnable onFinalClose) {
+        this(id, ip, port, gson, useSSL, onClose, onFinalClose, true, 60, 3, 60);
+    }
+
+    public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, Runnable onClose, Runnable onFinalClose, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
         this.id = id;
         this.ip = ip;
         this.port = port;
         this.gson = gson;
         this.useSSL = useSSL;
+        this.onClose = onClose;
+        this.onFinalClose = onFinalClose;
         this.reconnect = reconnect;
         if(secondsBetweenReconnections <= 0) secondsBetweenReconnections = 60;
         this.secondsBetweenReconnections = secondsBetweenReconnections;
@@ -337,8 +354,9 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
             out = null;
             socket = null;
             started = false;
+            if(reconnect && onClose != null) onClose.run();
+            if(!reconnect && onFinalClose != null) onFinalClose.run();
         }
-        // TODO Maybe run some other stuff when it is done? Like kicking players. Maybe do something when close() is called due to a connection stop.
     }
 
     /**

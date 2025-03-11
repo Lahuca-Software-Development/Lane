@@ -71,7 +71,14 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
         String id = "Lobby";
         boolean useSSL = false;
-        ReconnectConnection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL);
+        Runnable onClose = () -> {
+            getServer().getOnlinePlayers().forEach(player -> player.kickPlayer("Connection closed between Instance and Controller"));
+        };
+        Runnable onFinalClose = () -> {
+            onClose.run();
+            // More work
+        };
+        ReconnectConnection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL, onClose, onFinalClose);
         String type = "Lobby";
         boolean joinable = true;
         boolean nonPlayable = true;

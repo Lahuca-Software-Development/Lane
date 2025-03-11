@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -45,24 +46,30 @@ public class ClientSocket {
 	private boolean started = false;
 	private Thread readThread = null;
 
+	/**
+	 * This consumer is called when the connection is closed with the instance as parameter.
+	 */
+	private final Consumer<ClientSocket> onClose;
+
 	// KeepAlive
 	private int maximumKeepAliveFails;
 	private ScheduledFuture<?> scheduledKeepAlive;
 	private int numberKeepAliveFails;
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
-						Gson gson, BiConsumer<String, ClientSocket> assignId) throws IOException {
-        this(connection, socket, input, gson, assignId, 3, 60);
+						Gson gson, BiConsumer<String, ClientSocket> assignId, Consumer<ClientSocket> onClose) throws IOException {
+        this(connection, socket, input, gson, assignId, onClose, 3, 60);
 	}
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
-						Gson gson, BiConsumer<String, ClientSocket> assignId, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
+						Gson gson, BiConsumer<String, ClientSocket> assignId, Consumer<ClientSocket> onClose, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
 		System.out.println("Created Clientsocket");
 		this.connection = connection;
 		started = true;
 		out = new PrintWriter(socket.getOutputStream(), true);
 		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		this.assignId = assignId;
+		this.onClose = onClose;
 		this.socket = socket;
 		this.input = input;
 		this.gson = gson;
@@ -173,10 +180,9 @@ public class ClientSocket {
             if(socket != null) socket.close();
         } catch (IOException e) {
         } finally {
+			if(onClose != null) onClose.accept(this);
 			started = false;
 		}
-		// TODO Maybe run some other stuff when it is done? Like kicking players
-		// TODO Remove from ServerSocketConnection!
 	}
 
 	private void checkKeepAlive() {
@@ -208,6 +214,10 @@ public class ClientSocket {
 
 	public boolean isConnected() {
 		return socket != null && socket.isConnected() && socket.isBound() && !socket.isClosed();
+	}
+
+	public Optional<String> getId() {
+		return Optional.ofNullable(id);
 	}
 
 }

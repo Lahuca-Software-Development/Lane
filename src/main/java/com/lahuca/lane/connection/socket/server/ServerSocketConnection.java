@@ -73,10 +73,14 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	}
 
 	private void listenForClients() {
+		Consumer<ClientSocket> onClose = (client) -> {
+			client.getId().ifPresentOrElse(clients::remove, () -> unassignedClients.remove(client));
+			// TODO Maybe run some other stuff when it is done? Like kicking players
+		};
 		while(isConnected() && started) {
 			try {
 				Socket client = socket.accept();
-				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId));
+				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId, onClose));
 			} catch (IOException e) {
 				// Well, looks like server is down, or has to stop.
 				System.out.println("DEBUG CLOSe5");
