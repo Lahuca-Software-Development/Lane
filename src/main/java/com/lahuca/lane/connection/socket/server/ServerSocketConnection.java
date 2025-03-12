@@ -31,6 +31,7 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -43,10 +44,14 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	private final boolean useSSL;
 	private final HashMap<String, ClientSocket> clients = new HashMap<>();
 	private final HashSet<ClientSocket> unassignedClients = new HashSet<>();
-	private final BiConsumer<String, ClientSocket> assignId = (id, client) -> {
-		if(!unassignedClients.contains(client)) return;
+	private final BiFunction<String, ClientSocket, Boolean> assignId = (id, client) -> {
+		if(!unassignedClients.contains(client)) return false;
+		if(clients.containsKey(id)) {
+			return false;
+		}
 		clients.put(id, client);
 		unassignedClients.remove(client);
+		return true;
 	};
 	// TODO Maybe do consumer to abstract funcgtion.
 	/**

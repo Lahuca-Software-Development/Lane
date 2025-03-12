@@ -78,7 +78,6 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
                 } else if(isEnabled()) {
                     getServer().getScheduler().runTask(this, () -> player.kickPlayer("Connection closed between Instance and Controller"));
                 }
-
             });
         };
         Runnable onFinalClose = () -> {

@@ -30,7 +30,7 @@ import java.net.Socket;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class ClientSocket {
@@ -42,7 +42,7 @@ public class ClientSocket {
 	private final Consumer<InputPacket> input;
 	private final Gson gson;
 	private String id = null;
-	private final BiConsumer<String, ClientSocket> assignId;
+	private final BiFunction<String, ClientSocket, Boolean> assignId;
 	private boolean started = false;
 	private Thread readThread = null;
 
@@ -57,12 +57,12 @@ public class ClientSocket {
 	private int numberKeepAliveFails;
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
-						Gson gson, BiConsumer<String, ClientSocket> assignId, Consumer<ClientSocket> onClose) throws IOException {
+						Gson gson, BiFunction<String, ClientSocket, Boolean> assignId, Consumer<ClientSocket> onClose) throws IOException {
         this(connection, socket, input, gson, assignId, onClose, 3, 60);
 	}
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
-						Gson gson, BiConsumer<String, ClientSocket> assignId, Consumer<ClientSocket> onClose, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
+						Gson gson, BiFunction<String, ClientSocket, Boolean> assignId, Consumer<ClientSocket> onClose, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
 		System.out.println("Created Clientsocket");
 		this.connection = connection;
 		started = true;
@@ -142,7 +142,10 @@ public class ClientSocket {
 		// TODO Use switch states for this! JAVA 21: 1.20.5 MC and above
 		if(iPacket instanceof ConnectionConnectPacket packet) {
 			id = packet.clientId();
-			assignId.accept(id, this);
+			boolean success = assignId.apply(id, this);
+			if(!success) {
+				close();
+			}
 		} else if(iPacket instanceof ConnectionKeepAlivePacket packet) {
 			// Send packet back immediately.
 			sendPacket(ConnectionKeepAliveResultPacket.ok(packet));
