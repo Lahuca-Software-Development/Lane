@@ -72,12 +72,20 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         String id = "Lobby";
         boolean useSSL = false;
         Runnable onClose = () -> {
-            getServer().getOnlinePlayers().forEach(player -> player.kickPlayer("Connection closed between Instance and Controller"));
+            getServer().getOnlinePlayers().forEach(player -> {
+                if(getServer().isPrimaryThread()) {
+                    player.kickPlayer("Connection closed between Instance and Controller");
+                } else if(isEnabled()) {
+                    getServer().getScheduler().runTask(this, () -> player.kickPlayer("Connection closed between Instance and Controller"));
+                }
+
+            });
         };
         Runnable onFinalClose = () -> {
             onClose.run();
             // More work
         };
+        // TODO Maybe onReconnect?
         ReconnectConnection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL, onClose, onFinalClose);
         String type = "Lobby";
         boolean joinable = true;
@@ -146,7 +154,7 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
             if(p != null && p.isOnline()) {
                 if(getServer().isPrimaryThread()) {
                     p.kickPlayer(message);
-                } else {
+                } else if(isEnabled()) {
                     getServer().getScheduler().runTask(LaneInstanceSpigot.this, () -> p.kickPlayer(message));
                 }
             }

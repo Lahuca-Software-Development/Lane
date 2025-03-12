@@ -48,6 +48,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     private Thread readThread = null;
     private boolean started = false;
 
+    // TODO Bottom two runnables, probably to abstract methods.
     /**
      * This method is run upon when the connection has closed.
      * This is called when reconnects are tried after closure.
@@ -221,7 +222,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         String packetString = gson.toJson(packet);
         System.out.println("Send to " + id + ": " + packetString);
 
-        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
+        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
         out.println(gson.toJson(outputPacket));
         return request;
@@ -247,7 +248,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         String packetString = gson.toJson(packet);
         System.out.println("Send to " + id + ": " + packetString);
 
-        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
+        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
         out.println(gson.toJson(outputPacket));
         return request;
@@ -273,7 +274,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         String packetString = gson.toJson(packet);
         System.out.println("Send to " + id + ": " + packetString);
 
-        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
+        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
         out.println(gson.toJson(outputPacket));
         return request;
@@ -300,7 +301,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         String packetString = gson.toJson(packet);
         System.out.println("Send to " + id + ": " + packetString);
 
-        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
+        ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
         out.println(gson.toJson(outputPacket));
         return request;
@@ -407,6 +408,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     /**
      * Disables reconnecting, this fully shutdown the executor tied to this connection.
      */
+    @Override
     public void disableReconnect() {
         reconnect = false;
         if(!started) stopExecutor();

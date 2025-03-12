@@ -31,4 +31,10 @@ public interface ReconnectConnection extends Connection {
      * @param onReconnect the runnable to run.
      */
     void setOnReconnect(Runnable onReconnect);
+
+    /**
+     * Disables reconnecting.
+     */
+    void disableReconnect();
+
 }

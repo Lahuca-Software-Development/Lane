@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -108,6 +109,7 @@ public abstract class LaneInstance {
     }
 
     public void shutdown() {
+        connection.disableReconnect();
         connection.close();
         // TODO Probably other stuff?
     }
@@ -221,13 +223,13 @@ public abstract class LaneInstance {
                     // Send queue finished to controller
                     try {
                         Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
-                        if(!result.isSuccessful()) {
+                        if(result == null || !result.isSuccessful()) {
                             disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                             return;
                         }
                         sendInstanceStatus();
                         game.onJoin(player);
-                    } catch (InterruptedException | ExecutionException e) {
+                    } catch (InterruptedException | ExecutionException | CancellationException e) {
                         disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
                     }
                 }, () -> {
@@ -250,7 +252,7 @@ public abstract class LaneInstance {
                     }
                     sendInstanceStatus();
                     // TODO Handle, like TP, etc. Only after response.
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (InterruptedException | ExecutionException | CancellationException e) {
                     disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
                 }
             });
@@ -270,6 +272,7 @@ public abstract class LaneInstance {
     public void quitInstance(UUID uuid) {
         getInstancePlayer(uuid).ifPresent(player -> quitGame(uuid));
         players.remove(uuid);
+        sendInstanceStatus();
     }
 
     /**

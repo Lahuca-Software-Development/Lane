@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
+import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
@@ -58,6 +59,14 @@ public abstract class Controller {
 
         Packet.registerPackets();
 
+        if(connection instanceof ServerSocketConnection serverSocketConnection) {
+            // TODO Definitely change the type!
+            serverSocketConnection.setOnClientRemove(id -> {
+                instances.remove(id);
+                // Kick players.
+                // TODO Maybe run some other stuff when it is done? Like kicking players. Remove the instance!
+            });
+        }
         connection.initialise(input -> {
             Packet iPacket = input.packet();
             System.out.println("Got Packet: " + input.from());
@@ -110,15 +119,20 @@ public abstract class Controller {
                     });
                 }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
             } else if(iPacket instanceof QueueFinishedPacket packet) {
+                System.out.println("Retrieved finish queue");
                 getPlayer(packet.player()).ifPresentOrElse(player -> {
+                    System.out.println("Retrieved finish queue 0");
                     // Player should have finished its queue, check whether it is allowed.
                     player.getQueueRequest().ifPresentOrElse(queue -> {
+                        System.out.println("Retrieved finish queue 1");
                         // There is a queue, check if the state of the player was to transfer to the retrieved instance/game.
                         ControllerPlayerState state = player.getState();
                         if(state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                            System.out.println("Retrieved finish queue 2");
                             // Check if we either joined the correct instance or game.
                             if(state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
                                 // We joined an instance.
+                                System.out.println("Retrieved finish queue 3");
                                 ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE,
                                         Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()),
                                                 new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
@@ -129,6 +143,7 @@ public abstract class Controller {
                             } else if(packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID)
                                     && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId())
                                     && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
+                                System.out.println("Retrieved finish queue 4");
                                 // We joined a game.
                                 ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.GAME_ONLINE,
                                         Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()),
@@ -140,11 +155,13 @@ public abstract class Controller {
                                 player.setInstanceId(input.from());
                                 connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                             } else {
+                                System.out.println("Retrieved finish queue 5");
                                 // We cannot accept this queue finalization.
                                 connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
                             }
                             return;
                         }
+                        System.out.println("Retrieved finish queue 6");
                         connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
                     }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
                 }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));

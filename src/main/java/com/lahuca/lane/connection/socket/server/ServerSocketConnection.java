@@ -48,6 +48,13 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 		clients.put(id, client);
 		unassignedClients.remove(client);
 	};
+	// TODO Maybe do consumer to abstract funcgtion.
+	/**
+	 * This consumer is called when a client disconnects.
+	 * It is provided with the ID of the client.
+	 * When it had not announced the ID yet, this is null.
+	 */
+	private Consumer<String> onClientRemove = null;
 
 	private Thread listenThread = null;
 	private boolean started = false;
@@ -75,7 +82,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	private void listenForClients() {
 		Consumer<ClientSocket> onClose = (client) -> {
 			client.getId().ifPresentOrElse(clients::remove, () -> unassignedClients.remove(client));
-			// TODO Maybe run some other stuff when it is done? Like kicking players
+			onClientRemove.accept(client.getId().orElse(null));
 		};
 		while(isConnected() && started) {
 			try {
@@ -96,6 +103,7 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public void sendPacket(Packet packet, String destination) {
+		System.out.println("Got: " + destination + ", " + isConnected());
 		if(destination == null || !isConnected()) {
 			return;
 		}
@@ -209,8 +217,8 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 		if (listenThread != null && listenThread.isAlive()) listenThread.interrupt();
 		stopExecutor();
 		listenThread = null;
-		clients.values().forEach(ClientSocket::close);
-		unassignedClients.forEach(ClientSocket::close);
+		new HashSet<>(clients.values()).forEach(ClientSocket::close);
+		new HashSet<>(unassignedClients).forEach(ClientSocket::close);
 		clients.clear();
 		unassignedClients.clear();
 		try {
@@ -220,6 +228,10 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 			started = false;
 		}
 		// TODO Maybe run some other stuff when it is done? Like kicking players
+	}
+
+	public void setOnClientRemove(Consumer<String> onClientRemove) {
+		this.onClientRemove = onClientRemove;
 	}
 
 }

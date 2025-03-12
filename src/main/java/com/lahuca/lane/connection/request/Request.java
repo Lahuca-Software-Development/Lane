@@ -203,7 +203,8 @@ public class Request<T> {
      * @return True when the request is timed out, false otherwise.
      */
     public boolean isTimedOut() {
-        return scheduledAt + timeoutSeconds * 1000L >= System.currentTimeMillis();
+        long timeOutTime = scheduledAt + timeoutSeconds * 1000L;
+        return System.currentTimeMillis() >= timeOutTime;
     }
 
 }
