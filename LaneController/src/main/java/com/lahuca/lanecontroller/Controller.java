@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
+import com.lahuca.lane.connection.request.VoidResultPacket;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
@@ -77,16 +78,16 @@ public abstract class Controller {
                     games.put(packet.gameId(),
                             new ControllerGame(packet.gameId(), input.from(),
                                     packet.name(), initialState));
-                    connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
+                    connection.sendPacket(new VoidResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
                     return;
                 }
                 ControllerGame game = games.get(packet.gameId());
                 if(!game.getInstanceId().equals(input.from())) {
-                    connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                    connection.sendPacket(new VoidResultPacket(packet.requestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                     return;
                 }
                 games.get(packet.gameId()).update(packet.name(), packet.state());
-                connection.sendPacket(new SimpleResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
+                connection.sendPacket(new VoidResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).update(packet.type(), packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
             } else if(iPacket instanceof PartyPacket.Retrieve.Request packet) {
@@ -94,14 +95,14 @@ public abstract class Controller {
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof PartyPacket.Player.Add packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::addPlayer,
-                                () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
-                        () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                                () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                        () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof PartyPacket.Player.Remove packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::removePlayer,
-                                () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
-                        () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                                () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                        () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof PartyPacket.Disband.Request packet) {
-                getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if(iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
                 getRelationship(packet.relationshipId()).ifPresentOrElse(relationship ->
                                 connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
@@ -115,9 +116,9 @@ public abstract class Controller {
                         } else {
                             response = result.result();
                         }
-                        connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), response), input.from());
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), response), input.from());
                     });
-                }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+                }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
             } else if(iPacket instanceof QueueFinishedPacket packet) {
                 System.out.println("Retrieved finish queue");
                 getPlayer(packet.player()).ifPresentOrElse(player -> {
@@ -139,7 +140,7 @@ public abstract class Controller {
                                 player.setState(newState);
                                 player.setQueueRequest(null);
                                 player.setInstanceId(input.from());
-                                connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                                connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                             } else if(packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID)
                                     && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId())
                                     && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
@@ -153,20 +154,37 @@ public abstract class Controller {
                                 player.setQueueRequest(null);
                                 player.setGameId(packet.gameId());
                                 player.setInstanceId(input.from());
-                                connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                                connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                             } else {
                                 System.out.println("Retrieved finish queue 5");
                                 // We cannot accept this queue finalization.
-                                connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
+                                connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
                             }
                             return;
                         }
                         System.out.println("Retrieved finish queue 6");
-                        connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
-                    }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
-                }, () -> connection.sendPacket(new SimpleResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
+                    }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
+                }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+            } else if(iPacket instanceof RequestIdPacket packet) {
+                Long newId;
+                switch (packet.type()) {
+                    case GAME -> {
+                        do {
+                            newId = System.currentTimeMillis();
+                        } while (games.containsKey(newId));
+                    }
+                    default -> newId = null;
+                }
+                if(newId != null) {
+                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                } else {
+                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
+                }
             } else if(input.packet() instanceof ResponsePacket<?> response) {
-                connection.retrieveResponse(response.getRequestId(), response.transformResult()); // TODO Handle output
+                if(!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
+                    // TODO Well, log about packet that is not wanted.
+                }
             }
         });
     }

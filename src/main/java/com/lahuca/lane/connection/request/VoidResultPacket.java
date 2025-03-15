@@ -17,16 +17,16 @@ package com.lahuca.lane.connection.request;
 
 import com.lahuca.lane.connection.Packet;
 
-public record SimpleResultPacket<T>(long requestId, String result, T data) implements ResponsePacket<T> {
+public record VoidResultPacket(long requestId, String result) implements ResponsePacket<Void> {
 
-    public static final String packetId = "simpleResult";
+    public static final String packetId = "voidResult";
 
-    static {
-        Packet.registerPacket(packetId, SimpleResultPacket.class);
+    public static VoidResultPacket ok(long requestId) {
+        return new VoidResultPacket(requestId, ResponsePacket.OK);
     }
 
-    public SimpleResultPacket(long requestId, String result) {
-        this(requestId, result, null);
+    static {
+        Packet.registerPacket(packetId, VoidResultPacket.class);
     }
 
     @Override
@@ -45,7 +45,7 @@ public record SimpleResultPacket<T>(long requestId, String result, T data) imple
     }
 
     @Override
-    public T getData() {
-        return data;
+    public Void getData() {
+        return null;
     }
 }

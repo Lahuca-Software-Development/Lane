@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
@@ -156,7 +157,7 @@ public abstract class LaneInstance {
     }
 
     private void sendSimpleResult(long requestId, String result) {
-        sendController(new SimpleResultPacket(requestId, result));
+        sendController(new VoidResultPacket(requestId, result));
     }
 
     private void sendSimpleResult(RequestPacket request, String result) {
@@ -172,7 +173,7 @@ public abstract class LaneInstance {
         return CompletableFuture.completedFuture(new Result<>(result));
     }
 
-    public static Request<Void> simpleRequest(String result) {
+    public static <T> Request<T> simpleRequest(String result) {
         return new Request<>(new Result<>(result));
     }
 
@@ -287,18 +288,32 @@ public abstract class LaneInstance {
         }));
     }
 
-    public Request<Void> registerGame(LaneGame game) {
-        if(game == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        if(games.containsKey(game.getGameId())) return simpleRequest(ResponsePacket.INVALID_ID);
-        games.put(game.getGameId(), game);
-        Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
-                game.getGameState().convertRecord()), null);
-        return request.thenApply(result -> {
-            if(!result.isSuccessful()) {
-                games.remove(game.getGameId());
+    private Request<Long> requestId(RequestIdPacket.Type idType) {
+        if(idType == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        return connection.sendRequestPacket(id -> new RequestIdPacket(id, idType), null);
+    }
+
+    public Request<Void> registerGame(Function<Long, LaneGame> gameConstructor) {
+        if(gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        try {
+            Result<Long> gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
+            if(!gameId.isSuccessful()) {
+                return simpleRequest(ResponsePacket.INVALID_STATE);
             }
-            return result;
-        });
+            LaneGame game = gameConstructor.apply(gameId.data());
+            if(games.containsKey(game.getGameId())) return simpleRequest(ResponsePacket.INVALID_ID);
+            games.put(game.getGameId(), game);
+            Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
+                    game.getGameState().convertRecord()), null);
+            return request.thenApply(result -> {
+                if(!result.isSuccessful()) {
+                    games.remove(game.getGameId());
+                }
+                return result;
+            });
+        } catch (InterruptedException | ExecutionException | CancellationException e) {
+            return simpleRequest(ResponsePacket.INTERRUPTED);
+        }
     }
 
     public Request<RelationshipRecord> getRelationship(long relationshipId) {

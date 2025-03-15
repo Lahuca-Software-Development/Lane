@@ -29,7 +29,7 @@ import java.util.UUID;
  */
 public record QueueFinishedPacket(long requestId, UUID player, Long gameId) implements RequestPacket {
 
-    public static final String packetId = "queueFinishedPacket";
+    public static final String packetId = "queueFinished";
 
     static {
         Packet.registerPacket(packetId, QueueFinishedPacket.class);

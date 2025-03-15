@@ -20,6 +20,7 @@ public interface ResponsePacket<T> extends RequestPacket {
     String CONNECTION_CANCELLED = "connectCancelled";  // TODO Maybe rename these? They are used in Velocity, more like JOIN_CANCELLED, etc... IS IT NOT CANCELED? ONE L?
     String CONNECTION_IN_PROGRESS = "connectionInProgress";
     String CONNECTION_DISCONNECTED = "connectionDisconnected";
+    String INTERRUPTED = "interrupted";
 
     String getResult();
     T getData();
