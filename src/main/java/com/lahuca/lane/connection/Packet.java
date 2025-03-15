@@ -19,6 +19,7 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.connection.ConnectionClosePacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionKeepAlivePacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionKeepAliveResultPacket;
+import com.lahuca.lane.connection.request.LongResultPacket;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
 import com.lahuca.lane.connection.request.VoidResultPacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionConnectPacket;
@@ -54,8 +55,11 @@ public interface Packet {
 		Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
 		Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
 		Packet.registerPacket(ConnectionConnectPacket.packetId, ConnectionConnectPacket.class);
+
 		Packet.registerPacket(VoidResultPacket.packetId, VoidResultPacket.class);
+		Packet.registerPacket(LongResultPacket.packetId, LongResultPacket.class);
 		Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
+
 		Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
 		Packet.registerPacket(ConnectionClosePacket.packetId, ConnectionClosePacket.class);
 		Packet.registerPacket(ConnectionKeepAlivePacket.packetId, ConnectionKeepAlivePacket.class);

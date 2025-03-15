@@ -293,7 +293,12 @@ public abstract class LaneInstance {
         return connection.sendRequestPacket(id -> new RequestIdPacket(id, idType), null);
     }
 
-    public Request<Void> registerGame(Function<Long, LaneGame> gameConstructor) {
+    /**
+     * Registers a new game upon the function that gives a new game ID.
+     * @param gameConstructor the id to game parser. Preferably a lambda with LaneGame::new is given, whose constructor consists of only the ID.
+     * @return the request of the registering, it completes successfully with the game when it is successfully registered.
+     */
+    public Request<LaneGame> registerGame(Function<Long, LaneGame> gameConstructor) {
         if(gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         try {
             Result<Long> gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
@@ -301,15 +306,16 @@ public abstract class LaneInstance {
                 return simpleRequest(ResponsePacket.INVALID_STATE);
             }
             LaneGame game = gameConstructor.apply(gameId.data());
-            if(games.containsKey(game.getGameId())) return simpleRequest(ResponsePacket.INVALID_ID);
+            if(game.getGameId() != gameId.data() || games.containsKey(game.getGameId())) return simpleRequest(ResponsePacket.INVALID_ID);
             games.put(game.getGameId(), game);
             Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
                     game.getGameState().convertRecord()), null);
-            return request.thenApply(result -> {
+            return request.thenApplyConstruct(result -> {
                 if(!result.isSuccessful()) {
                     games.remove(game.getGameId());
+                    return new Result<>(result.result(), null);
                 }
-                return result;
+                return new Result<>(result.result(), game);
             });
         } catch (InterruptedException | ExecutionException | CancellationException e) {
             return simpleRequest(ResponsePacket.INTERRUPTED);

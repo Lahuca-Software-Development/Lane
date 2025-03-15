@@ -120,6 +120,13 @@ public class Request<T> {
     }
 
     /**
+     * Creates a new request object with the same request data, although transforms the output of the original request to the new type.
+     */
+    public <U> Request<U> thenApplyConstruct(Function<? super Result<T>, ? extends Result<U>> fn) {
+        return new Request<>(requestId, scheduledAt, null, futureResult.thenApply(fn), timeoutSeconds);
+    }
+
+    /**
      * Returns the result parser, that is to be used to properly parse the result before sending the future.
      * @return The result parser.
      */

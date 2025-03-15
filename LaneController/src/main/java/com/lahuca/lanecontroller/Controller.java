@@ -20,10 +20,7 @@ import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
-import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.Result;
-import com.lahuca.lane.connection.request.SimpleResultPacket;
-import com.lahuca.lane.connection.request.VoidResultPacket;
+import com.lahuca.lane.connection.request.*;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
@@ -176,10 +173,10 @@ public abstract class Controller {
                     }
                     default -> newId = null;
                 }
-                if(newId != null) {
-                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                if(newId == null) {
+                    connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 } else {
-                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
+                    connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
                 }
             } else if(input.packet() instanceof ResponsePacket<?> response) {
                 if(!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
