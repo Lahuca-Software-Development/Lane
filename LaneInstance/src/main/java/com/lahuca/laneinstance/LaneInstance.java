@@ -19,7 +19,13 @@ import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.ReconnectConnection;
 import com.lahuca.lane.connection.packet.*;
+import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
+import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
+import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
 import com.lahuca.lane.connection.request.*;
+import com.lahuca.lane.data.DataObject;
+import com.lahuca.lane.data.DataObjectId;
+import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
@@ -320,6 +326,40 @@ public abstract class LaneInstance {
         } catch (InterruptedException | ExecutionException | CancellationException e) {
             return simpleRequest(ResponsePacket.INTERRUPTED);
         }
+    }
+
+    /**
+     * Retrieves a data object at the given id with the provided permission key.
+     * @param id the id of the data object
+     * @param permissionKey the permission key that wants to retrieve the data object
+     * @return the request with the data object; the data object is null when there is no data object at the id.
+     */
+    public Request<DataObject> retrieveDataObject(DataObjectId id, PermissionKey permissionKey) {
+        if(id == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        return connection.sendRequestPacket(requestId -> new DataObjectReadPacket(requestId, id, permissionKey), null);
+    }
+
+    /**
+     * Writes a data object at the given id with the provided permission key.
+     * This either creates or updates the data object.
+     * @param object the id of the data object
+     * @param permissionKey the permission key that wants to write the data object
+     * @return the request with the status
+     */
+    public Request<Void> writeDataObject(DataObject object, PermissionKey permissionKey) {
+        if(object == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        return connection.sendRequestPacket(requestId -> new DataObjectWritePacket(requestId, object, permissionKey), null);
+    }
+
+    /**
+     * Removes a data object at the given id with the provided permission key.
+     * @param id the id of the data object
+     * @param permissionKey the permission key that wants to remove the data object
+     * @return the request with the status
+     */
+    public Request<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {
+        if(id == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        return connection.sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null);
     }
 
     public Request<RelationshipRecord> getRelationship(long relationshipId) {

@@ -29,6 +29,8 @@ import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.message.MapLaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.*;
+import com.lahuca.lanecontroller.data.DataManager;
+import com.lahuca.lanecontroller.data.FileDataManager;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
@@ -42,6 +44,7 @@ import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -49,7 +52,9 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -69,13 +74,15 @@ public class VelocityController {
 
     private final ProxyServer server;
     private final Logger logger;
+    private final Path dataDirectory;
     private Controller controller = null;
 
     @Inject
-    public VelocityController(ProxyServer server, Logger logger) {
+    public VelocityController(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
         instance = this;
         this.server = server;
         this.logger = logger;
+        this.dataDirectory = dataDirectory;
     }
 
     @Subscribe
@@ -83,7 +90,8 @@ public class VelocityController {
         Connection connection = new ServerSocketConnection(port, gson, false);
 
         try {
-            controller = new Implementation(server, connection);
+            FileDataManager dataManager = new FileDataManager(gson, new File(dataDirectory.toFile(), "data"));
+            controller = new Implementation(server, connection, dataManager);
         } catch (IOException e) {
             //TODO: Handle that exception
             e.printStackTrace();
@@ -445,8 +453,8 @@ public class VelocityController {
 
         private final ProxyServer server;
 
-        public Implementation(ProxyServer server, Connection connection) throws IOException {
-            super(connection);
+        public Implementation(ProxyServer server, Connection connection, DataManager dataManager) throws IOException {
+            super(connection, dataManager);
             this.server = server;
         }
 

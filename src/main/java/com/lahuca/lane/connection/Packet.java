@@ -19,6 +19,9 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.connection.ConnectionClosePacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionKeepAlivePacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionKeepAliveResultPacket;
+import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
+import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
+import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
 import com.lahuca.lane.connection.request.LongResultPacket;
 import com.lahuca.lane.connection.request.SimpleResultPacket;
 import com.lahuca.lane.connection.request.VoidResultPacket;
@@ -65,6 +68,10 @@ public interface Packet {
 		Packet.registerPacket(ConnectionKeepAlivePacket.packetId, ConnectionKeepAlivePacket.class);
 		Packet.registerPacket(ConnectionKeepAliveResultPacket.packetId, ConnectionKeepAliveResultPacket.class);
 		Packet.registerPacket(RequestIdPacket.packetId, RequestIdPacket.class);
+
+		Packet.registerPacket(DataObjectReadPacket.packetId, DataObjectReadPacket.class);
+		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
+		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
 	}
 
 	String getPacketId();

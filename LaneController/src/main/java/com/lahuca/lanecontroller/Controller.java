@@ -20,10 +20,15 @@ import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
+import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
+import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
+import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
 import com.lahuca.lane.connection.request.*;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
+import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
+import com.lahuca.lanecontroller.data.DataManager;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 
@@ -43,6 +48,7 @@ public abstract class Controller {
     }
 
     private final Connection connection;
+    private final DataManager dataManager;
 
     private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
@@ -51,9 +57,10 @@ public abstract class Controller {
     private final HashMap<Long, ControllerRelationship> relationships = new HashMap<>();
 
 
-    public Controller(Connection connection) throws IOException {
+    public Controller(Connection connection, DataManager dataManager) throws IOException {
         instance = this;
         this.connection = connection;
+        this.dataManager = dataManager;
 
         Packet.registerPackets();
 
@@ -178,7 +185,24 @@ public abstract class Controller {
                 } else {
                     connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
                 }
-            } else if(input.packet() instanceof ResponsePacket<?> response) {
+            } else if(iPacket instanceof DataObjectReadPacket packet) {
+                dataManager.readDataObject(packet.permissionKey(), packet.id()).whenComplete((object, ex) -> {
+                    if(ex != null) connection.sendPacket(new SimpleResultPacket<DataObject>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, object.orElse(null)), input.from());
+                });
+            } else if(iPacket instanceof DataObjectWritePacket packet) {
+                dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
+                    if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else if(!bool) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                    else connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                });
+            } else if(iPacket instanceof DataObjectRemovePacket packet) {
+                dataManager.removeDataObject(packet.permissionKey(), packet.id()).whenComplete((bool, ex) -> {
+                    if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else if(!bool) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                    else connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                });
+            } else if(iPacket instanceof ResponsePacket<?> response) {
                 if(!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Well, log about packet that is not wanted.
                 }
@@ -193,6 +217,10 @@ public abstract class Controller {
 
     public Connection getConnection() {
         return connection;
+    }
+
+    public DataManager getDataManager() {
+        return dataManager;
     }
 
     private ControllerLaneInstance createGetInstance(String id) {
