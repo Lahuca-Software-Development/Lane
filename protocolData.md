@@ -51,6 +51,12 @@ Here always the module/plugin is given 'main' and then split with a dot in betwe
 It is wise to split these keys up even more according to the usage: 'main.sub.key'.
 For general data objects, the ID can also be 'key'.
 
+Version management in data objects is simple, every data object has a integer attached that defines the version.
+The default number is zero. This is purely useful for plugins that have updated their internal data.
+This allows them to update the value of the data whenever the version has changed.
+
+The time the data object has lastly been updated is also saved: when it was created or when it was lastly changed.
+
 For example, the locale of me (Laurenshup) is stored in the data object with rType PLAYERS, rID e8cfb5f7-3505-4bd5-b9c0-5ca9a6967daa & ID locale.
 
 <h2>Database structure</h4>
@@ -59,5 +65,7 @@ Basically everything could be put in one table:
 - Relation ID (null = singular)
 - ID
 - Permissions
+- Last updated time
 - Removal date
+- Version
 - Contents

@@ -39,8 +39,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public class FileDataManager implements DataManager {
 
+    // TODO Make method that runs through all data objects in the system to remove any that are
+
     private final Gson gson;
     private final File dataFolder;
+    private final long startTime = System.currentTimeMillis();
 
     public FileDataManager(Gson gson, File dataFolder) throws FileNotFoundException {
         this.gson = gson;
@@ -65,6 +68,11 @@ public class FileDataManager implements DataManager {
         if(!file.exists()) return CompletableFuture.completedFuture(Optional.empty());
         try (FileReader reader = new FileReader(file)) {
             DataObject object = gson.fromJson(reader, DataObject.class);
+            // First check if this object is to be removed
+            if(object.shouldRemove(startTime)) {
+                return removeDataObject(PermissionKey.CONTROLLER, id).thenApply(status -> Optional.empty());
+            }
+            // Object should not be removed, check read access
             boolean readAccess = object.hasReadAccess(permissionKey, true);
             boolean writeAccess = object.hasWriteAccess(permissionKey, false);
             object = object.shallowCopy(readAccess, writeAccess);
@@ -101,7 +109,8 @@ public class FileDataManager implements DataManager {
                 return CompletableFuture.failedFuture(e);
             }
         }
-        // We can overwrite
+        // We can overwrite, update last update first
+        object.setLastUpdated(System.currentTimeMillis());
         try (FileWriter writer = new FileWriter(file)) {
             gson.toJson(object, writer);
             return CompletableFuture.completedFuture(true);
