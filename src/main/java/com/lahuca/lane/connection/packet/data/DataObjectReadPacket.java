@@ -24,7 +24,7 @@ import com.lahuca.lane.data.PermissionKey;
  * A packet that tells the controller to read a data object.
  * @param requestId the request id to give the response to
  * @param id the id of the requested data object
- * @param permissionKey the permission key
+ * @param permissionKey the individual permission key
  */
 public record DataObjectReadPacket(long requestId, DataObjectId id, PermissionKey permissionKey) implements RequestPacket {
 

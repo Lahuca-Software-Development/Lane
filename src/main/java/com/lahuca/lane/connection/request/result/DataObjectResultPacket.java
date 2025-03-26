@@ -13,26 +13,28 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lane.connection.request;
+package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponsePacket;
+import com.lahuca.lane.data.DataObject;
 
 /**
- * Due to encoding/decoding of the used parser, generic types are parsed to Doubles.
- * Using this result packet fixes that problem, by explicitly sending the result to be a Long.
+ * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
+ * Using this result packet fixes that problem, by explicitly sending the result to be a {@link com.lahuca.lane.data.DataObject}.
  * @param requestId the request id of the original request.
  * @param result the result string.
  * @param data the data.
  */
-public record LongResultPacket(long requestId, String result, Long data) implements ResponsePacket<Long> {
+public record DataObjectResultPacket(long requestId, String result, DataObject data) implements ResponsePacket<DataObject> {
 
-    public static final String packetId = "longResult";
+    public static final String packetId = "dataObjectResult";
 
     static {
-        Packet.registerPacket(packetId, LongResultPacket.class);
+        Packet.registerPacket(packetId, DataObjectResultPacket.class);
     }
 
-    public LongResultPacket(long requestId, String result) {
+    public DataObjectResultPacket(long requestId, String result) {
         this(requestId, result, null);
     }
 
@@ -52,7 +54,7 @@ public record LongResultPacket(long requestId, String result, Long data) impleme
     }
 
     @Override
-    public Long getData() {
+    public DataObject getData() {
         return data;
     }
 }

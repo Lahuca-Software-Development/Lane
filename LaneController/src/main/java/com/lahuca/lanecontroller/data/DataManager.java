@@ -10,6 +10,11 @@ import java.util.concurrent.CompletableFuture;
 public interface DataManager {
 
     /**
+     * Shutdown the data manager.
+     */
+    void shutdown();
+
+    /**
      * Retrieves the data object at the given id with the given permission key.
      * When no data object exists at the given id, the optional is empty.
      * Otherwise, the data object is populated with the given data.
@@ -39,5 +44,7 @@ public interface DataManager {
      * @return a completable future with the status as boolean: true if successful or did not exist, false if not enough permission, null due to other causes
      */
     CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id);
+
+
 
 }

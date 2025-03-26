@@ -22,7 +22,11 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
-import com.lahuca.lane.connection.request.*;
+import com.lahuca.lane.connection.request.Request;
+import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponsePacket;
+import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
@@ -329,12 +333,12 @@ public abstract class LaneInstance {
     }
 
     /**
-     * Retrieves a data object at the given id with the provided permission key.
+     * Reads a data object at the given id with the provided permission key.
      * @param id the id of the data object
-     * @param permissionKey the permission key that wants to retrieve the data object
+     * @param permissionKey the permission key that wants to retrieve the data object, this must be an individual key
      * @return the request with the data object; the data object is null when there is no data object at the id.
      */
-    public Request<DataObject> retrieveDataObject(DataObjectId id, PermissionKey permissionKey) {
+    public Request<DataObject> readDataObject(DataObjectId id, PermissionKey permissionKey) {
         if(id == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         return connection.sendRequestPacket(requestId -> new DataObjectReadPacket(requestId, id, permissionKey), null);
     }
@@ -343,7 +347,7 @@ public abstract class LaneInstance {
      * Writes a data object at the given id with the provided permission key.
      * This either creates or updates the data object.
      * @param object the id of the data object
-     * @param permissionKey the permission key that wants to write the data object
+     * @param permissionKey the permission key that wants to write the data object, this must be an individual key
      * @return the request with the status
      */
     public Request<Void> writeDataObject(DataObject object, PermissionKey permissionKey) {
@@ -354,7 +358,7 @@ public abstract class LaneInstance {
     /**
      * Removes a data object at the given id with the provided permission key.
      * @param id the id of the data object
-     * @param permissionKey the permission key that wants to remove the data object
+     * @param permissionKey the permission key that wants to remove the data object, this must be an individual key
      * @return the request with the status
      */
     public Request<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {

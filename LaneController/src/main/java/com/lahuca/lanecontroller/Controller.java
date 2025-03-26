@@ -24,8 +24,14 @@ import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
 import com.lahuca.lane.connection.request.*;
+import com.lahuca.lane.connection.request.result.DataObjectResultPacket;
+import com.lahuca.lane.connection.request.result.LongResultPacket;
+import com.lahuca.lane.connection.request.result.SimpleResultPacket;
+import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.DataObject;
+import com.lahuca.lane.data.DataObjectId;
+import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.data.DataManager;
@@ -186,17 +192,26 @@ public abstract class Controller {
                     connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
                 }
             } else if(iPacket instanceof DataObjectReadPacket packet) {
+                if(!packet.permissionKey().isIndividual()) {
+                    connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                }
                 dataManager.readDataObject(packet.permissionKey(), packet.id()).whenComplete((object, ex) -> {
-                    if(ex != null) connection.sendPacket(new SimpleResultPacket<DataObject>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, object.orElse(null)), input.from());
+                    if(ex != null) connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.OK, object.orElse(null)), input.from());
                 });
             } else if(iPacket instanceof DataObjectWritePacket packet) {
+                if(!packet.permissionKey().isIndividual()) {
+                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                }
                 dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
                     if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                     else if(!bool) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                     else connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                 });
             } else if(iPacket instanceof DataObjectRemovePacket packet) {
+                if(!packet.permissionKey().isIndividual()) {
+                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                }
                 dataManager.removeDataObject(packet.permissionKey(), packet.id()).whenComplete((bool, ex) -> {
                     if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                     else if(!bool) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
@@ -212,6 +227,7 @@ public abstract class Controller {
 
     public void shutdown() {
         connection.close();
+        dataManager.shutdown();
         // TODO Probably more
     }
 
@@ -219,7 +235,7 @@ public abstract class Controller {
         return connection;
     }
 
-    public DataManager getDataManager() {
+    private DataManager getDataManager() {
         return dataManager;
     }
 
@@ -382,6 +398,53 @@ public abstract class Controller {
                 }
             });
         }
+    }
+
+    /**
+     * Retrieves the data object at the given id with the given permission key.
+     * When no data object exists at the given id, the optional is empty.
+     * Otherwise, the data object is populated with the given data.
+     * When the permission key does not grant reading, no information besides the id is filled in.
+     * If the permission key is not an individual key, the optional is empty.
+     * @param permissionKey the individual permission key to use while reading
+     * @param id the id of the data object to request
+     * @return a completable future with an optional with the data object
+     */
+    public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
+        if(!permissionKey.isIndividual()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return dataManager.readDataObject(permissionKey, id);
+    }
+
+    /**
+     * Writes the data object at the given id with the given permission key.
+     * When no data object exists at the given id, it is created.
+     * Otherwise, the data object is updated.
+     * When the permission key does not grant writing, it is not updated.
+     * @param permissionKey the individual permission key to use while writing
+     * @param object the data object to update it with
+     * @return a completable future with the status as boolean: true if successful, false if not enough permission, null due to other causes
+     */
+    public CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object) {
+        if(!permissionKey.isIndividual()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return dataManager.writeDataObject(permissionKey, object);
+    }
+
+    /**
+     * Removes the data object at the given id with the given permission key.
+     * When the permission key does not grant removing, it is not removed.
+     * @param permissionKey the individual permission key to use while removing
+     * @param id the id of the data object to remove
+     * @return a completable future with the status as boolean: true if successful or did not exist, false if not enough permission, null due to other causes
+     */
+    public CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
+        if(!permissionKey.isIndividual()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return dataManager.removeDataObject(permissionKey, id);
     }
 
     // TODO Redo

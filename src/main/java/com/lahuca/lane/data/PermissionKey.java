@@ -70,16 +70,36 @@ public record PermissionKey(String name, String identifier) {
         return true;
     }
 
+    /**
+     * Returns whether this permission key represents the controller permission key.
+     * @return true if it is
+     */
     public boolean isController() {
         return equals(CONTROLLER);
     }
 
+    /**
+     * Returns whether this permission key represents the everyone permission key.
+     * @return true if it is
+     */
     public boolean isEveryone() {
         return equals(EVERYONE);
     }
 
+    /**
+     * Returns whether this permission key represents a name only key.
+     * @return true if it is
+     */
     public boolean isNameKey() {
         return isFormattedCorrectly() && identifier == null;
+    }
+
+    /**
+     * Returns whether this permission key represents an individual key: it has a name and identifier part, and it is not the controller or everyone key.
+     * @return true if it is
+     */
+    public boolean isIndividual() {
+        return isFormattedCorrectly() && identifier != null && !isController() && !isEveryone();
     }
 
     /**
@@ -88,10 +108,11 @@ public record PermissionKey(String name, String identifier) {
      * @return true if the provided key has access
      */
     public boolean checkAccess(PermissionKey key) {
+        if(!isFormattedCorrectly() || !key.isFormattedCorrectly()) return false;
         if(isEveryone()) return true;
         if(isController() && key.isController()) return true;
-        if(isNameKey() && key.isNameKey() && name.equals(key.name)) return true;
-        return isFormattedCorrectly() && key.isFormattedCorrectly() && toString().equals(key.toString());
+        if(isNameKey() && name.equals(key.name)) return true;
+        return toString().equals(key.toString());
     }
 
 }

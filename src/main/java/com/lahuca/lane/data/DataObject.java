@@ -1,6 +1,7 @@
 package com.lahuca.lane.data;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.*;
@@ -166,7 +167,8 @@ public class DataObject {
      * @return true if all values are set.
      */
     public boolean isWriteable() {
-        return readPermission != null && writePermission != null && removalTime != null && type != null && value != null;
+        return readPermission != null && writePermission != null && removalTime != null && version != null && type != null && value != null
+                && readPermission.isFormattedCorrectly() && writePermission.isFormattedCorrectly();
     }
 
     /**
@@ -258,54 +260,144 @@ public class DataObject {
         return Optional.ofNullable(value);
     }
 
+    /**
+     * Gets the value as an integer.
+     * When the value is present and can be parsed, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<Integer> getValueAsInteger() {
-        return getValue().map(Integer::valueOf);
+        try {
+            return getValue().map(Integer::valueOf);
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
+    /**
+     * Gets the value as a long.
+     * When the value is present and can be parsed, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<Long> getValueAsLong() {
-        return getValue().map(Long::valueOf);
+        try {
+            return getValue().map(Long::valueOf);
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
+    /**
+     * Gets the value as a float.
+     * When the value is present and can be parsed, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<Float> getValueAsFloat() {
-        return getValue().map(Float::valueOf);
+        try {
+            return getValue().map(Float::valueOf);
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
+    /**
+     * Gets the value as a double.
+     * When the value is present and can be parsed, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<Double> getValueAsDouble() {
-        return getValue().map(Double::valueOf);
+        try {
+            return getValue().map(Double::valueOf);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 
+    /**
+     * Gets the value as a boolean.
+     * When the value is present, this optional will not be empty.
+     * Only when the value is equal to "true", the boolean will be true.
+     * @return the optional of the value
+     */
     public Optional<Boolean> getValueAsBoolean() {
         return getValue().map(Boolean::valueOf);
     }
 
+    /**
+     * Gets the value as a certain object by using the provided Gson and class.
+     * When the value is present and the value represents the given class, this optional will not be empty.
+     * @return the optional of the value
+     */
     public <T> Optional<T> getValueAsJson(Gson gson, Class<T> type) {
-        return getValue().map(value -> gson.fromJson(value, type));
+        try {
+            return getValue().map(value -> gson.fromJson(value, type));
+        } catch (JsonSyntaxException e) {
+            return Optional.empty();
+        }
     }
 
+    /**
+     * Gets the value as a certain object by using the provided Gson and type.
+     * When the value is present and the value represents the given type, this optional will not be empty.
+     * @return the optional of the value
+     */
     public <T> Optional<T> getValueAsJson(Gson gson, TypeToken<T> type) {
-        return getValue().map(value -> gson.fromJson(value, type));
+        try {
+            return getValue().map(value -> gson.fromJson(value, type));
+        } catch (JsonSyntaxException e) {
+            return Optional.empty();
+        }
     }
 
+    /**
+     * Gets the value as a string list.
+     * When the value is present and the value represents a string list, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<List<String>> getValueAsStringArray(Gson gson) {
         return getValueAsJson(gson, new TypeToken<>(){});
     }
 
+    /**
+     * Gets the value as an integer list.
+     * When the value is present and the value represents an integer list, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<List<Integer>> getValueAsIntegerArray(Gson gson) {
         return getValueAsJson(gson, new TypeToken<>(){});
     }
 
+    /**
+     * Gets the value as a long list.
+     * When the value is present and the value represents a long list, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<List<Long>> getValueAsLongArray(Gson gson) {
         return getValueAsJson(gson, new TypeToken<>(){});
     }
 
+    /**
+     * Gets the value as a float list.
+     * When the value is present and the value represents a float list, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<List<Float>> getValueAsFloatArray(Gson gson) {
         return getValueAsJson(gson, new TypeToken<>(){});
     }
 
+    /**
+     * Gets the value as a double list.
+     * When the value is present and the value represents a double list, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<List<Double>> getValueAsDoubleArray(Gson gson) {
         return getValueAsJson(gson, new TypeToken<>(){});
     }
 
+    /**
+     * Gets the value as a boolean list.
+     * When the value is present and the value represents a boolean list, this optional will not be empty.
+     * @return the optional of the value
+     */
     public Optional<List<Boolean>> getValueAsBooleanArray(Gson gson) {
         return getValueAsJson(gson, new TypeToken<>(){});
     }

@@ -13,20 +13,28 @@
  * Modifying, copying, nor publishing without Lahuca Software Development's consent is not allowed.
  * © Copyright Lahuca Software Development - 2024
  */
-package com.lahuca.lane.connection.request;
+package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponsePacket;
 
-public record VoidResultPacket(long requestId, String result) implements ResponsePacket<Void> {
+/**
+ * Due to encoding/decoding of the used parser, generic types are parsed to Doubles.
+ * Using this result packet fixes that problem, by explicitly sending the result to be a Long.
+ * @param requestId the request id of the original request.
+ * @param result the result string.
+ * @param data the data.
+ */
+public record LongResultPacket(long requestId, String result, Long data) implements ResponsePacket<Long> {
 
-    public static final String packetId = "voidResult";
-
-    public static VoidResultPacket ok(long requestId) {
-        return new VoidResultPacket(requestId, ResponsePacket.OK);
-    }
+    public static final String packetId = "longResult";
 
     static {
-        Packet.registerPacket(packetId, VoidResultPacket.class);
+        Packet.registerPacket(packetId, LongResultPacket.class);
+    }
+
+    public LongResultPacket(long requestId, String result) {
+        this(requestId, result, null);
     }
 
     @Override
@@ -45,7 +53,7 @@ public record VoidResultPacket(long requestId, String result) implements Respons
     }
 
     @Override
-    public Void getData() {
-        return null;
+    public Long getData() {
+        return data;
     }
 }

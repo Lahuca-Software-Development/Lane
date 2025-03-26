@@ -8,6 +8,7 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 
 import java.io.*;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,11 +40,12 @@ import java.util.concurrent.CompletableFuture;
  */
 public class FileDataManager implements DataManager {
 
-    // TODO Make method that runs through all data objects in the system to remove any that are
+    // TODO Make method that runs through all data objects in the system to remove any that are supposed to be gone due to removalTime. This should spare data.
 
     private final Gson gson;
     private final File dataFolder;
     private final long startTime = System.currentTimeMillis();
+    private final HashSet<DataObjectId> removeOnStop = new HashSet<>(); // TODO Maybe too much RAM usage?
 
     public FileDataManager(Gson gson, File dataFolder) throws FileNotFoundException {
         this.gson = gson;
@@ -60,6 +62,11 @@ public class FileDataManager implements DataManager {
         if(id.isRelational()) file = new File(dataFolder, "relational" + File.separator + id.relationalId().type() + File.separator + id.relationalId().id());
         else file = new File(dataFolder, "singular");
         return new File(file, id.id() + ".json");
+    }
+
+    @Override
+    public void shutdown() {
+        removeOnStop.forEach(id -> removeDataObject(PermissionKey.CONTROLLER, id));
     }
 
     @Override
@@ -113,6 +120,14 @@ public class FileDataManager implements DataManager {
         object.setLastUpdated(System.currentTimeMillis());
         try (FileWriter writer = new FileWriter(file)) {
             gson.toJson(object, writer);
+            // It is completed, if removed upon stop, add to list
+            object.getRemovalTime().ifPresent(removalTime -> {
+                if(removalTime == 0) {
+                    removeOnStop.add(object.getId());
+                } else {
+                    removeOnStop.remove(object.getId());
+                }
+            });
             return CompletableFuture.completedFuture(true);
         } catch (IOException e) {
             return CompletableFuture.failedFuture(e);
