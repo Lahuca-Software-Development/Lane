@@ -1,4 +1,4 @@
-package com.lahuca.lanecontroller.data;
+package com.lahuca.lane.data.manager;
 
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
@@ -16,7 +16,7 @@ public interface DataManager {
 
     /**
      * Retrieves the data object at the given id with the given permission key.
-     * When no data object exists at the given id, the optional is empty.
+     * When no data object exists at the given id, the optional is empty; or if it cannot be retrieved.
      * Otherwise, the data object is populated with the given data.
      * When the permission key does not grant reading, no information besides the id is filled in.
      * @param permissionKey the permission key to use while reading

@@ -25,12 +25,12 @@ import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
+import com.lahuca.lane.data.manager.DataManager;
+import com.lahuca.lane.data.manager.MySQLDataManager;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.message.MapLaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.*;
-import com.lahuca.lanecontroller.data.DataManager;
-import com.lahuca.lanecontroller.data.FileDataManager;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
@@ -49,10 +49,12 @@ import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 
-import java.io.File;
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
@@ -90,7 +92,8 @@ public class VelocityController {
         Connection connection = new ServerSocketConnection(port, gson, false);
 
         try {
-            FileDataManager dataManager = new FileDataManager(gson, new File(dataDirectory.toFile(), "data"));
+            //FileDataManager dataManager = new FileDataManager(gson, new File(dataDirectory.toFile(), "data"));
+            MySQLDataManager dataManager = new MySQLDataManager(gson, , "lane");
             controller = new Implementation(server, connection, dataManager);
         } catch (IOException e) {
             //TODO: Handle that exception
@@ -101,9 +104,31 @@ public class VelocityController {
         server.getCommandManager().register("party", new PartyCommand(), "p");
     }
 
+    protected DataSource createDataSource(String address, int port, String database, String username, String password) {
+        HikariConfig config = new HikariConfig();
+        config.setMaxLifetime(1800000);
+        config.setMinimumIdle(5);
+        config.setIdleTimeout(600000);
+        config.setMaximumPoolSize(10);
+        config.setConnectionTimeout(30000);
+        config.addDataSourceProperty("autoReconnect", true);
+        config.addDataSourceProperty("allowMultiQueries", true);
+        config.setTransactionIsolation("TRANSACTION_READ_COMMITTED");
+        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        config.setJdbcUrl("jdbc:mysql://" + address + ":" + port + "/" + database);
+        config.setUsername(username);
+        config.setPassword(password);
+        config.setLeakDetectionThreshold(60000L);
+        config.setAutoCommit(true);
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        return new HikariDataSource(config);
+    }
+
     @Subscribe
     public void onProxyInitialization(ProxyShutdownEvent event) {
-        controller.shutdown();
+        if(controller != null) controller.shutdown();
     }
 
     public Optional<Controller> getController() {

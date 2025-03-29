@@ -337,7 +337,6 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      */
     @Override
     public void close() {
-        System.out.println("DEBUG Close");
         if(isConnected()) sendPacket(new ConnectionClosePacket(), null);
         if(scheduledKeepAlive != null) scheduledKeepAlive.cancel(true);
         scheduledKeepAlive = null;
@@ -367,11 +366,9 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     @Override
     public void reconnect() {
         if(started || !reconnect) return;
-        System.out.println("DEBUG Reconnect");
         Runnable reconnectRunnable = new Runnable() {
             @Override
             public void run() {
-                System.out.println("DEBUG Reconnect Run");
                 if(started) {
                     if(reconnect) getScheduledExecutor().schedule(this, secondsBetweenReconnections, TimeUnit.SECONDS);
                     return;

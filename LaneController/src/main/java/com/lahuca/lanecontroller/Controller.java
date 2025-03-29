@@ -34,7 +34,7 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
-import com.lahuca.lanecontroller.data.DataManager;
+import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 
@@ -201,7 +201,7 @@ public abstract class Controller {
                 });
             } else if(iPacket instanceof DataObjectWritePacket packet) {
                 if(!packet.permissionKey().isIndividual()) {
-                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                    connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
                     if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());

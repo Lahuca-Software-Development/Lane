@@ -30,7 +30,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -95,7 +94,6 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 				unassignedClients.add(new ClientSocket(this, client, input, gson, assignId, onClose));
 			} catch (IOException e) {
 				// Well, looks like server is down, or has to stop.
-				System.out.println("DEBUG CLOSe5");
 				close();
 			}
 		}

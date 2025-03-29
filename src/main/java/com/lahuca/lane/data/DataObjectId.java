@@ -17,7 +17,7 @@ public record DataObjectId(RelationalId relationalId, String id) {
     }
 
     public boolean isRelational() {
-        return relationalId != null;
+        return relationalId != null && relationalId.type() != null && relationalId.id() != null;
     }
 
 }

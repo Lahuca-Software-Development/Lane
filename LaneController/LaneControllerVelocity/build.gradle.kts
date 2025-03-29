@@ -1,6 +1,7 @@
 plugins {
     id("java")
     `java-library`
+    id("com.gradleup.shadow") version "9.0.0-beta11"
 }
 
 group = "com.lahuca"
@@ -22,6 +23,8 @@ dependencies {
     annotationProcessor("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     api(project(":"))
     api(project(":LaneController"))
+    implementation("com.zaxxer:HikariCP:6.3.0")
+    implementation("com.mysql:mysql-connector-j:9.2.0")
 }
 
 tasks.test {
@@ -31,4 +34,13 @@ tasks.test {
 tasks.jar {
     from(project(":").sourceSets["main"].output)
     from(project(":LaneController").sourceSets["main"].output)
+}
+
+tasks.shadowJar {
+    dependencies {
+        include(dependency(":"))
+        include(dependency(":LaneController"))
+        include(dependency("com.zaxxer:HikariCP:6.3.0"))
+        include(dependency("com.mysql:mysql-connector-j:9.2.0"))
+    }
 }

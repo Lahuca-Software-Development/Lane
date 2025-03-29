@@ -59,14 +59,10 @@ public record PermissionKey(String name, String identifier) {
         if(name == null) return false;
         if(name.isEmpty() || name.length() > 32) return false;
         if((identifier != null && name.equals("*") && identifier.equals("*")) || (identifier != null &&name.equals("#") && identifier.equals("#"))) return true;
-        for (char c : name.toCharArray()) {
-            if(!Character.isLetterOrDigit(c)) return false;
-        }
+        if(!name.matches("[a-zA-Z0-9]+")) return false;
         if(identifier == null) return true;
         if(identifier.length() != 6) return false;
-        for (char c : identifier.toCharArray()) {
-            if(!Character.isLetterOrDigit(c)) return false;
-        }
+        if(!identifier.matches("[a-zA-Z0-9]+")) return false;
         return true;
     }
 

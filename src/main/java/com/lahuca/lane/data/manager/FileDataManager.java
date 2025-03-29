@@ -1,4 +1,4 @@
-package com.lahuca.lanecontroller.data;
+package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
