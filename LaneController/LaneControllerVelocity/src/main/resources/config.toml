@@ -1,0 +1,35 @@
+# ===================================================================
+# Connection
+# The following tables define the connection settings for the server.
+[connection]
+port = 7766
+# Currently, only SOCKET is supported.
+type = "SOCKET"
+
+# Settings for when connection.type is equal to SOCKET.
+# These define the settings for connections using sockets.
+[connection.socket]
+ssl = true
+
+# ===================================================================
+# Data Manager
+# The following tables define the data manager settings for the server.
+[dataManager]
+# Currently, supported are: FILE and MYSQL
+type = "FILE"
+
+# Settings for when dataManager.type is equal to FILE
+[dataManager.file]
+# Determines the name of the folder of where the data is stored.
+name = "data"
+
+# Settings for when dataManager.type is equal to MYSQL
+[dataManager.mysql]
+host = "localhost"
+port = 3306
+username = "username"
+password = "password"
+database = "database"
+# The prefix is appended to the tables created by the controller.
+# Do not include underscore (_) at the end, this is done automatically.
+prefix = "lane"

@@ -18,10 +18,7 @@ package com.lahuca.lane.connection.socket.client;
 import com.google.gson.Gson;
 import com.lahuca.lane.connection.*;
 import com.lahuca.lane.connection.packet.connection.*;
-import com.lahuca.lane.connection.request.Request;
-import com.lahuca.lane.connection.request.RequestHandler;
-import com.lahuca.lane.connection.request.RequestPacket;
-import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.*;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.io.BufferedReader;
@@ -203,6 +200,10 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         out.println(gson.toJson(outputPacket));
     }
 
+    private static <T> Request<T> disconnectedRequest() {
+        return new Request<>(new Result<>(ResponsePacket.CONTROLLER_DISCONNECTED));
+    }
+
     /**
      * Sends a request packet to the given destination, and it handles the response.
      * A request ID is generated that is being used to construct the request packet.
@@ -215,7 +216,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination) {
-        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return disconnectedRequest();
         Request<T> request = request();
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -241,7 +242,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, int timeoutSeconds) {
-        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return disconnectedRequest();
         Request<T> request = request(timeoutSeconds);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -267,7 +268,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser) {
-        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return disconnectedRequest();
         Request<T> request = request(resultParser);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
@@ -294,7 +295,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      */
     @Override
     public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
-        if(id == null || !isConnected()) return null; // TODO Wait for id announcement first, maybe exception?
+        if(id == null || !isConnected()) return disconnectedRequest();
         Request<T> request = request(resultParser, timeoutSeconds);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 

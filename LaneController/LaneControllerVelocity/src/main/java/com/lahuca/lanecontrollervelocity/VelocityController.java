@@ -26,6 +26,7 @@ import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
+import com.lahuca.lane.data.manager.FileDataManager;
 import com.lahuca.lane.data.manager.MySQLDataManager;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.message.MapLaneMessage;
@@ -35,6 +36,7 @@ import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
+import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.event.ResultedEvent;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
@@ -54,9 +56,13 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 
-import javax.sql.DataSource;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -77,6 +83,7 @@ public class VelocityController {
     private final ProxyServer server;
     private final Logger logger;
     private final Path dataDirectory;
+    private VelocityControllerConfiguration configuration = null;
     private Controller controller = null;
 
     @Inject
@@ -89,11 +96,53 @@ public class VelocityController {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        Connection connection = new ServerSocketConnection(port, gson, false);
+        initializeConfig();
+        // TODO Log whenever the config is the default one! So when it has made an error
 
+        // Connection
+        Connection connection = null;
+        if(configuration.getConnection().getType() == VelocityControllerConfiguration.Connection.Type.SOCKET) {
+            connection = new ServerSocketConnection(configuration.getConnection().getPort(), gson, configuration.getConnection().getSocket().isSsl());
+        }
+
+        // Data Manager
+        DataManager dataManager = null;
+        if(configuration.getDataManager().getType() == VelocityControllerConfiguration.DataManager.Type.FILE) {
+            try {
+                dataManager = new FileDataManager(gson, new File(dataDirectory.toFile(), configuration.getDataManager().getFile().getName()));
+            } catch (FileNotFoundException e) {
+                // We cannot start
+                // TODO Log this!
+                return;
+            }
+        } else if(configuration.getDataManager().getType() == VelocityControllerConfiguration.DataManager.Type.MYSQL) {
+            VelocityControllerConfiguration.DataManager.MySQL mysqlConfig = configuration.getDataManager().getMysql();
+            HikariConfig config = new HikariConfig();
+            config.setMaxLifetime(1800000);
+            config.setMinimumIdle(5);
+            config.setIdleTimeout(600000);
+            config.setMaximumPoolSize(10);
+            config.setConnectionTimeout(30000);
+            config.addDataSourceProperty("autoReconnect", true);
+            config.addDataSourceProperty("allowMultiQueries", true);
+            config.setTransactionIsolation("TRANSACTION_READ_COMMITTED");
+            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            config.setJdbcUrl("jdbc:mysql://" + mysqlConfig.getHost() + ":" + mysqlConfig.getPort() + "/" + mysqlConfig.getDatabase());
+            config.setUsername(mysqlConfig.getUsername());
+            config.setPassword(mysqlConfig.getPassword());
+            config.setLeakDetectionThreshold(60000L);
+            config.setAutoCommit(true);
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "250");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            dataManager = new MySQLDataManager(gson, new HikariDataSource(config), mysqlConfig.getPrefix());
+        }
+
+        if(connection == null || dataManager == null) {
+            // TODO Log
+            return;
+        }
         try {
-            //FileDataManager dataManager = new FileDataManager(gson, new File(dataDirectory.toFile(), "data"));
-            MySQLDataManager dataManager = new MySQLDataManager(gson, , "lane");
             controller = new Implementation(server, connection, dataManager);
         } catch (IOException e) {
             //TODO: Handle that exception
@@ -104,26 +153,49 @@ public class VelocityController {
         server.getCommandManager().register("party", new PartyCommand(), "p");
     }
 
-    protected DataSource createDataSource(String address, int port, String database, String username, String password) {
-        HikariConfig config = new HikariConfig();
-        config.setMaxLifetime(1800000);
-        config.setMinimumIdle(5);
-        config.setIdleTimeout(600000);
-        config.setMaximumPoolSize(10);
-        config.setConnectionTimeout(30000);
-        config.addDataSourceProperty("autoReconnect", true);
-        config.addDataSourceProperty("allowMultiQueries", true);
-        config.setTransactionIsolation("TRANSACTION_READ_COMMITTED");
-        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        config.setJdbcUrl("jdbc:mysql://" + address + ":" + port + "/" + database);
-        config.setUsername(username);
-        config.setPassword(password);
-        config.setLeakDetectionThreshold(60000L);
-        config.setAutoCommit(true);
-        config.addDataSourceProperty("cachePrepStmts", "true");
-        config.addDataSourceProperty("prepStmtCacheSize", "250");
-        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-        return new HikariDataSource(config);
+    private void initializeConfig() {
+        File file = new File(dataDirectory.toFile(), "config.toml");
+        if(!file.exists()) {
+            // File does not exist
+            if(!file.getParentFile().exists()) {
+                // Parent folder does not exist, create it.
+                if(!file.getParentFile().mkdirs()) {
+                    // We could not make parent folder, stop
+                    configuration = new VelocityControllerConfiguration();
+                    return;
+                }
+            }
+            try {
+                if(!file.createNewFile()) {
+                    configuration = new VelocityControllerConfiguration();
+                    return;
+                }
+            } catch (IOException e) {
+                configuration = new VelocityControllerConfiguration();
+                return;
+            }
+            // Create default
+            boolean done = false;
+            try (InputStream inputStream = getClass().getResourceAsStream("/config.toml")) {
+                if (inputStream != null) {
+                    Files.copy(inputStream, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    done = true;
+                }
+            } catch (IOException ignored) {
+                ignored.printStackTrace();
+            }
+            if(!done) {
+                configuration = new VelocityControllerConfiguration();
+                return;
+            }
+        }
+        // Load configuration
+        try {
+            Toml toml = new Toml().read(file);
+            configuration = toml.to(VelocityControllerConfiguration.class);
+        } catch (Exception ignored) {
+            configuration = new VelocityControllerConfiguration();
+        }
     }
 
     @Subscribe
