@@ -78,7 +78,7 @@ public class MySQLDataManager implements DataManager {
     @Override
     public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
         String tableName = getTableName(id);
-        if(tableName == null) return empty();
+        if(tableName == null) return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             PreparedStatement statement;
@@ -121,13 +121,13 @@ public class MySQLDataManager implements DataManager {
                         object = object.shallowCopy(readAccess, writeAccess);
                         return CompletableFuture.completedFuture(Optional.of(object));
                     } catch (IllegalArgumentException e) {
-                        return empty();
+                        return CompletableFuture.failedFuture(e);
                     }
                 }
                 return empty();
             }
         } catch (SQLException e) {
-            return empty();
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -143,11 +143,11 @@ public class MySQLDataManager implements DataManager {
      * @see #writeDataObject(PermissionKey, DataObject)
      */
     private CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object, boolean madeTable) {
-        if(!object.isWriteable()) return CompletableFuture.completedFuture(null);
+        if(!object.isWriteable()) return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
         if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.completedFuture(false);
         DataObjectId id = object.getId();
         String tableName = getTableName(id);
-        if(tableName == null) return CompletableFuture.completedFuture(null);
+        if(tableName == null) return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
             // First fetch the permission if it already exists. Make sure to lock it.
             connection.setAutoCommit(false);
@@ -168,7 +168,7 @@ public class MySQLDataManager implements DataManager {
                     // Odd, we found a match, but we did not get a permission.
                     if(writePermissionString == null) {
                         connection.setAutoCommit(true);
-                        return CompletableFuture.completedFuture(null);
+                        return CompletableFuture.failedFuture(new IllegalStateException("Write permission is null"));
                     }
                     PermissionKey writePermission = PermissionKey.fromString(writePermissionString);
                     if(!writePermission.checkAccess(permissionKey)) {
@@ -285,10 +285,10 @@ public class MySQLDataManager implements DataManager {
                     statement.executeUpdate();
                     return writeDataObject(permissionKey, object, true);
                 } catch (SQLException ex2) {
-                    return CompletableFuture.completedFuture(null);
+                    return CompletableFuture.failedFuture(ex2);
                 }
             }
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 

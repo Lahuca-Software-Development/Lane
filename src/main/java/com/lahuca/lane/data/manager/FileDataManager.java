@@ -92,7 +92,7 @@ public class FileDataManager implements DataManager {
     @Override
     public CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object) {
         // Check if given object is even valid.
-        if(!object.isWriteable()) return CompletableFuture.completedFuture(null);
+        if(!object.isWriteable()) return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
         if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.completedFuture(false);
         File file = buildFilePath(object.getId());
         // Check if it already exists
@@ -100,9 +100,9 @@ public class FileDataManager implements DataManager {
             // It does not exist, create it first.
             try {
                 if(!file.getParentFile().exists()) {
-                    if(!file.getParentFile().mkdirs()) return CompletableFuture.completedFuture(null);
+                    if(!file.getParentFile().mkdirs()) return CompletableFuture.failedFuture(new SecurityException("Could not create parent directory"));
                 }
-                if(!file.createNewFile()) return CompletableFuture.completedFuture(null);
+                if(!file.createNewFile()) return CompletableFuture.failedFuture(new SecurityException("Could not create file"));
             } catch (IOException | SecurityException e) {
                 return CompletableFuture.failedFuture(e);
             }
@@ -145,7 +145,7 @@ public class FileDataManager implements DataManager {
             else {
                 // Remove
                 if(file.delete()) return CompletableFuture.completedFuture(true);
-                else return CompletableFuture.completedFuture(null);
+                else return CompletableFuture.failedFuture(new SecurityException("Could not delete file"));
             }
         } catch (IOException | JsonIOException | JsonSyntaxException | SecurityException e) {
             return CompletableFuture.failedFuture(e);

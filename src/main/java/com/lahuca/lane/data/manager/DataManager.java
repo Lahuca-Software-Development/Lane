@@ -32,7 +32,7 @@ public interface DataManager {
      * When the permission key does not grant writing, it is not updated.
      * @param permissionKey the permission key to use while writing
      * @param object the data object to update it with
-     * @return a completable future with the status as boolean: true if successful, false if not enough permission, null due to other causes
+     * @return a completable future with the status as boolean: true if successful or false if not enough permission
      */
     CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object);
 
@@ -41,7 +41,7 @@ public interface DataManager {
      * When the permission key does not grant removing, it is not removed.
      * @param permissionKey the permission key to use while removing
      * @param id the id of the data object to remove
-     * @return a completable future with the status as boolean: true if successful or did not exist, false if not enough permission, null due to other causes
+     * @return a completable future with the status as boolean: true if successful or did not exist or false if not enough permission
      */
     CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id);
 

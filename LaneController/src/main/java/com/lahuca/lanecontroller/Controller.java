@@ -32,6 +32,7 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.data.manager.DataManager;
@@ -70,7 +71,7 @@ public abstract class Controller {
 
         Packet.registerPackets();
 
-        if(connection instanceof ServerSocketConnection serverSocketConnection) {
+        if (connection instanceof ServerSocketConnection serverSocketConnection) {
             // TODO Definitely change the type!
             serverSocketConnection.setOnClientRemove(id -> {
                 instances.remove(id);
@@ -81,8 +82,8 @@ public abstract class Controller {
         connection.initialise(input -> {
             Packet iPacket = input.packet();
             System.out.println("Got Packet: " + input.from());
-            if(iPacket instanceof GameStatusUpdatePacket packet) {
-                if(!games.containsKey(packet.gameId())) {
+            if (iPacket instanceof GameStatusUpdatePacket packet) {
+                if (!games.containsKey(packet.gameId())) {
                     // A new game has been created, yeey!
                     ControllerGameState initialState = new ControllerGameState(packet.state());
                     games.put(packet.gameId(),
@@ -92,36 +93,36 @@ public abstract class Controller {
                     return;
                 }
                 ControllerGame game = games.get(packet.gameId());
-                if(!game.getInstanceId().equals(input.from())) {
+                if (!game.getInstanceId().equals(input.from())) {
                     connection.sendPacket(new VoidResultPacket(packet.requestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                     return;
                 }
                 games.get(packet.gameId()).update(packet.name(), packet.state());
                 connection.sendPacket(new VoidResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
-            } else if(iPacket instanceof InstanceStatusUpdatePacket packet) {
+            } else if (iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).update(packet.type(), packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
-            } else if(iPacket instanceof PartyPacket.Retrieve.Request packet) {
+            } else if (iPacket instanceof PartyPacket.Retrieve.Request packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-            } else if(iPacket instanceof PartyPacket.Player.Add packet) {
+            } else if (iPacket instanceof PartyPacket.Player.Add packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::addPlayer,
                                 () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                         () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-            } else if(iPacket instanceof PartyPacket.Player.Remove packet) {
+            } else if (iPacket instanceof PartyPacket.Player.Remove packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::removePlayer,
                                 () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                         () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-            } else if(iPacket instanceof PartyPacket.Disband.Request packet) {
+            } else if (iPacket instanceof PartyPacket.Disband.Request packet) {
                 getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-            } else if(iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
+            } else if (iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
                 getRelationship(packet.relationshipId()).ifPresentOrElse(relationship ->
                                 connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-            } else if(iPacket instanceof QueueRequestPacket packet) {
+            } else if (iPacket instanceof QueueRequestPacket packet) {
                 getPlayer(packet.player()).ifPresentOrElse(player -> {
                     queue(player, new QueueRequest(QueueRequestReason.PLUGIN_INSTANCE, packet.parameters())).whenComplete((result, exception) -> {
                         String response;
-                        if(exception != null) {
+                        if (exception != null) {
                             response = ResponsePacket.UNKNOWN;
                         } else {
                             response = result.result();
@@ -129,7 +130,7 @@ public abstract class Controller {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), response), input.from());
                     });
                 }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
-            } else if(iPacket instanceof QueueFinishedPacket packet) {
+            } else if (iPacket instanceof QueueFinishedPacket packet) {
                 System.out.println("Retrieved finish queue");
                 getPlayer(packet.player()).ifPresentOrElse(player -> {
                     System.out.println("Retrieved finish queue 0");
@@ -138,10 +139,10 @@ public abstract class Controller {
                         System.out.println("Retrieved finish queue 1");
                         // There is a queue, check if the state of the player was to transfer to the retrieved instance/game.
                         ControllerPlayerState state = player.getState();
-                        if(state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                        if (state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
                             System.out.println("Retrieved finish queue 2");
                             // Check if we either joined the correct instance or game.
-                            if(state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
+                            if (state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
                                 // We joined an instance.
                                 System.out.println("Retrieved finish queue 3");
                                 ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE,
@@ -151,7 +152,7 @@ public abstract class Controller {
                                 player.setQueueRequest(null);
                                 player.setInstanceId(input.from());
                                 connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
-                            } else if(packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID)
+                            } else if (packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID)
                                     && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId())
                                     && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
                                 System.out.println("Retrieved finish queue 4");
@@ -176,7 +177,7 @@ public abstract class Controller {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
                     }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
                 }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
-            } else if(iPacket instanceof RequestIdPacket packet) {
+            } else if (iPacket instanceof RequestIdPacket packet) {
                 Long newId;
                 switch (packet.type()) {
                     case GAME -> {
@@ -186,39 +187,48 @@ public abstract class Controller {
                     }
                     default -> newId = null;
                 }
-                if(newId == null) {
+                if (newId == null) {
                     connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 } else {
                     connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
                 }
-            } else if(iPacket instanceof DataObjectReadPacket packet) {
-                if(!packet.permissionKey().isIndividual()) {
+            } else if (iPacket instanceof DataObjectReadPacket packet) {
+                if (!packet.permissionKey().isIndividual()) {
                     connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.readDataObject(packet.permissionKey(), packet.id()).whenComplete((object, ex) -> {
-                    if(ex != null) connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.OK, object.orElse(null)), input.from());
+                    if (ex != null)
+                        // TODO Add more exceptions. To write and remove as well!
+                        connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else
+                        connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.OK, object.orElse(null)), input.from());
                 });
-            } else if(iPacket instanceof DataObjectWritePacket packet) {
-                if(!packet.permissionKey().isIndividual()) {
+            } else if (iPacket instanceof DataObjectWritePacket packet) {
+                if (!packet.permissionKey().isIndividual()) {
                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
-                    if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else if(!bool) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
-                    else connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                    if (ex != null || bool == null)
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else if (!bool)
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                    else
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                 });
-            } else if(iPacket instanceof DataObjectRemovePacket packet) {
-                if(!packet.permissionKey().isIndividual()) {
+            } else if (iPacket instanceof DataObjectRemovePacket packet) {
+                if (!packet.permissionKey().isIndividual()) {
                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.removeDataObject(packet.permissionKey(), packet.id()).whenComplete((bool, ex) -> {
-                    if(ex != null || bool == null) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else if(!bool) connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
-                    else connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                    if (ex != null || bool == null)
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                    else if (!bool)
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                    else
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                 });
-            } else if(iPacket instanceof ResponsePacket<?> response) {
-                if(!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
+            } else if (iPacket instanceof ResponsePacket<?> response) {
+                if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Well, log about packet that is not wanted.
                 }
             }
@@ -240,7 +250,7 @@ public abstract class Controller {
     }
 
     private ControllerLaneInstance createGetInstance(String id) {
-        if(!instances.containsKey(id)) instances.put(id, new ControllerLaneInstance(id, null));
+        if (!instances.containsKey(id)) instances.put(id, new ControllerLaneInstance(id, null));
         return instances.get(id);
     }
 
@@ -254,7 +264,8 @@ public abstract class Controller {
 
     /**
      * A dynamic way of queuing a player to join an instance or game.
-     * @param player The player
+     *
+     * @param player            The player
      * @param requestParameters The queue request parameters
      * @return
      */
@@ -266,7 +277,8 @@ public abstract class Controller {
      * A dynamic way of queuing a player to join an instance or game.
      * This immediately retrieves the queue request instead of the request parameters.
      * This method is therefore intended to only be used internally, as the request reason should be set by the system.
-     * @param player The player
+     *
+     * @param player  The player
      * @param request The queue request
      * @return The result of the queuing the request, this does not return the result of the queue
      */
@@ -280,7 +292,8 @@ public abstract class Controller {
     /**
      * Handles a single state of queueing a player which has been initialized by a plugin.
      * This assumes that the new state has already been added to the request.
-     * @param player The player
+     *
+     * @param player     The player
      * @param stageEvent The event tied to this queue request
      */
     private void handleQueueStage(ControllerPlayer player, QueueStageEvent stageEvent) {
@@ -288,38 +301,38 @@ public abstract class Controller {
         stageEvent.setNoneResult();
         handleQueueStageEvent(stageEvent);
         QueueStageEventResult result = stageEvent.getResult();
-        if(result instanceof QueueStageEventResult.None none) {
+        if (result instanceof QueueStageEventResult.None none) {
             // Queue is being cancelled
-            if(none.getMessage() != null && !none.getMessage().isEmpty()) {
+            if (none.getMessage() != null && !none.getMessage().isEmpty()) {
                 sendMessage(player.getUuid(), none.getMessage());
             }
             player.setQueueRequest(null);
             return;
-        } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
-            if(disconnect.getMessage() != null && !disconnect.getMessage().isEmpty()) {
+        } else if (result instanceof QueueStageEventResult.Disconnect disconnect) {
+            if (disconnect.getMessage() != null && !disconnect.getMessage().isEmpty()) {
                 disconnectPlayer(player.getUuid(), disconnect.getMessage());
             } else {
                 disconnectPlayer(player.getUuid(), null);
             }
             player.setQueueRequest(null);
             return;
-        } else if(result instanceof QueueStageEventResult.QueueStageEventJoinableResult joinable) {
+        } else if (result instanceof QueueStageEventResult.QueueStageEventJoinableResult joinable) {
             ControllerLaneInstance instance;
             String resultInstanceId;
             Long resultGameId;
             // TODO playTogetherPlayers!
-            if(joinable instanceof QueueStageEventResult.JoinGame joinGame) {
+            if (joinable instanceof QueueStageEventResult.JoinGame joinGame) {
                 resultInstanceId = null;
                 resultGameId = joinGame.getGameId();
                 Optional<ControllerGame> gameOptional = getGame(joinGame.getGameId());
-                if(gameOptional.isEmpty()) {
+                if (gameOptional.isEmpty()) {
                     request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID));
                     handleQueueStage(player, stageEvent);
                     return;
                 }
                 ControllerGame game = gameOptional.get();
                 Optional<ControllerLaneInstance> instanceOptional = getInstance(game.getInstanceId());
-                if(instanceOptional.isEmpty()) {
+                if (instanceOptional.isEmpty()) {
                     // Run the stage event again to determine a new ID.
                     request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID));
                     handleQueueStage(player, stageEvent);
@@ -331,7 +344,7 @@ public abstract class Controller {
                 QueueStageEventResult.JoinInstance joinInstance = (QueueStageEventResult.JoinInstance) result;
                 resultInstanceId = joinInstance.getInstanceId();
                 Optional<ControllerLaneInstance> instanceOptional = getInstance(joinInstance.getInstanceId());
-                if(instanceOptional.isEmpty()) {
+                if (instanceOptional.isEmpty()) {
                     // Run the stage event again to determine a new ID.
                     request.stages().add(joinInstance.constructStage(QueueStageResult.UNKNOWN_ID));
                     handleQueueStage(player, stageEvent);
@@ -340,7 +353,7 @@ public abstract class Controller {
                 instance = instanceOptional.get();
             }
             Set<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
-            if(instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + playTogetherPlayers.size() + 1 <= instance.getMaxPlayers()) {
+            if (instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + playTogetherPlayers.size() + 1 <= instance.getMaxPlayers()) {
                 // Run the stage event again to find a joinable instance.
                 request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, resultInstanceId, resultGameId));
                 handleQueueStage(player, stageEvent);
@@ -349,7 +362,7 @@ public abstract class Controller {
             // TODO Check whether the game actually has a place left (for 1 + playTogetherPlayers). ONLY WHEN result is JoinGame
             // We found a hopefully free instance, try do send the packet.
             ControllerPlayerState state;
-            if(joinable instanceof QueueStageEventResult.JoinGame) {
+            if (joinable instanceof QueueStageEventResult.JoinGame) {
                 state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
             } else {
                 state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
@@ -358,20 +371,20 @@ public abstract class Controller {
             player.setQueueRequest(request);
             CompletableFuture<Result<Void>> future = connection.<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
             future.whenComplete((joinPacketResult, exception) -> {
-                if(exception != null) {
+                if (exception != null) {
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
                     handleQueueStage(player, stageEvent);
                     return;
                 }
-                if(joinPacketResult.isSuccessful()) {
+                if (joinPacketResult.isSuccessful()) {
                     CompletableFuture<Result<Void>> joinFuture = joinServer(player.getUuid(), instance.getId());
                     joinFuture.whenComplete((joinResult, joinException) -> {
-                        if(joinException != null) {
+                        if (joinException != null) {
                             request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
                             handleQueueStage(player, stageEvent);
                             return;
                         }
-                        if(!joinResult.isSuccessful()) {
+                        if (!joinResult.isSuccessful()) {
                             // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                             request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
                             handleQueueStage(player, stageEvent);
@@ -379,9 +392,9 @@ public abstract class Controller {
                         }
                         // WOOO, we have joined!, we are done for THIS player
 
-                        if(!playTogetherPlayers.isEmpty()) {
+                        if (!playTogetherPlayers.isEmpty()) {
                             QueueRequestParameter partyJoinParameter;
-                            if(resultGameId != null) {
+                            if (resultGameId != null) {
                                 partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(instance.getId()).build();
                             } else {
                                 partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstanceId).build();
@@ -405,14 +418,15 @@ public abstract class Controller {
      * When no data object exists at the given id, the optional is empty.
      * Otherwise, the data object is populated with the given data.
      * When the permission key does not grant reading, no information besides the id is filled in.
-     * If the permission key is not an individual key, the optional is empty.
+     * If the permission key is not an individual key, the completable future is thrown with an {@link IllegalArgumentException}.
+     *
      * @param permissionKey the individual permission key to use while reading
-     * @param id the id of the data object to request
+     * @param id            the id of the data object to request
      * @return a completable future with an optional with the data object
      */
     public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
-        if(!permissionKey.isIndividual()) {
-            return CompletableFuture.completedFuture(Optional.empty());
+        if (!permissionKey.isIndividual()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.readDataObject(permissionKey, id);
     }
@@ -422,13 +436,15 @@ public abstract class Controller {
      * When no data object exists at the given id, it is created.
      * Otherwise, the data object is updated.
      * When the permission key does not grant writing, it is not updated.
+     * If the permission key is not an individual key, the completable future is thrown with an {@link IllegalArgumentException}.
+     *
      * @param permissionKey the individual permission key to use while writing
-     * @param object the data object to update it with
-     * @return a completable future with the status as boolean: true if successful, false if not enough permission, null due to other causes
+     * @param object        the data object to update it with
+     * @return a completable future with the status as boolean: true if successful or false if not enough permission
      */
     public CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object) {
-        if(!permissionKey.isIndividual()) {
-            return CompletableFuture.completedFuture(null);
+        if (!permissionKey.isIndividual()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.writeDataObject(permissionKey, object);
     }
@@ -436,13 +452,15 @@ public abstract class Controller {
     /**
      * Removes the data object at the given id with the given permission key.
      * When the permission key does not grant removing, it is not removed.
+     * If the permission key is not an individual key, the completable future is thrown with an {@link IllegalArgumentException}.
+     *
      * @param permissionKey the individual permission key to use while removing
-     * @param id the id of the data object to remove
-     * @return a completable future with the status as boolean: true if successful or did not exist, false if not enough permission, null due to other causes
+     * @param id            the id of the data object to remove
+     * @return a completable future with the status as boolean: true if successful or did not exist or false if not enough permission
      */
     public CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
-        if(!permissionKey.isIndividual()) {
-            return CompletableFuture.completedFuture(null);
+        if (!permissionKey.isIndividual()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.removeDataObject(permissionKey, id);
     }
@@ -460,12 +478,13 @@ public abstract class Controller {
 
     /**
      * Registers the player on the controller
+     *
      * @param player the player to register
      * @return true if succesful
      */
     public boolean registerPlayer(ControllerPlayer player) {
-        if(player == null || player.getUuid() == null) return false;
-        if(players.containsKey(player.getUuid())) return false;
+        if (player == null || player.getUuid() == null) return false;
+        if (players.containsKey(player.getUuid())) return false;
         players.put(player.getUuid(), player);
         return true;
     }
@@ -479,8 +498,8 @@ public abstract class Controller {
      * @param invited
      */
     public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
-        if(owner == null || invited == null) return;
-        if(owner.getPartyId().isPresent()) return;
+        if (owner == null || invited == null) return;
+        if (owner.getPartyId().isPresent()) return;
         ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
         // TODO Check ID for doubles
 
@@ -488,10 +507,10 @@ public abstract class Controller {
     }
 
     public void disbandParty(ControllerParty party) { // TODO Redo: might send packets to servers with party info
-        if(!parties.containsKey(party.getId())) return;
+        if (!parties.containsKey(party.getId())) return;
         parties.remove(party.getId());
 
-        for(UUID uuid : party.getPlayers()) {
+        for (UUID uuid : party.getPlayers()) {
             getPlayer(uuid).ifPresent(player -> player.setParty(null));
         }
 
@@ -520,6 +539,21 @@ public abstract class Controller {
         return players.values().stream().filter(player -> player.getName().equals(name)).findFirst();
     }
 
+    /**
+     * Gets the last known username of the player with the given UUID.
+     * @param uuid the uuid
+     * @return a completable future that retrieves an optional that has the username or is empty when no one with the given UUID was online at least once.
+     */
+    public CompletableFuture<Optional<String>> getOfflinePlayerName(UUID uuid) {
+        // TODO Put the username in!
+        return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(uuid), "username")).thenApply(dataObject -> {
+            if(dataObject.isPresent()) {
+                return dataObject.get().getValue();
+            }
+            return Optional.empty();
+        });
+    }
+
     public Collection<ControllerParty> getParties() {
         return parties.values();
     } // TODO Redo
@@ -543,7 +577,8 @@ public abstract class Controller {
     /**
      * Method that will switch the server of the given player to the given server.
      * This should not do anything when the player is already connected to the given server.
-     * @param uuid the player's uuid
+     *
+     * @param uuid        the player's uuid
      * @param destination the server's id
      * @return the completable future with the result
      */
@@ -551,6 +586,7 @@ public abstract class Controller {
 
     /**
      * Gets the translator to be used for messages on the proxy.
+     *
      * @return the translator
      */
     public abstract LaneMessage getTranslator();
@@ -558,7 +594,8 @@ public abstract class Controller {
     /**
      * Gets a new ControllerLaneInstance for the given ControllerPlayer to join.
      * This instance is not intended to be played at a game at currently.
-     * @param player the player requesting a new instance
+     *
+     * @param player  the player requesting a new instance
      * @param exclude the collection of instances to exclude from the output
      * @return the instance to go to, if the optional is null, then no instance could be found
      */
@@ -567,13 +604,15 @@ public abstract class Controller {
     /**
      * Lets the implemented controller handle the {@link QueueStageEvent}.
      * Do not do blocking actions while handling the event, as often a "direct" response is needed.
+     *
      * @param event The event to handle.
      */
     public abstract void handleQueueStageEvent(QueueStageEvent event);
 
     /**
      * Send a message to the player with the given UUID.
-     * @param player The player's UUID
+     *
+     * @param player  The player's UUID
      * @param message The message to send
      * @return true whether the message was successfully sent
      */
@@ -581,7 +620,8 @@ public abstract class Controller {
 
     /**
      * Disconnect the player with the given message from the network.
-     * @param player The player's UUID
+     *
+     * @param player  The player's UUID
      * @param message The message to show when disconnecting
      * @return true whether the player was successfully disconnected.
      */
