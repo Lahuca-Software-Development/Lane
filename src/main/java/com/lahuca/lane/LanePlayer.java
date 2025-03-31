@@ -26,7 +26,7 @@ import java.util.UUID;
 public interface LanePlayer extends RecordApplier<PlayerRecord> {
 
 	UUID getUuid();
-	String getName();
+	String getUsername();
 	String getDisplayName();
 	Locale getLanguage();
 	Optional<QueueRequest> getQueueRequest();

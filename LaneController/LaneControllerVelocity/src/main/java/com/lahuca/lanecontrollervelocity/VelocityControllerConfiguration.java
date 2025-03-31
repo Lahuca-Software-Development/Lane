@@ -4,10 +4,12 @@ public class VelocityControllerConfiguration {
 
     private final Connection connection;
     private final DataManager dataManager;
+    private final Commands commands;
 
     public VelocityControllerConfiguration() {
         connection = new Connection();
         dataManager = new DataManager();
+        commands = new Commands();
     }
 
     public Connection getConnection() {
@@ -16,6 +18,10 @@ public class VelocityControllerConfiguration {
 
     public DataManager getDataManager() {
         return dataManager;
+    }
+
+    public Commands getCommands() {
+        return commands;
     }
 
     public static class Connection {
@@ -150,6 +156,26 @@ public class VelocityControllerConfiguration {
                 return prefix;
             }
 
+        }
+
+    }
+
+    public static class Commands {
+
+        private final boolean friend;
+        private final boolean party;
+
+        public Commands() {
+            friend = true;
+            party = true;
+        }
+
+        public boolean isFriend() {
+            return friend;
+        }
+
+        public boolean isParty() {
+            return party;
         }
 
     }

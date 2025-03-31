@@ -25,7 +25,7 @@ import java.util.*;
 public class ControllerPlayer implements LanePlayer {
 
     private final UUID uuid;
-    private final String name;
+    private final String username;
     private String displayName;
     private Locale language;
     private QueueRequest queueRequest;
@@ -35,9 +35,9 @@ public class ControllerPlayer implements LanePlayer {
     private Long partyId = null;
     private final Set<Long> relationships = new HashSet<>();
 
-    public ControllerPlayer(UUID uuid, String name, String displayName, Locale language) {
+    public ControllerPlayer(UUID uuid, String username, String displayName, Locale language) {
         this.uuid = uuid;
-        this.name = name;
+        this.username = username;
         this.displayName = displayName;
         this.language = language;
     }
@@ -53,8 +53,8 @@ public class ControllerPlayer implements LanePlayer {
     }
 
     @Override
-    public String getName() {
-        return name;
+    public String getUsername() {
+        return username;
     }
 
     @Override
@@ -161,7 +161,7 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, name, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
+        return new PlayerRecord(uuid, username, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
     }
 
     /**
@@ -187,6 +187,6 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("name='" + name + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).add("relationships=" + relationships).toString();
+        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).add("relationships=" + relationships).toString();
     }
 }

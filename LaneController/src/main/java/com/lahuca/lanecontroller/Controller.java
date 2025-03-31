@@ -23,7 +23,8 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
-import com.lahuca.lane.connection.request.*;
+import com.lahuca.lane.connection.request.ResponsePacket;
+import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.result.DataObjectResultPacket;
 import com.lahuca.lane.connection.request.result.LongResultPacket;
 import com.lahuca.lane.connection.request.result.SimpleResultPacket;
@@ -33,9 +34,9 @@ import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
+import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
-import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 
@@ -535,19 +536,59 @@ public abstract class Controller {
         return Optional.ofNullable(players.get(uuid));
     } // TODO Redo
 
-    public Optional<ControllerPlayer> getPlayerByName(String name) { // TODO Redo
-        return players.values().stream().filter(player -> player.getName().equals(name)).findFirst();
+    public Optional<ControllerPlayer> getPlayerByUsername(String name) { // TODO Redo
+        return players.values().stream().filter(player -> player.getUsername().equals(name)).findFirst();
     }
 
     /**
      * Gets the last known username of the player with the given UUID.
+     * It is taken either immediately if the player is online, otherwise the value that is present in the data manager.
+     *
+     * @param uuid the player's UUID.
+     * @return a CompletableFuture with an optional, if data has been found the optional is populated with the username; otherwise it is empty.
+     */
+    public CompletableFuture<Optional<String>> getPlayerUsername(UUID uuid) {
+        // TODO Allow option to enable case-insensitive
+        Optional<String> optional = getPlayer(uuid).map(ControllerPlayer::getUsername);
+        if (optional.isPresent()) {
+            return CompletableFuture.completedFuture(optional);
+        }
+        // TODO Probably we want to cache!
+        // TODO Put in!
+        return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(uuid), "username")).thenApply(dataObject ->
+                dataObject.flatMap(DataObject::getValue));
+    }
+
+    /**
+     * Gets the last known UUID of the player with the given username.
+     * It is taken either immediately if the player is online, otherwise the value that is present in the data manager.
+     *
+     * @param username the player's username
+     * @return a CompletableFuture with an optional, if data has been found the optional is populated with the UUID; otherwise it is empty
+     */
+    public CompletableFuture<Optional<UUID>> getPlayerUuid(String username) {
+        // TODO
+        // usernames.Laurenshup.uuid = UUID
+        Optional<UUID> optional = getPlayerByUsername(username).map(ControllerPlayer::getUuid);
+        if (optional.isPresent()) {
+            return CompletableFuture.completedFuture(optional);
+        }
+        // TODO Probably we want to caache!
+        // TODO Put in
+        return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Usernames(username), "uuid"))
+                .thenApply(dataObject -> dataObject.flatMap(object -> object.getValue().map(UUID::fromString)));
+    }
+
+    /**
+     * Gets the last known username of the player with the given UUID.
+     *
      * @param uuid the uuid
      * @return a completable future that retrieves an optional that has the username or is empty when no one with the given UUID was online at least once.
      */
     public CompletableFuture<Optional<String>> getOfflinePlayerName(UUID uuid) {
         // TODO Put the username in!
         return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(uuid), "username")).thenApply(dataObject -> {
-            if(dataObject.isPresent()) {
+            if (dataObject.isPresent()) {
                 return dataObject.get().getValue();
             }
             return Optional.empty();

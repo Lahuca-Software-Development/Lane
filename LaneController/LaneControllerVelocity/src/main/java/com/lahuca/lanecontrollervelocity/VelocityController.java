@@ -37,6 +37,7 @@ import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.moandjiezana.toml.Toml;
+import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.ResultedEvent;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
@@ -149,8 +150,13 @@ public class VelocityController {
             e.printStackTrace();
         }
 
-        server.getCommandManager().register("friends", new FriendCommand(), "f", "friend");
-        server.getCommandManager().register("party", new PartyCommand(), "p");
+        CommandManager commandManager = server.getCommandManager();
+        if(configuration.getCommands().isFriend()) {
+            commandManager.register(commandManager.metaBuilder("friend").aliases("f", "friends").plugin(this).build(), new FriendCommand(this, controller, dataManager, gson).createBrigadierCommand());
+        }
+        if(configuration.getCommands().isParty()) {
+            commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand());
+        }
     }
 
     private void initializeConfig() {

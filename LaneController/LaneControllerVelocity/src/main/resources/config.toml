@@ -1,5 +1,6 @@
 # ===================================================================
 # Connection
+# ===================================================================
 # The following tables define the connection settings for the server.
 [connection]
 port = 7766
@@ -11,8 +12,10 @@ type = "SOCKET"
 [connection.socket]
 ssl = true
 
+
 # ===================================================================
 # Data Manager
+# ===================================================================
 # The following tables define the data manager settings for the server.
 [dataManager]
 # Currently, supported are: FILE and MYSQL
@@ -33,3 +36,12 @@ database = "database"
 # The prefix is appended to the tables created by the controller.
 # Do not include underscore (_) at the end, this is done automatically.
 prefix = "lane"
+
+
+# ===================================================================
+# Commands
+# ===================================================================
+[commands]
+# The following values define whether the default implementation for the /friend and /party commands should be used.
+friend = true
+party = true
