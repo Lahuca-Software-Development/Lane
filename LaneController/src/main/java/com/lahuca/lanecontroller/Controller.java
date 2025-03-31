@@ -62,7 +62,6 @@ public abstract class Controller {
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
     private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
     private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
-    private final HashMap<Long, ControllerRelationship> relationships = new HashMap<>();
 
 
     public Controller(Connection connection, DataManager dataManager) throws IOException {
@@ -115,10 +114,6 @@ public abstract class Controller {
                         () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if (iPacket instanceof PartyPacket.Disband.Request packet) {
                 getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-            } else if (iPacket instanceof RelationshipPacket.Retrieve.Request packet) {
-                getRelationship(packet.relationshipId()).ifPresentOrElse(relationship ->
-                                connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, relationship.convertToRecord()), input.from()),
-                        () -> connection.sendPacket(new RelationshipPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if (iPacket instanceof QueueRequestPacket packet) {
                 getPlayer(packet.player()).ifPresentOrElse(player -> {
                     queue(player, new QueueRequest(QueueRequestReason.PLUGIN_INSTANCE, packet.parameters())).whenComplete((result, exception) -> {
@@ -518,16 +513,6 @@ public abstract class Controller {
         party.disband();
     }
 
-    public ControllerRelationship createRelationship(ControllerPlayer... players) { // TODO Redo: might send to instances
-        long id = System.currentTimeMillis();
-        Set<UUID> uuids = new HashSet<>();
-        Arrays.stream(players).forEach(controllerPlayer -> uuids.add(controllerPlayer.getUuid()));
-
-        ControllerRelationship controllerRelationship = new ControllerRelationship(id, uuids);
-        relationships.put(id, controllerRelationship);
-        return controllerRelationship;
-    }
-
     public Collection<ControllerPlayer> getPlayers() {
         return players.values();
     } // TODO Redo
@@ -598,10 +583,6 @@ public abstract class Controller {
     public Collection<ControllerParty> getParties() {
         return parties.values();
     } // TODO Redo
-
-    public Optional<ControllerRelationship> getRelationship(long id) { // TODO Redo
-        return Optional.ofNullable(relationships.get(id));
-    }
 
     public Optional<ControllerParty> getParty(long id) {
         return Optional.ofNullable(parties.get(id));

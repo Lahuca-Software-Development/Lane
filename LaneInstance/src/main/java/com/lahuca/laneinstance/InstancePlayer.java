@@ -23,7 +23,6 @@ public class InstancePlayer implements LanePlayer {
     private Long gameId = null;
     private InstancePlayerState state = null;
     private Long partyId = null;
-    private Set<Long> relationships;
 
     public InstancePlayer(UUID uuid, String username, String displayName) {
         this.uuid = uuid;
@@ -92,11 +91,6 @@ public class InstancePlayer implements LanePlayer {
     }
 
     @Override
-    public Set<Long> getRelationships() {
-        return relationships;
-    }
-
-    @Override
     public PlayerRecord convertRecord() {
         return new PlayerRecord(uuid, username, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
@@ -116,7 +110,7 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).add("relationships=" + relationships).toString();
+        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
     }
 
 }

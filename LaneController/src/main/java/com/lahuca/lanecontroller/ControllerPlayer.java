@@ -33,18 +33,12 @@ public class ControllerPlayer implements LanePlayer {
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
-    private final Set<Long> relationships = new HashSet<>();
 
     public ControllerPlayer(UUID uuid, String username, String displayName, Locale language) {
         this.uuid = uuid;
         this.username = username;
         this.displayName = displayName;
         this.language = language;
-    }
-
-    @Override
-    public Set<Long> getRelationships() {
-        return relationships;
     }
 
     @Override
@@ -118,16 +112,6 @@ public class ControllerPlayer implements LanePlayer {
         updateInstancePlayer();
     }
 
-    public void addRelationship(Long id) {
-        relationships.add(id);
-        updateInstancePlayer();
-    }
-
-    public void removeRelationship(Long id) {
-        relationships.remove(id);
-        updateInstancePlayer();
-    }
-
     /**
      * Sets the party associated with this controller.
      *
@@ -148,20 +132,9 @@ public class ControllerPlayer implements LanePlayer {
         updateInstancePlayer();
     }
 
-    public Optional<ControllerRelationship> getRelationshipWith(UUID uuid) {
-        for(Long relationship : relationships) {
-            ControllerRelationship cRelationship = Controller.getInstance().getRelationship(relationship).orElse(null);
-            if(cRelationship == null) continue;
-            if(!cRelationship.players().contains(uuid)) continue;
-            return Optional.of(cRelationship);
-        }
-
-        return Optional.empty();
-    }
-
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId); // TODO Add Queue
+        return new PlayerRecord(uuid, username, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
 
     /**
@@ -187,6 +160,6 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).add("relationships=" + relationships).toString();
+        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
     }
 }

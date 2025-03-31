@@ -33,7 +33,6 @@ import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
-import com.lahuca.lane.records.RelationshipRecord;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -364,10 +363,6 @@ public abstract class LaneInstance {
     public Request<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {
         if(id == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         return connection.sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null);
-    }
-
-    public Request<RelationshipRecord> getRelationship(long relationshipId) {
-        return connection.sendRequestPacket(id -> new RelationshipPacket.Retrieve.Request(id, relationshipId), null);
     }
 
     public Request<PartyRecord> getParty(long partyId) {

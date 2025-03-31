@@ -55,9 +55,6 @@ public interface Packet {
 		Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
 		Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
 		Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
-		Packet.registerPacket(RelationshipPacket.Create.Request.packetId, RelationshipPacket.Create.Request.class);
-		Packet.registerPacket(RelationshipPacket.Retrieve.Request.packetId, RelationshipPacket.Retrieve.Request.class);
-		Packet.registerPacket(RelationshipPacket.Retrieve.Response.packetId, RelationshipPacket.Retrieve.Response.class);
 		Packet.registerPacket(ConnectionConnectPacket.packetId, ConnectionConnectPacket.class);
 
 		Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
