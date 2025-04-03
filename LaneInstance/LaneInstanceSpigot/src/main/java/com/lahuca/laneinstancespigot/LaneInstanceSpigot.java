@@ -45,6 +45,7 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 //    public static final String id = "survival";
 //    public static final String ip = "mc.slux.cz";
 //    public static final int port = 776;
+    public static LaneInstanceSpigot instance;
     public static final Gson gson = new GsonBuilder().create();
 //    public static final boolean joinable = true;
 //    public static final boolean nonPlayable = false;
@@ -53,7 +54,7 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-
+        instance = this;
         // TODO Current status: Try rejoining!
         // TODO Maaybe response is not clearing!
         saveDefaultConfig();
@@ -160,4 +161,7 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
         }
     }
 
+    public static LaneInstanceSpigot getInstance() {
+        return instance;
+    }
 }

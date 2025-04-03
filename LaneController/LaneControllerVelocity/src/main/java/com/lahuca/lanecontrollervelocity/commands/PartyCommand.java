@@ -74,7 +74,7 @@ public class PartyCommand implements SimpleCommand {
 
             runAsPartyLeader(controllerPlayer, party -> {
                 String name = args[1];
-                Controller.getInstance().getPlayerByName(name).ifPresentOrElse(target -> {
+                Controller.getInstance().getPlayerByUsername(name).ifPresentOrElse(target -> {
                     if(!party.contains(target.getUuid())) {
                         //TODO: send message that given player is not in party
                         return;
@@ -99,7 +99,7 @@ public class PartyCommand implements SimpleCommand {
 
             String inviter = args[1];
 
-            Controller.getInstance().getPlayerByName(inviter).ifPresentOrElse(controllerInviter -> {
+            Controller.getInstance().getPlayerByUsername(inviter).ifPresentOrElse(controllerInviter -> {
                 getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
                     if(!party.getInvited().contains(player.getUniqueId())) {
                         //TODO send message that this player didnt invite him
@@ -123,7 +123,7 @@ public class PartyCommand implements SimpleCommand {
 
             String inviter = args[1];
 
-            Controller.getInstance().getPlayerByName(inviter).ifPresentOrElse(controllerInviter -> getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
+            Controller.getInstance().getPlayerByUsername(inviter).ifPresentOrElse(controllerInviter -> getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
                 if(!party.getInvited().contains(player.getUniqueId())) {
                     //TODO send message that this player didnt invite him
                     return;
@@ -181,7 +181,7 @@ public class PartyCommand implements SimpleCommand {
             // /party <Player> - Will send invitation
             String name = args[0];
 
-            Controller.getInstance().getPlayerByName(name).ifPresentOrElse(target -> {
+            Controller.getInstance().getPlayerByUsername(name).ifPresentOrElse(target -> {
                 if(playerParty.isEmpty()) {
                     Controller.getInstance().createParty(controllerPlayer, target);
                 } else {
