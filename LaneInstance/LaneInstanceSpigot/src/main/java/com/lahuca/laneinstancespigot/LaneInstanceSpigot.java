@@ -53,7 +53,6 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-
         // TODO Current status: Try rejoining!
         // TODO Maaybe response is not clearing!
         saveDefaultConfig();
@@ -159,5 +158,4 @@ public class LaneInstanceSpigot extends JavaPlugin implements Listener {
             }
         }
     }
-
 }
