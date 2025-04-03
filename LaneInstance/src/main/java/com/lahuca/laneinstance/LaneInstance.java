@@ -64,7 +64,7 @@ public abstract class LaneInstance {
     private boolean nonPlayable; // Tells whether the instance is also non-playable: e.g. lobby
 
     public LaneInstance(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
-        if(instance != null) throw new InstanceInstantiationException();
+        if (instance != null) throw new InstanceInstantiationException();
         instance = this;
         this.id = id;
         this.type = type;
@@ -76,26 +76,26 @@ public abstract class LaneInstance {
         this.nonPlayable = nonPlayable;
         connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
-            if(input.packet() instanceof InstanceJoinPacket packet) {
-                if(!isJoinable()) {
+            if (input.packet() instanceof InstanceJoinPacket packet) {
+                if (!isJoinable()) {
                     sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
                     return;
                 }
                 // TODO Find if slot, also when the max players which has been RESERVED is met
                 // TODO Added later at 15 June, it looks like this already accounts for reserved positions.
-                if(!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
+                if (!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
                     sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                     return;
                 }
-                if(packet.gameId() != null) {
+                if (packet.gameId() != null) {
                     Optional<LaneGame> instanceGame = getInstanceGame(packet.gameId());
-                    if(instanceGame.isEmpty()) {
+                    if (instanceGame.isEmpty()) {
                         sendSimpleResult(packet, ResponsePacket.INVALID_ID);
                         return;
                     }
                     LaneGame game = instanceGame.get();
                     GameState state = game.getGameState();
-                    if(!state.isJoinable()) {
+                    if (!state.isJoinable()) {
                         sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
                         return;
                     }
@@ -106,11 +106,11 @@ public abstract class LaneInstance {
                 getInstancePlayer(record.uuid()).ifPresentOrElse(player -> player.applyRecord(record),
                         () -> players.put(record.uuid(), new InstancePlayer(record))); // TODO What happens if the player fails the connect?
                 sendSimpleResult(packet, ResponsePacket.OK);
-            } else if(input.packet() instanceof InstanceUpdatePlayerPacket packet) {
+            } else if (input.packet() instanceof InstanceUpdatePlayerPacket packet) {
                 PlayerRecord record = packet.playerRecord();
                 getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
-            } else if(input.packet() instanceof ResponsePacket<?> response) {
-                if(!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
+            } else if (input.packet() instanceof ResponsePacket<?> response) {
+                if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Handle output: failed response
                 }
             }
@@ -142,7 +142,7 @@ public abstract class LaneInstance {
     }
 
     public void setJoinable(boolean joinable) {
-        joinable = joinable;
+        this.joinable = joinable;
         sendInstanceStatus();
     }
 
@@ -175,28 +175,21 @@ public abstract class LaneInstance {
 
     /**
      * Constructs a CompletableFuture that contains the direct result.
+     *
      * @param result The result.
      * @return A CompletableFuture consisting of no additional data and the result.
      */
-    public static CompletableFuture<Result<Void>> simpleFuture(String result) {
+    private static CompletableFuture<Result<Void>> simpleFuture(String result) {
         return CompletableFuture.completedFuture(new Result<>(result));
     }
 
-    public static <T> Request<T> simpleRequest(String result) {
+    private static <T> Request<T> simpleRequest(String result) {
         return new Request<>(new Result<>(result));
     }
 
     private void sendInstanceStatus() {
         sendController(new InstanceStatusUpdatePacket(type, joinable, nonPlayable, getCurrentPlayers(),
                 getMaxPlayers()));
-    }
-
-    public Optional<InstancePlayer> getInstancePlayer(UUID player) {
-        return Optional.ofNullable(players.get(player));
-    }
-
-    public Optional<LaneGame> getInstanceGame(long gameId) {
-        return Optional.ofNullable(games.get(gameId));
     }
 
     /**
@@ -224,7 +217,7 @@ public abstract class LaneInstance {
                 // Player tries to join game
                 getInstanceGame(gameId).ifPresentOrElse(game -> {
                     // Player tries to join this instance. Check if possible.
-                    if(!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
+                    if (!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
                         // We cannot be at this instance.
                         disconnectPlayer(uuid, "Instance not joinable or full"); // TODO Translate
                         return;
@@ -233,7 +226,7 @@ public abstract class LaneInstance {
                     // Send queue finished to controller
                     try {
                         Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
-                        if(result == null || !result.isSuccessful()) {
+                        if (result == null || !result.isSuccessful()) {
                             disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                             return;
                         }
@@ -248,7 +241,7 @@ public abstract class LaneInstance {
                 });
             }, () -> {
                 // Player tries to join this instance. Check if possible.
-                if(!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
+                if (!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
                     // We cannot be at this instance.
                     disconnectPlayer(uuid, "Instance not joinable or full"); // TODO Translate
                     return;
@@ -256,7 +249,7 @@ public abstract class LaneInstance {
                 // Join allowed, finalize
                 try {
                     Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
-                    if(!result.isSuccessful()) {
+                    if (!result.isSuccessful()) {
                         disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
                         return;
                     }
@@ -298,29 +291,31 @@ public abstract class LaneInstance {
     }
 
     private Request<Long> requestId(RequestIdPacket.Type idType) {
-        if(idType == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if (idType == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         return connection.sendRequestPacket(id -> new RequestIdPacket(id, idType), null);
     }
 
     /**
      * Registers a new game upon the function that gives a new game ID.
+     *
      * @param gameConstructor the id to game parser. Preferably a lambda with LaneGame::new is given, whose constructor consists of only the ID.
      * @return the request of the registering, it completes successfully with the game when it is successfully registered.
      */
     public Request<LaneGame> registerGame(Function<Long, LaneGame> gameConstructor) {
-        if(gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if (gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         try {
             Result<Long> gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
-            if(!gameId.isSuccessful()) {
+            if (!gameId.isSuccessful()) {
                 return simpleRequest(ResponsePacket.INVALID_STATE);
             }
             LaneGame game = gameConstructor.apply(gameId.data());
-            if(game.getGameId() != gameId.data() || games.containsKey(game.getGameId())) return simpleRequest(ResponsePacket.INVALID_ID);
+            if (game.getGameId() != gameId.data() || games.containsKey(game.getGameId()))
+                return simpleRequest(ResponsePacket.INVALID_ID);
             games.put(game.getGameId(), game);
             Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
                     game.getGameState().convertRecord()), null);
             return request.thenApplyConstruct(result -> {
-                if(!result.isSuccessful()) {
+                if (!result.isSuccessful()) {
                     games.remove(game.getGameId());
                     return new Result<>(result.result(), null);
                 }
@@ -333,37 +328,87 @@ public abstract class LaneInstance {
 
     /**
      * Reads a data object at the given id with the provided permission key.
-     * @param id the id of the data object
+     *
+     * @param id            the id of the data object
      * @param permissionKey the permission key that wants to retrieve the data object, this must be an individual key
      * @return the request with the data object; the data object is null when there is no data object at the id.
      */
     public Request<DataObject> readDataObject(DataObjectId id, PermissionKey permissionKey) {
-        if(id == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if (id == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
+            return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         return connection.sendRequestPacket(requestId -> new DataObjectReadPacket(requestId, id, permissionKey), null);
     }
 
     /**
      * Writes a data object at the given id with the provided permission key.
      * This either creates or updates the data object.
-     * @param object the id of the data object
+     *
+     * @param object        the id of the data object
      * @param permissionKey the permission key that wants to write the data object, this must be an individual key
      * @return the request with the status
      */
     public Request<Void> writeDataObject(DataObject object, PermissionKey permissionKey) {
-        if(object == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if (object == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
+            return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         return connection.sendRequestPacket(requestId -> new DataObjectWritePacket(requestId, object, permissionKey), null);
     }
 
     /**
      * Removes a data object at the given id with the provided permission key.
-     * @param id the id of the data object
+     *
+     * @param id            the id of the data object
      * @param permissionKey the permission key that wants to remove the data object, this must be an individual key
      * @return the request with the status
      */
     public Request<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {
-        if(id == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if (id == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
+            return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         return connection.sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null);
     }
+
+    /**
+     * Retrieves an InstancePlayer by a given UUID on this instance.
+     *
+     * @param player the UUID of the player
+     * @return an optional of the InstancePlayer object.
+     */
+    public Optional<InstancePlayer> getInstancePlayer(UUID player) {
+        return Optional.ofNullable(players.get(player));
+    }
+
+    /**
+     * Retrieves a collection of all instance players on this instance.
+     *
+     * @return the collection
+     */
+    public Collection<InstancePlayer> getInstancePlayers() {
+        return players.values();
+    }
+
+
+    /**
+     * Retrieves an InstanceGame by a given game ID on this instance.
+     *
+     * @param gameId the game ID of the game
+     * @return an optional of the LaneGame object.
+     */
+    public Optional<LaneGame> getInstanceGame(long gameId) {
+        return Optional.ofNullable(games.get(gameId));
+    }
+
+    /**
+     * Retrieves a collection of all Lane games on this instance.
+     *
+     * @return the collection
+     */
+    public Collection<LaneGame> getInstanceGames() {
+        return games.values();
+    }
+
+
+
+
+    // TODO Below: todo
 
     public Request<PartyRecord> getParty(long partyId) {
         return connection.sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null);
@@ -380,13 +425,5 @@ public abstract class LaneInstance {
     public Request<Void> removePartyPlayer(long partyId, UUID player) {
         return connection.sendRequestPacket(id -> new PartyPacket.Player.Remove(id, partyId, player), null);
     }
-
-    public Collection<InstancePlayer> getPlayers() {
-        return players.values(); // TODO REDO
-    }
-
-    public Collection<LaneGame> getGames() {
-        return games.values();
-    } // TODO Redo
 
 }
