@@ -232,21 +232,21 @@ public abstract class Controller {
                     // TODO Concurrent?
                     data.add(value.convertRecord());
                 }
-                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+                connection.sendPacket(new RequestInformationPacket.PlayersResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
             } else if (iPacket instanceof RequestInformationPacket.Games packet) {
                 ArrayList<GameRecord> data = new ArrayList<>();
                 for (ControllerGame value : games.values()) {
                     // TODO Concurrent?
                     data.add(value.convertRecord());
                 }
-                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+                connection.sendPacket(new RequestInformationPacket.GamesResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
             } else if (iPacket instanceof RequestInformationPacket.Instances packet) {
                 ArrayList<InstanceRecord> data = new ArrayList<>();
                 for (ControllerLaneInstance value : instances.values()) {
                     // TODO Concurrent?
                     data.add(value.convertRecord());
                 }
-                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+                connection.sendPacket(new RequestInformationPacket.InstancesResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
             } else if (iPacket instanceof ResponsePacket<?> response) {
                 if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Well, log about packet that is not wanted.

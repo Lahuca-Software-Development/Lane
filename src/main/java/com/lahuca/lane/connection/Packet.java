@@ -73,8 +73,11 @@ public interface Packet {
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
 
 		Packet.registerPacket(RequestInformationPacket.Players.packetId, RequestInformationPacket.Players.class);
+		Packet.registerPacket(RequestInformationPacket.PlayersResponse.packetId, RequestInformationPacket.PlayersResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Games.packetId, RequestInformationPacket.Games.class);
+		Packet.registerPacket(RequestInformationPacket.GamesResponse.packetId, RequestInformationPacket.GamesResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Instances.packetId, RequestInformationPacket.Instances.class);
+		Packet.registerPacket(RequestInformationPacket.InstancesResponse.packetId, RequestInformationPacket.InstancesResponse.class);
 	}
 
 	String getPacketId();
