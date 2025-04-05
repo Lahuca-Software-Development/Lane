@@ -72,10 +72,16 @@ public interface Packet {
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
 
+		Packet.registerPacket(RequestInformationPacket.Player.packetId, RequestInformationPacket.Player.class);
+		Packet.registerPacket(RequestInformationPacket.PlayerResponse.packetId, RequestInformationPacket.PlayerResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Players.packetId, RequestInformationPacket.Players.class);
 		Packet.registerPacket(RequestInformationPacket.PlayersResponse.packetId, RequestInformationPacket.PlayersResponse.class);
+		Packet.registerPacket(RequestInformationPacket.Game.packetId, RequestInformationPacket.Game.class);
+		Packet.registerPacket(RequestInformationPacket.GameResponse.packetId, RequestInformationPacket.GameResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Games.packetId, RequestInformationPacket.Games.class);
 		Packet.registerPacket(RequestInformationPacket.GamesResponse.packetId, RequestInformationPacket.GamesResponse.class);
+		Packet.registerPacket(RequestInformationPacket.Instance.packetId, RequestInformationPacket.Instance.class);
+		Packet.registerPacket(RequestInformationPacket.InstanceResponse.packetId, RequestInformationPacket.InstanceResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Instances.packetId, RequestInformationPacket.Instances.class);
 		Packet.registerPacket(RequestInformationPacket.InstancesResponse.packetId, RequestInformationPacket.InstancesResponse.class);
 	}

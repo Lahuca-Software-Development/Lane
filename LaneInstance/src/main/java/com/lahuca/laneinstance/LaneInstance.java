@@ -381,6 +381,17 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     /**
+     * Retrieves a request of the player record of the player with the given UUID on the controller.
+     * The value is null when no player with the given UUID is present.
+     * @param uuid the UUID of the player
+     * @return the request
+     */
+    public Request<PlayerRecord> getPlayerRecord(UUID uuid) {
+        if(uuid == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        return connection.sendRequestPacket(id -> new RequestInformationPacket.Player(id, uuid), null);
+    }
+
+    /**
      * Retrieves a request of a collection of immutable records of all players on the controller.
      *
      * @return the request
@@ -388,7 +399,6 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     public Request<ArrayList<PlayerRecord>> getAllPlayerRecords() {
         return connection.sendRequestPacket(RequestInformationPacket.Players::new, null);
     }
-
 
     /**
      * Retrieves an InstanceGame by a given game ID on this instance.
@@ -410,12 +420,33 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     /**
+     * Retrieves a request of the game record of the game with the given ID on the controller.
+     * The value is null when no game with the given ID is present.
+     * @param gameId the ID of the game
+     * @return the request
+     */
+    public Request<PlayerRecord> getGameRecord(long gameId) {
+        return connection.sendRequestPacket(id -> new RequestInformationPacket.Game(id, gameId), null);
+    }
+
+    /**
      * Retrieves a request of a collection of immutable records of all games on the controller.
      *
      * @return the request
      */
     public Request<ArrayList<GameRecord>> getAllGameRecords() {
         return connection.sendRequestPacket(RequestInformationPacket.Games::new, null);
+    }
+
+    /**
+     * Retrieves a request of the instance record of the instance with the given ID on the controller.
+     * The value is null when no instance with the given ID is present.
+     * @param id the ID of the instance
+     * @return the request
+     */
+    public Request<InstanceRecord> getInstanceRecord(String id) {
+        if(id == null || id.isEmpty()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        return connection.sendRequestPacket(requestId -> new RequestInformationPacket.Instance(requestId, id), null);
     }
 
     /**

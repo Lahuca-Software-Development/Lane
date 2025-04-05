@@ -8,8 +8,65 @@ import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
+/**
+ * This class holds information about packets that request and respond about information on the controller.
+ * The single packets Player, Game and Instance are used to request a specific player, game or instance.
+ * The response packets are PlayerResponse, GameResponse and InstanceResponse.
+ * To retrieve all of them, use the plural versions: Players, Games and Instances.
+ */
 public class RequestInformationPacket {
+
+    public record Player(long requestId, UUID uuid) implements RequestPacket {
+
+        public static final String packetId = "requestInformationPacket.player";
+
+        static {
+            Packet.registerPacket(packetId, Player.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
+    public record PlayerResponse(long requestId, String result, PlayerRecord data) implements ResponsePacket<PlayerRecord> {
+
+        public static final String packetId = "requestInformationPacket.playerResponse";
+
+        static {
+            Packet.registerPacket(packetId, PlayerResponse.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+        @Override
+        public String getResult() {
+            return result;
+        }
+
+        @Override
+        public PlayerRecord getData() {
+            return data;
+        }
+
+    }
 
     public record Players(long requestId) implements RequestPacket {
 
@@ -61,6 +118,56 @@ public class RequestInformationPacket {
 
     }
 
+    public record Game(long requestId, long gameId) implements RequestPacket {
+
+        public static final String packetId = "requestInformationPacket.game";
+
+        static {
+            Packet.registerPacket(packetId, Game.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
+    public record GameResponse(long requestId, String result, GameRecord data) implements ResponsePacket<GameRecord> {
+
+        public static final String packetId = "requestInformationPacket.gameResponse";
+
+        static {
+            Packet.registerPacket(packetId, GameResponse.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+        @Override
+        public String getResult() {
+            return result;
+        }
+
+        @Override
+        public GameRecord getData() {
+            return data;
+        }
+
+    }
+
     public record Games(long requestId) implements RequestPacket {
 
         public static final String packetId = "requestInformationPacket.games";
@@ -106,6 +213,56 @@ public class RequestInformationPacket {
 
         @Override
         public ArrayList<GameRecord> getData() {
+            return data;
+        }
+
+    }
+
+    public record Instance(long requestId, String id) implements RequestPacket {
+
+        public static final String packetId = "requestInformationPacket.instance";
+
+        static {
+            Packet.registerPacket(packetId, Instance.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
+    public record InstanceResponse(long requestId, String result, InstanceRecord data) implements ResponsePacket<InstanceRecord> {
+
+        public static final String packetId = "requestInformationPacket.instanceResponse";
+
+        static {
+            Packet.registerPacket(packetId, InstanceResponse.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+        @Override
+        public String getResult() {
+            return result;
+        }
+
+        @Override
+        public InstanceRecord getData() {
             return data;
         }
 

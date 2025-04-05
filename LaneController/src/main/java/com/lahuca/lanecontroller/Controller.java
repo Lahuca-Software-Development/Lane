@@ -226,6 +226,9 @@ public abstract class Controller {
                     else
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                 });
+            } else if (iPacket instanceof RequestInformationPacket.Player packet) {
+                connection.sendPacket(new RequestInformationPacket.PlayerResponse(packet.getRequestId(), ResponsePacket.OK,
+                        getPlayer(packet.uuid()).map(ControllerPlayer::convertRecord).orElse(null)), input.from());
             } else if (iPacket instanceof RequestInformationPacket.Players packet) {
                 ArrayList<PlayerRecord> data = new ArrayList<>();
                 for (ControllerPlayer value : players.values()) {
@@ -233,6 +236,9 @@ public abstract class Controller {
                     data.add(value.convertRecord());
                 }
                 connection.sendPacket(new RequestInformationPacket.PlayersResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+            } else if (iPacket instanceof RequestInformationPacket.Game packet) {
+                connection.sendPacket(new RequestInformationPacket.GameResponse(packet.getRequestId(), ResponsePacket.OK,
+                        getGame(packet.gameId()).map(ControllerGame::convertRecord).orElse(null)), input.from());
             } else if (iPacket instanceof RequestInformationPacket.Games packet) {
                 ArrayList<GameRecord> data = new ArrayList<>();
                 for (ControllerGame value : games.values()) {
@@ -240,6 +246,9 @@ public abstract class Controller {
                     data.add(value.convertRecord());
                 }
                 connection.sendPacket(new RequestInformationPacket.GamesResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+            } else if (iPacket instanceof RequestInformationPacket.Instance packet) {
+                connection.sendPacket(new RequestInformationPacket.InstanceResponse(packet.getRequestId(), ResponsePacket.OK,
+                        getInstance(packet.id()).map(ControllerLaneInstance::convertRecord).orElse(null)), input.from());
             } else if (iPacket instanceof RequestInformationPacket.Instances packet) {
                 ArrayList<InstanceRecord> data = new ArrayList<>();
                 for (ControllerLaneInstance value : instances.values()) {
