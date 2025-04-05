@@ -319,7 +319,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                 return new Result<>(result.result(), game);
             });
         } catch (InterruptedException | ExecutionException | CancellationException e) {
-            return simpleRequest(ResponsePacket.INTERRUPTED);
+            return simpleRequest(ResponsePacket.INTERRUPTED); // TODO Forward to Request?
         }
     }
 
