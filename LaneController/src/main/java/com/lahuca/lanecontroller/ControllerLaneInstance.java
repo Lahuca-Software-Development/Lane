@@ -15,10 +15,13 @@
  */
 package com.lahuca.lanecontroller;
 
+import com.lahuca.lane.records.InstanceRecord;
+import com.lahuca.lane.records.RecordConverterApplier;
+
 import java.util.Optional;
 import java.util.StringJoiner;
 
-public class ControllerLaneInstance {
+public class ControllerLaneInstance implements RecordConverterApplier<InstanceRecord> {
 
     private String id;
     private String type;
@@ -68,12 +71,18 @@ public class ControllerLaneInstance {
         return maxPlayers;
     }
 
-    public void update(String type, boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) {
-        this.type = type;
-        this.joinable = joinable;
-        this.nonPlayable = nonPlayable;
-        this.currentPlayers = currentPlayers;
-        this.maxPlayers = maxPlayers;
+    @Override
+    public InstanceRecord convertRecord() {
+        return new InstanceRecord(id, type, joinable, nonPlayable, currentPlayers, maxPlayers);
+    }
+
+    @Override
+    public void applyRecord(InstanceRecord record) {
+        type = record.type();
+        joinable = record.joinable();
+        nonPlayable = record.nonPlayable();
+        currentPlayers = record.currentPlayers();
+        maxPlayers = record.maxPlayers();
     }
 
     @Override

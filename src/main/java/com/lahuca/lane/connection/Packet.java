@@ -71,6 +71,10 @@ public interface Packet {
 		Packet.registerPacket(DataObjectReadPacket.packetId, DataObjectReadPacket.class);
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
+
+		Packet.registerPacket(RequestInformationPacket.Players.packetId, RequestInformationPacket.Players.class);
+		Packet.registerPacket(RequestInformationPacket.Games.packetId, RequestInformationPacket.Games.class);
+		Packet.registerPacket(RequestInformationPacket.Instances.packetId, RequestInformationPacket.Instances.class);
 	}
 
 	String getPacketId();

@@ -16,6 +16,7 @@
 package com.lahuca.lane.connection.socket.client;
 
 import com.google.gson.Gson;
+import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.*;
 import com.lahuca.lane.connection.packet.connection.*;
 import com.lahuca.lane.connection.request.*;

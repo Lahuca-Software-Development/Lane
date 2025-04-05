@@ -37,6 +37,9 @@ import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
+import com.lahuca.lane.records.GameRecord;
+import com.lahuca.lane.records.InstanceRecord;
+import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 
@@ -100,7 +103,7 @@ public abstract class Controller {
                 games.get(packet.gameId()).update(packet.name(), packet.state());
                 connection.sendPacket(new VoidResultPacket(packet.requestId(), ResponsePacket.OK), input.from());
             } else if (iPacket instanceof InstanceStatusUpdatePacket packet) {
-                createGetInstance(input.from()).update(packet.type(), packet.joinable(), packet.nonPlayable(), packet.currentPlayers(), packet.maxPlayers());
+                createGetInstance(input.from()).applyRecord(packet.record());
             } else if (iPacket instanceof PartyPacket.Retrieve.Request packet) {
                 getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
@@ -223,6 +226,27 @@ public abstract class Controller {
                     else
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                 });
+            } else if (iPacket instanceof RequestInformationPacket.Players packet) {
+                ArrayList<PlayerRecord> data = new ArrayList<>();
+                for (ControllerPlayer value : players.values()) {
+                    // TODO Concurrent?
+                    data.add(value.convertRecord());
+                }
+                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+            } else if (iPacket instanceof RequestInformationPacket.Games packet) {
+                ArrayList<GameRecord> data = new ArrayList<>();
+                for (ControllerGame value : games.values()) {
+                    // TODO Concurrent?
+                    data.add(value.convertRecord());
+                }
+                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+            } else if (iPacket instanceof RequestInformationPacket.Instances packet) {
+                ArrayList<InstanceRecord> data = new ArrayList<>();
+                for (ControllerLaneInstance value : instances.values()) {
+                    // TODO Concurrent?
+                    data.add(value.convertRecord());
+                }
+                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, data), input.from());
             } else if (iPacket instanceof ResponsePacket<?> response) {
                 if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Well, log about packet that is not wanted.

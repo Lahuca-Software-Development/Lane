@@ -1,4 +1,6 @@
-package com.lahuca.lane.connection;
+package com.lahuca.lane;
+
+import com.lahuca.lane.connection.Connection;
 
 import java.io.IOException;
 

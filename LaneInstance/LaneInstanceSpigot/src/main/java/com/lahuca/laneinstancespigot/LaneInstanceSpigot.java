@@ -17,7 +17,7 @@ package com.lahuca.laneinstancespigot;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.lahuca.lane.connection.ReconnectConnection;
+import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;

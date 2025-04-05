@@ -17,7 +17,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
-import com.lahuca.lane.connection.ReconnectConnection;
+import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
@@ -31,14 +31,10 @@ import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.queue.QueueRequestParameters;
-import com.lahuca.lane.records.PartyRecord;
-import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lane.records.*;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -47,7 +43,7 @@ import java.util.function.Function;
 /**
  * The root endpoint for most calls of methods for a LaneInstance.
  */
-public abstract class LaneInstance {
+public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     private static LaneInstance instance;
 
@@ -188,8 +184,7 @@ public abstract class LaneInstance {
     }
 
     private void sendInstanceStatus() {
-        sendController(new InstanceStatusUpdatePacket(type, joinable, nonPlayable, getCurrentPlayers(),
-                getMaxPlayers()));
+        sendController(new InstanceStatusUpdatePacket(convertRecord()));
     }
 
     /**
@@ -385,6 +380,15 @@ public abstract class LaneInstance {
         return players.values();
     }
 
+    /**
+     * Retrieves a request of a collection of immutable records of all players on the controller.
+     *
+     * @return the request
+     */
+    public Request<ArrayList<PlayerRecord>> getAllPlayerRecords() {
+        return connection.sendRequestPacket(RequestInformationPacket.Players::new, null);
+    }
+
 
     /**
      * Retrieves an InstanceGame by a given game ID on this instance.
@@ -405,8 +409,28 @@ public abstract class LaneInstance {
         return games.values();
     }
 
+    /**
+     * Retrieves a request of a collection of immutable records of all games on the controller.
+     *
+     * @return the request
+     */
+    public Request<ArrayList<GameRecord>> getAllGameRecords() {
+        return connection.sendRequestPacket(RequestInformationPacket.Games::new, null);
+    }
 
+    /**
+     * Retrieves a request of a collection of immutable records of all instances on the controller.
+     *
+     * @return the request
+     */
+    public Request<ArrayList<InstanceRecord>> getAllInstanceRecords() {
+        return connection.sendRequestPacket(RequestInformationPacket.Instances::new, null);
+    }
 
+    @Override
+    public InstanceRecord convertRecord() {
+        return new InstanceRecord(id, type, joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers());
+    }
 
     // TODO Below: todo
 
