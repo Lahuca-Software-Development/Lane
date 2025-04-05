@@ -42,6 +42,8 @@ import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
 import java.io.IOException;
 import java.util.*;
@@ -256,6 +258,8 @@ public abstract class Controller {
                     data.add(value.convertRecord());
                 }
                 connection.sendPacket(new RequestInformationPacket.InstancesResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
+            } else if (iPacket instanceof SendMessagePacket packet) {
+                sendMessage(packet.player(), GsonComponentSerializer.gson().deserialize(packet.message()));
             } else if (iPacket instanceof ResponsePacket<?> response) {
                 if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Well, log about packet that is not wanted.
@@ -332,13 +336,13 @@ public abstract class Controller {
         QueueStageEventResult result = stageEvent.getResult();
         if (result instanceof QueueStageEventResult.None none) {
             // Queue is being cancelled
-            if (none.getMessage() != null && !none.getMessage().isEmpty()) {
+            if (none.getMessage() != null) {
                 sendMessage(player.getUuid(), none.getMessage());
             }
             player.setQueueRequest(null);
             return;
         } else if (result instanceof QueueStageEventResult.Disconnect disconnect) {
-            if (disconnect.getMessage() != null && !disconnect.getMessage().isEmpty()) {
+            if (disconnect.getMessage() != null) {
                 disconnectPlayer(player.getUuid(), disconnect.getMessage());
             } else {
                 disconnectPlayer(player.getUuid(), null);
@@ -667,11 +671,11 @@ public abstract class Controller {
     /**
      * Send a message to the player with the given UUID.
      *
-     * @param player  The player's UUID
-     * @param message The message to send
+     * @param player  the player's UUID
+     * @param message the message to send
      * @return true whether the message was successfully sent
      */
-    public abstract boolean sendMessage(UUID player, String message);
+    public abstract boolean sendMessage(UUID player, Component message);
 
     /**
      * Disconnect the player with the given message from the network.
@@ -680,6 +684,6 @@ public abstract class Controller {
      * @param message The message to show when disconnecting
      * @return true whether the player was successfully disconnected.
      */
-    public abstract boolean disconnectPlayer(UUID player, String message);
+    public abstract boolean disconnectPlayer(UUID player, Component message);
 
 }

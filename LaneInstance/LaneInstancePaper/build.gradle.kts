@@ -3,22 +3,22 @@ plugins {
     `java-library`
 }
 
-group = "com.lahuca.laneinstancespigot"
+group = "com.lahuca.laneinstancepaper"
 version = "1.0-SNAPSHOT"
 
 repositories {
+    maven {
+        name = "papermc"
+        url = uri("https://repo.papermc.io/repository/maven-public/")
+    }
     mavenCentral()
-    maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
-    maven("https://oss.sonatype.org/content/repositories/snapshots")
-    maven("https://oss.sonatype.org/content/repositories/central")
-    mavenLocal()
 }
 
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    compileOnly("org.spigotmc:spigot-api:1.20.4-R0.1-SNAPSHOT")
     compileOnly("com.google.code.gson:gson:2.10.1")
+    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     api(project(":"))
     api(project(":LaneInstance"))
 }

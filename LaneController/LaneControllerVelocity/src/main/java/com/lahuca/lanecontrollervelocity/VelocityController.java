@@ -286,11 +286,11 @@ public class VelocityController {
                 QueueStageEventResult result = requestEvent.getResult();
                 if(result instanceof QueueStageEventResult.QueueStageEventMessageableResult messageableResult) {
                     // We should disconnect the player.
-                    TextComponent message;
-                    if(messageableResult.getMessage() == null || messageableResult.getMessage().isEmpty()) {
+                    Component message;
+                    if(messageableResult.getMessage() == null) {
                         message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
                     } else {
-                        message = Component.text(messageableResult.getMessage());
+                        message = messageableResult.getMessage();
                     }
                     event.getPlayer().disconnect(message); // TODO Will this actually work here?
                     event.setInitialServer(null);
@@ -439,20 +439,20 @@ public class VelocityController {
                 controller.handleQueueStageEvent(stageEvent);
                 QueueStageEventResult result = stageEvent.getResult();
                 if(result instanceof QueueStageEventResult.None none) {
-                    TextComponent message;
-                    if(none.getMessage() == null || none.getMessage().isEmpty()) {
+                    Component message;
+                    if(none.getMessage() == null) {
                         message = Component.text(getMessage("none", player.getLanguage())); // TODO Different key!
                     } else {
-                        message = Component.text(none.getMessage());
+                        message = none.getMessage();
                     }
                     event.setResult(KickedFromServerEvent.Notify.create(message));
                     player.setQueueRequest(null);
                 } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
-                    TextComponent message;
-                    if(disconnect.getMessage() == null || disconnect.getMessage().isEmpty()) {
+                    Component message;
+                    if(disconnect.getMessage() == null) {
                         message = Component.text(getMessage("disconnect", player.getLanguage())); // TODO Different key!
                     } else {
-                        message = Component.text(disconnect.getMessage());
+                        message = disconnect.getMessage();
                     }
                     event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
                     player.setQueueRequest(null);
@@ -806,18 +806,18 @@ public class VelocityController {
         }
 
         @Override
-        public boolean sendMessage(UUID player, String message) {
+        public boolean sendMessage(UUID player, Component message) {
             Optional<Player> optionalPlayer = server.getPlayer(player);
             if(optionalPlayer.isEmpty()) return false;
-            optionalPlayer.get().sendMessage(Component.text(message));
+            optionalPlayer.get().sendMessage(message);
             return true;
         }
 
         @Override
-        public boolean disconnectPlayer(UUID player, String message) {
+        public boolean disconnectPlayer(UUID player, Component message) {
             Optional<Player> optionalPlayer = server.getPlayer(player);
             if(optionalPlayer.isEmpty()) return false;
-            optionalPlayer.get().disconnect(Component.text(message));
+            optionalPlayer.get().disconnect(message);
             return true;
         }
 

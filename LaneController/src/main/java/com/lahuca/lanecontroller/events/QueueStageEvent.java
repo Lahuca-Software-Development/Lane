@@ -17,6 +17,7 @@ package com.lahuca.lanecontroller.events;
 
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lanecontroller.ControllerPlayer;
+import net.kyori.adventure.text.Component;
 
 import java.util.Set;
 import java.util.UUID;
@@ -70,7 +71,7 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.None();
     }
 
-    public void setNoneResult(String message) {
+    public void setNoneResult(Component message) {
         result = new QueueStageEventResult.None(message);
     }
 
@@ -78,7 +79,7 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.Disconnect();
     }
 
-    public void setDisconnectResult(String message) {
+    public void setDisconnectResult(Component message) {
         result = new QueueStageEventResult.Disconnect(message);
     }
 

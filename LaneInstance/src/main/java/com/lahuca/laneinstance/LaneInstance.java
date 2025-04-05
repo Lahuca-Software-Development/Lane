@@ -32,6 +32,8 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.*;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
 import java.io.IOException;
 import java.util.*;
@@ -155,7 +157,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     public abstract int getMaxPlayers();
 
-    public abstract void disconnectPlayer(UUID player, String message);
+    public abstract void disconnectPlayer(UUID player, Component message);
 
     public void sendController(Packet packet) {
         connection.sendPacket(packet, null);
@@ -214,7 +216,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     // Player tries to join this instance. Check if possible.
                     if (!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
                         // We cannot be at this instance.
-                        disconnectPlayer(uuid, "Instance not joinable or full"); // TODO Translate
+                        disconnectPlayer(uuid, Component.text("Instance not joinable or full")); // TODO Translate
                         return;
                     }
                     // TODO Maybe game also has slots? Or limitations?
@@ -222,42 +224,42 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     try {
                         Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
                         if (result == null || !result.isSuccessful()) {
-                            disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
+                            disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
                             return;
                         }
                         sendInstanceStatus();
                         game.onJoin(player);
                     } catch (InterruptedException | ExecutionException | CancellationException e) {
-                        disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
+                        disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
                     }
                 }, () -> {
                     // The given game ID does not exist on this instance. Disconnect
-                    disconnectPlayer(uuid, "Invalid game ID on instance."); // TODO Translateable
+                    disconnectPlayer(uuid, Component.text("Invalid game ID on instance.")); // TODO Translateable
                 });
             }, () -> {
                 // Player tries to join this instance. Check if possible.
                 if (!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
                     // We cannot be at this instance.
-                    disconnectPlayer(uuid, "Instance not joinable or full"); // TODO Translate
+                    disconnectPlayer(uuid, Component.text("Instance not joinable or full")); // TODO Translate
                     return;
                 }
                 // Join allowed, finalize
                 try {
                     Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
                     if (!result.isSuccessful()) {
-                        disconnectPlayer(uuid, "Queue not finished"); // TODO Translate
+                        disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
                         return;
                     }
                     sendInstanceStatus();
                     // TODO Handle, like TP, etc. Only after response.
                 } catch (InterruptedException | ExecutionException | CancellationException e) {
-                    disconnectPlayer(uuid, "Could not process queue"); // TODO Translate
+                    disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
                 }
             });
         }, () -> {
             // We do not have the details about this player. Controller did not send it.
             // Disconnect player, as we are unaware if this is correct.
-            disconnectPlayer(uuid, "Incorrect state."); // TODO Translateable
+            disconnectPlayer(uuid, Component.text("Incorrect state.")); // TODO Translateable
         });
     }
 
@@ -461,6 +463,11 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     @Override
     public InstanceRecord convertRecord() {
         return new InstanceRecord(id, type, joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers());
+    }
+
+    public void sendMessage(UUID player, Component component) {
+        if(player == null || component == null) return;
+        connection.sendPacket(new SendMessagePacket(player, GsonComponentSerializer.gson().serialize(component)), null);
     }
 
     // TODO Below: todo

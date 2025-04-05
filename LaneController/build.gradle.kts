@@ -15,6 +15,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     compileOnly("com.google.code.gson:gson:2.10.1")
     api(project(":"))
+    implementation("net.kyori:adventure-api:4.19.0")
+    implementation("net.kyori:adventure-text-serializer-gson:4.19.0")
 }
 
 tasks.test {

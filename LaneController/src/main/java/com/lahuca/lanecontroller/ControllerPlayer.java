@@ -162,4 +162,7 @@ public class ControllerPlayer implements LanePlayer {
     public String toString() {
         return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
     }
+
+    // TODO Abstract sendMessage? Let VelocityController implement?
+
 }

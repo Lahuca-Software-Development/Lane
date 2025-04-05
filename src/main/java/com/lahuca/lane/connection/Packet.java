@@ -84,6 +84,8 @@ public interface Packet {
 		Packet.registerPacket(RequestInformationPacket.InstanceResponse.packetId, RequestInformationPacket.InstanceResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Instances.packetId, RequestInformationPacket.Instances.class);
 		Packet.registerPacket(RequestInformationPacket.InstancesResponse.packetId, RequestInformationPacket.InstancesResponse.class);
+
+		Packet.registerPacket(SendMessagePacket.packetId, SendMessagePacket.class);
 	}
 
 	String getPacketId();

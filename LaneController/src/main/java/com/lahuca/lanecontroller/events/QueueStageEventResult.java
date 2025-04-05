@@ -17,6 +17,7 @@ package com.lahuca.lanecontroller.events;
 
 import com.lahuca.lane.queue.QueueStage;
 import com.lahuca.lane.queue.QueueStageResult;
+import net.kyori.adventure.text.Component;
 
 import java.util.Set;
 import java.util.UUID;
@@ -32,7 +33,7 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
      */
     public sealed interface QueueStageEventMessageableResult permits None, Disconnect {
 
-        String getMessage();
+        Component getMessage();
 
     }
 
@@ -62,18 +63,18 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
      */
     public final static class None extends QueueStageEventResult implements QueueStageEventResult.QueueStageEventMessageableResult {
 
-        private final String message;
+        private final Component message;
 
         public None() {
             this(null);
         }
 
-        public None(String message) {
+        public None(Component message) {
             this.message = message;
         }
 
         @Override
-        public String getMessage() {
+        public Component getMessage() {
             return message;
         }
     }
@@ -84,18 +85,18 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
      */
     public final static class Disconnect extends QueueStageEventResult implements QueueStageEventResult.QueueStageEventMessageableResult {
 
-        private final String message;
+        private final Component message;
 
         public Disconnect() {
             this(null);
         }
 
-        public Disconnect(String message) {
+        public Disconnect(Component message) {
             this.message = message;
         }
 
         @Override
-        public String getMessage() {
+        public Component getMessage() {
             return message;
         }
 
