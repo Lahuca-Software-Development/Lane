@@ -35,7 +35,6 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
-import com.lahuca.lane.message.LaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
@@ -642,13 +641,6 @@ public abstract class Controller {
      * @return the completable future with the result
      */
     public abstract CompletableFuture<Result<Void>> joinServer(UUID uuid, String destination);
-
-    /**
-     * Gets the translator to be used for messages on the proxy.
-     *
-     * @return the translator
-     */
-    public abstract LaneMessage getTranslator();
 
     /**
      * Gets a new ControllerLaneInstance for the given ControllerPlayer to join.
