@@ -142,9 +142,9 @@ public class MySQLDataManager implements DataManager {
      * @return the status
      * @see #writeDataObject(PermissionKey, DataObject)
      */
-    private CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object, boolean madeTable) {
+    private CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object, boolean madeTable) {
         if(!object.isWriteable()) return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
-        if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.completedFuture(false);
+        if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
         DataObjectId id = object.getId();
         String tableName = getTableName(id);
         if(tableName == null) return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
@@ -174,7 +174,7 @@ public class MySQLDataManager implements DataManager {
                     if(!writePermission.checkAccess(permissionKey)) {
                         // No permission
                         connection.setAutoCommit(true);
-                        return CompletableFuture.completedFuture(false);
+                        return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing saved object"));
                     }
                 }
             }
@@ -248,7 +248,7 @@ public class MySQLDataManager implements DataManager {
                     removeOnStop.remove(object.getId());
                 }
             });
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(null);
         } catch (SQLException e) {
             if((e.getErrorCode() == 1051 || e.getErrorCode() == 1146) && !madeTable) {
                 // Unknown table, create and retry!
@@ -293,12 +293,12 @@ public class MySQLDataManager implements DataManager {
     }
 
     @Override
-    public CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object) {
+    public CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object) {
         return writeDataObject(permissionKey, object, false);
     }
 
     @Override
-    public CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
+    public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
         String tableName = getTableName(id);
         if(tableName == null) return CompletableFuture.completedFuture(null);
         try(Connection connection = dataSource.getConnection()) {
@@ -319,13 +319,13 @@ public class MySQLDataManager implements DataManager {
                     // Odd, we found a match, but we did not get a permission.
                     if(writePermissionString == null) {
                         connection.setAutoCommit(true);
-                        return CompletableFuture.completedFuture(null);
+                        return CompletableFuture.failedFuture(new IllegalStateException("Write permission of data object is null"));
                     }
                     PermissionKey writePermission = PermissionKey.fromString(writePermissionString);
                     if(!writePermission.checkAccess(permissionKey)) {
                         // No permission
                         connection.setAutoCommit(true);
-                        return CompletableFuture.completedFuture(false);
+                        return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow removing saved object"));
                     }
                     // We can remove it!
                     PreparedStatement delete;
@@ -339,14 +339,14 @@ public class MySQLDataManager implements DataManager {
                     }
                     delete.executeUpdate();
                     connection.setAutoCommit(true);
-                    return CompletableFuture.completedFuture(true);
+                    return CompletableFuture.completedFuture(null);
                 } else {
                     connection.setAutoCommit(true);
-                    return CompletableFuture.completedFuture(true);
+                    return CompletableFuture.completedFuture(null);
                 }
             }
         } catch (SQLException e) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 }

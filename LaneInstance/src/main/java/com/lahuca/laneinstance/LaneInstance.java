@@ -303,7 +303,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         try {
             Result<Long> gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
             if (!gameId.isSuccessful()) {
-                return simpleRequest(ResponsePacket.INVALID_STATE);
+                return simpleRequest(ResponsePacket.ILLEGAL_STATE);
             }
             LaneGame game = gameConstructor.apply(gameId.data());
             if (game.getGameId() != gameId.data() || games.containsKey(game.getGameId()))

@@ -9,6 +9,7 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
+import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import com.lahuca.lanecontroller.ControllerRelationship;
@@ -91,13 +92,15 @@ public class FriendCommand {
         friendshipIds = Caffeine.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).buildAsync((uuid, executor) -> {
             DataObjectId playerFriendListId = new DataObjectId(RelationalId.Players(uuid), "friends");
             // Read data object, if completable future is successful try to fetch the result.
-            return dataManager.readDataObject(PermissionKey.CONTROLLER, playerFriendListId).thenApply(dataObjectOptional ->
-                    dataObjectOptional.flatMap(object -> object.getValueAsLongArray(gson)).orElse(null));
+            return dataManager.readDataObject(PermissionKey.CONTROLLER, playerFriendListId).thenApply(dataObjectOptional -> {
+                return dataObjectOptional.flatMap(object -> object.getValueAsLongArray(gson)).orElse(null);
+            });
         });
         friendships = Caffeine.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).buildAsync((friendshipId, executor) -> {
             DataObjectId friendshipDataObjectId = new DataObjectId(RelationalId.Friendships(friendshipId), "data");
-            return dataManager.readDataObject(PermissionKey.CONTROLLER, friendshipDataObjectId).thenApply(dataObjectOptional ->
-                    dataObjectOptional.flatMap(object -> object.getValueAsJson(gson, FriendshipDataObject.class)).orElse(null));
+            return dataManager.readDataObject(PermissionKey.CONTROLLER, friendshipDataObjectId).thenApply(dataObjectOptional -> {
+                return dataObjectOptional.flatMap(object -> object.getValueAsJson(gson, FriendshipDataObject.class)).orElse(null);
+            });
         });
         uuidToOfflineUsername = Caffeine.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).buildAsync((uuid, executor) ->
                 controller.getOfflinePlayerName(uuid)); // TODO Probably want to move this to Controller!
@@ -216,7 +219,6 @@ public class FriendCommand {
                 .then(BrigadierCommand.literalArgumentBuilder("remove")
                         .then(BrigadierCommand.requiredArgumentBuilder("username", StringArgumentType.word())
                                 .executes(c -> {
-                                    // List all friends
                                     if (!(c.getSource() instanceof Player player)) {
                                         c.getSource().sendPlainMessage("You must be in game to use this command");
                                         return Command.SINGLE_SUCCESS; // TODO Return invalid
@@ -238,18 +240,27 @@ public class FriendCommand {
                                                 player.sendPlainMessage("Error happened while retrieving friends: " + ex.getMessage());
                                                 return;
                                             }
+                                            ControllerRelationship removal = null;
                                             for (ControllerRelationship friendship : friendships) {
                                                 if (friendship.players().contains(uuidOptional.get())) {
                                                     // Found the friendship, remove
-                                                    // TODO
+                                                    removal = friendship;
+                                                    break;
                                                 }
                                             }
+                                            if (removal != null) {
+                                                removeFriendship(removal).whenComplete((status, removeEx) -> {
+                                                    if (removeEx != null) {
+                                                        player.sendPlainMessage("Error happened while removing friends: " + removeEx.getMessage());
+                                                        return;
+                                                    }
+                                                    player.sendPlainMessage("Removed " + username + " from friendships");
+                                                    // TODO Maybe also send message to other player, if they are online?
+                                                });
+                                                return;
+                                            }
+                                            player.sendPlainMessage("You are not friends with " + username);
                                         });
-                                    });
-
-                                    // Go through the friendship IDs of the player to find the friendship that matches the one being removed.
-                                    friendshipIds.get(player.getUniqueId()).whenComplete((playerFriendshipIds, ex) -> {
-
                                     });
                                     return Command.SINGLE_SUCCESS;
                                 }))
@@ -261,13 +272,75 @@ public class FriendCommand {
                                         c.getSource().sendPlainMessage("You must be in game to use this command");
                                         return Command.SINGLE_SUCCESS; // TODO Return invalid
                                     }
+                                    String username = c.getArgument("username", String.class);
+                                    // Get UUID to username
+                                    controller.getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
+                                        if (ex != null) {
+                                            player.sendPlainMessage("Error happened while accepting friend: " + ex.getMessage());
+                                            return;
+                                        }
+                                        if (uuidOptional.isEmpty()) {
+                                            player.sendPlainMessage("Could not find player with given username");
+                                            return;
+                                        }
+                                        // Assumed can be that a friendship is only invited whenever they are not friends yet.
+                                        FriendshipInvitePair pair = new FriendshipInvitePair(uuidOptional.get(), player.getUniqueId());
+                                        String requesterUsername = invitations.getIfPresent(pair);
+                                        if (requesterUsername == null) {
+                                            player.sendPlainMessage("The player " + username + " has not invited you, or it has timed out");
+                                            return;
+                                        }
+                                        // We can add to friends now.
+                                        invitations.invalidate(pair);
+                                        addFriendship(pair).whenComplete((status, statusEx) -> {
+                                            if (statusEx != null) {
+                                                player.sendPlainMessage("Error happened while accepting friend: " + statusEx.getMessage());
+                                                return;
+                                            }
+                                            player.sendPlainMessage("You are now friends with " + requesterUsername);
+                                            velocityController.getServer().getPlayer(uuidOptional.get()).ifPresent(requester -> {
+                                                requester.sendPlainMessage("Friendship accepted: " + player.getUsername());
+                                            });
+                                        });
+                                    });
                                     return Command.SINGLE_SUCCESS;
                                 }))
                 )
                 .then(BrigadierCommand.literalArgumentBuilder("deny")
-                        .executes(c -> {
-                            return Command.SINGLE_SUCCESS;
-                        })
+                        .then(BrigadierCommand.requiredArgumentBuilder("username", StringArgumentType.word())
+                                .executes(c -> {
+                                    if (!(c.getSource() instanceof Player player)) {
+                                        c.getSource().sendPlainMessage("You must be in game to use this command");
+                                        return Command.SINGLE_SUCCESS; // TODO Return invalid
+                                    }
+                                    String username = c.getArgument("username", String.class);
+                                    // Get UUID to username
+                                    controller.getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
+                                        if (ex != null) {
+                                            player.sendPlainMessage("Error happened while denying friend: " + ex.getMessage());
+                                            return;
+                                        }
+                                        if (uuidOptional.isEmpty()) {
+                                            player.sendPlainMessage("Could not find player with given username");
+                                            return;
+                                        }
+                                        // Assumed can be that a friendship is only invited whenever they are not friends yet.
+                                        FriendshipInvitePair pair = new FriendshipInvitePair(uuidOptional.get(), player.getUniqueId());
+                                        String requesterUsername = invitations.getIfPresent(pair);
+                                        if (requesterUsername == null) {
+                                            player.sendPlainMessage("The player " + username + " has not invited you, or it has timed out");
+                                            return;
+                                        }
+                                        // We can add to friends now.
+                                        invitations.invalidate(pair);
+                                        player.sendPlainMessage("Succesfully denied friendship invitation with " + requesterUsername);
+                                        velocityController.getServer().getPlayer(uuidOptional.get()).ifPresent(requester -> {
+                                            requester.sendPlainMessage("Friendship denied from: " + requesterUsername);
+                                        });
+                                    });
+                                    return Command.SINGLE_SUCCESS;
+                                })
+                        )
                 )
                 .then(list)
                 .then(help)
@@ -282,7 +355,7 @@ public class FriendCommand {
      * <ol>
      *     <li>First fetches the friendship IDs: players.PLAYER.friends.</li>
      *     <li>Then it combines the requests for the friendship data per ID: friends.ID.data.</li>
-     *     <li>These requests are combined.<li></li>
+     *     <li>These requests are combined.
      *     <li>Then removes any of the friendship IDs from players.PLAYER.friends that are not present anymore.</li>
      *     <li>Then returns the friendships that are present.</li>
      * </ol>
@@ -356,7 +429,117 @@ public class FriendCommand {
         return invites;
     }
 
-    public record FriendshipDataObject(HashSet<UUID> players) {
+    /**
+     * Removes the given friendship identified by the ID of the friendships ID list of the given player.
+     * A {@link PermissionFailedException} is thrown whenever it could not read or write due to permission errors.
+     *
+     * @param player the player
+     * @param id     the friendship ID
+     * @return a CompletableFuture with a void to signify success: it has removed or was not present
+     */
+    private CompletableFuture<Void> removeFriendshipId(UUID player, long id) {
+        DataObjectId playerFriendListId = new DataObjectId(RelationalId.Players(player), "friends");
+        // Read data object, if completable future is successful try to fetch the result.
+        return dataManager.updateDataObject(PermissionKey.CONTROLLER, playerFriendListId, dataObject -> {
+            List<Long> ids = dataObject.getValueAsLongArray(gson).orElse(new ArrayList<>());
+            if (!ids.remove(id)) {
+                // Did not remove, was not present; we are done
+                return false;
+            }
+            // Update the value and write
+            friendshipIds.synchronous().put(player, ids);
+            dataObject.setValue(gson, ids);
+            return true;
+        }).thenApply(b -> null);
+    }
+
+    private CompletableFuture<Void> removeFriendship(ControllerRelationship friendship) {
+        // Remove friendship data first
+        DataObjectId friendshipDataObjectId = new DataObjectId(RelationalId.Friendships(friendship.getId()), "data");
+        return dataManager.removeDataObject(PermissionKey.CONTROLLER, friendshipDataObjectId).thenCompose(status -> {
+            // Removed, remove from cache
+            friendships.synchronous().invalidate(friendship.getId());
+            // Now for both players remove it
+            UUID player0 = friendship.players().stream().findFirst().orElse(null);
+            UUID player1 = friendship.players().stream().filter(item -> !item.equals(player0)).findFirst().orElse(null);
+            if (player0 != null) {
+                // Remove from data
+                return removeFriendshipId(player0, friendship.getId()).exceptionally(ex -> null).thenCompose(status2 -> {
+                    if (player1 != null) {
+                        // Also remove for other player
+                        return removeFriendshipId(player1, friendship.getId());
+                    }
+                    // Other player is invalid, then we are done
+                    return CompletableFuture.completedFuture(null);
+                });
+            }
+            // First player is invalid, that also means that the second player is also invalid. We are done
+            return CompletableFuture.completedFuture(null);
+        });
+    }
+
+    private CompletableFuture<Long> newId() {
+        long newId = System.currentTimeMillis();
+        // TODO Might overflow!
+        return friendships.get(newId).exceptionally(ex -> {
+            if (ex instanceof NullPointerException) {
+                return null;
+            }
+            throw new CompletionException(ex);
+        }).thenCompose(val -> {
+            if (val == null) return CompletableFuture.completedFuture(newId);
+            return newId();
+        });
+    }
+
+    /**
+     * Adds the given friendship identified by the ID to the friendships ID list of the given player.
+     * A {@link PermissionFailedException} is thrown whenever it could not read or write due to permission errors.
+     *
+     * @param player the player
+     * @param id     the friendship ID
+     * @return a CompletableFuture with a void to signify success: it has been added
+     */
+    private CompletableFuture<Void> addFriendshipId(UUID player, long id) {
+        DataObjectId playerFriendListId = new DataObjectId(RelationalId.Players(player), "friends");
+        // Read data object, if completable future is successful try to fetch the result.
+        return dataManager.updateDataObject(PermissionKey.CONTROLLER, playerFriendListId, dataObject -> {
+            List<Long> ids = dataObject.getValueAsLongArray(gson).orElse(new ArrayList<>());
+            ids.add(id);
+            // Update the value and write
+            friendshipIds.synchronous().put(player, ids);
+            dataObject.setValue(gson, ids);
+            return true;
+        }).thenCompose(status -> {
+            if (!status) {
+                // Did not exist yet
+                // TODO Maybe updateOverwriteDataObject function in data manager?
+                List<Long> ids = List.of(id);
+                DataObject playerFriendListIds = new DataObject(playerFriendListId, PermissionKey.CONTROLLER, gson, ids);
+                return dataManager.writeDataObject(PermissionKey.CONTROLLER, playerFriendListIds);
+            }
+            return CompletableFuture.completedFuture(null);
+        });
+    }
+
+    private CompletableFuture<Void> addFriendship(FriendshipInvitePair pair) {
+        if (pair.requester == null || pair.invited == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return newId().thenCompose(id -> {
+            // We got a new friendship ID
+            // Write friendship data first
+            DataObjectId friendshipDataObjectId = new DataObjectId(RelationalId.Friendships(id), "data");
+            DataObject friendshipData = new DataObject(friendshipDataObjectId, PermissionKey.CONTROLLER, gson, pair.convertToDataObject());
+            return dataManager.writeDataObject(PermissionKey.CONTROLLER, friendshipData).thenCompose(status -> {
+                // Written, yeey, now for both players add to the friendships
+                // Remove from data
+                return addFriendshipId(pair.requester, id).thenCompose(status2 -> addFriendshipId(pair.invited, id));
+            });
+        });
+    }
+
+    public record FriendshipDataObject(HashSet<UUID> players) { // TODO Creation date?
 
         public ControllerRelationship convertToRelationship(long id) {
             return new ControllerRelationship(id, players);
@@ -365,6 +548,14 @@ public class FriendCommand {
     }
 
     public record FriendshipInvitePair(UUID requester, UUID invited) {
+
+        public FriendshipDataObject convertToDataObject() {
+            HashSet<UUID> players = new HashSet<>();
+            players.add(requester);
+            players.add(invited);
+            return new FriendshipDataObject(players);
+        }
+
     }
 
 }

@@ -28,8 +28,6 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
 import com.lahuca.lane.data.manager.MySQLDataManager;
-import com.lahuca.lane.message.LaneMessage;
-import com.lahuca.lane.message.MapLaneMessage;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.*;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
@@ -55,7 +53,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.TranslatableComponent;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -213,16 +211,6 @@ public class VelocityController {
         return Optional.ofNullable(controller);
     }
 
-    /**
-     * Retrieves the translated messages for this controller.
-     * @param key the message key
-     * @param locale the locale
-     * @return the translated message
-     */
-    private String getMessage(String key, Locale locale) {
-        return controller.getTranslator().retrieveMessage(key, locale);
-    }
-
     private Locale getLocale(Player player) {
         Locale locale = player.getEffectiveLocale();
         if(locale == null) locale = Locale.ENGLISH;
@@ -241,13 +229,13 @@ public class VelocityController {
             String name = player.getUsername(); // TODO Load custom display name (maybe nicked name)?
             boolean registered = ctrl.registerPlayer(new ControllerPlayer(player.getUniqueId(), name, name, locale));
             if(!registered) {
-                TextComponent message = Component.text(getMessage("failedToRegister", locale));
+                TranslatableComponent message = Component.translatable("failedToRegister"); // TODO Change all keys in this file for .translateable
                 event.setResult(ResultedEvent.ComponentResult.denied(message));// TODO Change key
             } else {
                 event.setResult(ResultedEvent.ComponentResult.allowed());
             }
         }, () -> {
-            TextComponent message = Component.text(getMessage("cannotReachController", locale));
+            TranslatableComponent message = Component.translatable("cannotReachController");
             event.setResult(ResultedEvent.ComponentResult.denied(message));// TODO Change key
         });
     }
@@ -257,9 +245,9 @@ public class VelocityController {
         getController().ifPresentOrElse(ctrl -> ctrl.getPlayer(player.getUniqueId()).ifPresentOrElse(cPlayer -> {
             accept.accept(ctrl, cPlayer);
         }, () -> {
-            if(failed != null) failed.accept(Component.text(getMessage("notRegisteredPlayer", locale)));
+            if(failed != null) failed.accept(Component.translatable("notRegisteredPlayer"));
         }), () -> {
-            if(failed != null) failed.accept(Component.text(getMessage("cannotReachController", locale)));
+            if(failed != null) failed.accept(Component.translatable("cannotReachController"));
         });
     }
 
@@ -273,7 +261,6 @@ public class VelocityController {
     public void onChooseInitialServer(PlayerChooseInitialServerEvent event) {
         // TODO Move to controller probably?
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
-            System.out.println("DEBUG 0: " + player.toString());
             QueueRequest request = new QueueRequest(QueueRequestReason.NETWORK_JOIN, QueueRequestParameters.lobbyParameters);
             QueueStageEvent requestEvent = new QueueStageEvent(player, request);
             player.setQueueRequest(request);
@@ -288,7 +275,7 @@ public class VelocityController {
                     // We should disconnect the player.
                     Component message;
                     if(messageableResult.getMessage() == null) {
-                        message = Component.text(getMessage("cannotFindFreeInstance", player.getLanguage()));
+                        message = Component.translatable("cannotFindFreeInstance");
                     } else {
                         message = messageableResult.getMessage();
                     }
@@ -441,7 +428,7 @@ public class VelocityController {
                 if(result instanceof QueueStageEventResult.None none) {
                     Component message;
                     if(none.getMessage() == null) {
-                        message = Component.text(getMessage("none", player.getLanguage())); // TODO Different key!
+                        message = Component.translatable("none"); // TODO Different key!
                     } else {
                         message = none.getMessage();
                     }
@@ -450,7 +437,7 @@ public class VelocityController {
                 } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
                     Component message;
                     if(disconnect.getMessage() == null) {
-                        message = Component.text(getMessage("disconnect", player.getLanguage())); // TODO Different key!
+                        message = Component.translatable("disconnect"); // TODO Different key!
                     } else {
                         message = disconnect.getMessage();
                     }
@@ -592,18 +579,13 @@ public class VelocityController {
             return future;
         }
 
-        public static MapLaneMessage translator = new MapLaneMessage(Map.ofEntries(
+        /*public static MapLaneMessage translator = new MapLaneMessage(Map.ofEntries( TODO
                 Map.entry(Locale.ENGLISH.toLanguageTag(), Map.ofEntries(
                         Map.entry("cannotReachController", "Cannot reach controller"),
                         Map.entry("failedToRegister", "Failed to register"),
                         Map.entry("notRegisteredPlayer", "Not registered player"),
                         Map.entry("cannotFindFreeInstance", "Cannot find free instance"),
-                        Map.entry("disconnect", "Disconnecting")))));
-
-        @Override
-        public LaneMessage getTranslator() {
-            return translator;
-        }
+                        Map.entry("disconnect", "Disconnecting")))));*/
 
         @Override
         public Optional<ControllerLaneInstance> getNewInstance(ControllerPlayer player, Collection<ControllerLaneInstance> exclude) {

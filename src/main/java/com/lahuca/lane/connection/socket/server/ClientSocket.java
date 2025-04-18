@@ -89,14 +89,12 @@ public class ClientSocket {
 				System.out.println(inputLine);
 				if(inputLine == null) {
 					// End of stream, closed
-					System.out.println("Debug Close0");
 					close();
 					return;
 				}
 				readInput(inputLine);
 			} catch(IOException e) {
 				// Error while reading.
-				System.out.println("Debug Close1");
 				e.printStackTrace();
 				close();
 				return;
@@ -153,7 +151,6 @@ public class ClientSocket {
 			connection.retrieveResponse(packet.getRequestId(), packet.transformResult());
 		} else if(iPacket instanceof ConnectionClosePacket packet) {
 			// We are expecting a close, close immediately.
-			System.out.println("Debug Close2");
 			close();
 		}
 	}
@@ -172,7 +169,6 @@ public class ClientSocket {
 	}
 
 	public void close() {
-		System.out.println("DEBUG CLOSED");
 		if(scheduledKeepAlive != null) scheduledKeepAlive.cancel(true);
 		scheduledKeepAlive = null;
 		if(readThread != null && readThread.isAlive()) readThread.interrupt();
@@ -193,7 +189,6 @@ public class ClientSocket {
 			if(exception != null || result == null || !result.isSuccessful()) {
 				numberKeepAliveFails++;
 				if(numberKeepAliveFails > maximumKeepAliveFails) {
-					System.out.println("Debug Close4");
 					close();
 				}
 			} else {

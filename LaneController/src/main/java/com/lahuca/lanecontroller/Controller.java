@@ -35,6 +35,7 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
+import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
@@ -47,6 +48,7 @@ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * This is the main class for operations on the controller side of the Lane system.
@@ -169,13 +171,13 @@ public abstract class Controller {
                             } else {
                                 System.out.println("Retrieved finish queue 5");
                                 // We cannot accept this queue finalization.
-                                connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
+                                connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from());
                             }
                             return;
                         }
                         System.out.println("Retrieved finish queue 6");
-                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from());
-                    }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_STATE), input.from()));
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from());
+                    }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from()));
                 }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
             } else if (iPacket instanceof RequestIdPacket packet) {
                 Long newId;
@@ -197,35 +199,53 @@ public abstract class Controller {
                     connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.readDataObject(packet.permissionKey(), packet.id()).whenComplete((object, ex) -> {
-                    if (ex != null)
+                    if (ex != null) {
                         // TODO Add more exceptions. To write and remove as well!
-                        connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else
+                        String result = switch (ex) {
+                            case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                            case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                            default -> ResponsePacket.UNKNOWN;
+                        };
+                        connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), result), input.from());
+                    } else {
                         connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.OK, object.orElse(null)), input.from());
+                    }
                 });
             } else if (iPacket instanceof DataObjectWritePacket packet) {
                 if (!packet.permissionKey().isIndividual()) {
                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
-                    if (ex != null || bool == null)
-                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else if (!bool)
-                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
-                    else
+                    if(ex != null) {
+                        String result = switch (ex) {
+                            case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                            case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                            case IllegalStateException ignored -> ResponsePacket.ILLEGAL_STATE;
+                            case SecurityException ignored -> ResponsePacket.ILLEGAL_STATE;
+                            default -> ResponsePacket.UNKNOWN;
+                        };
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), result), input.from());
+                    } else {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                    }
                 });
             } else if (iPacket instanceof DataObjectRemovePacket packet) {
                 if (!packet.permissionKey().isIndividual()) {
                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.removeDataObject(packet.permissionKey(), packet.id()).whenComplete((bool, ex) -> {
-                    if (ex != null || bool == null)
-                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                    else if (!bool)
-                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
-                    else
+                    if(ex != null) {
+                        String result = switch (ex) {
+                            case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                            case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                            case IllegalStateException ignored -> ResponsePacket.ILLEGAL_STATE;
+                            case SecurityException ignored -> ResponsePacket.ILLEGAL_STATE;
+                            default -> ResponsePacket.UNKNOWN;
+                        };
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), result), input.from());
+                    } else {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                    }
                 });
             } else if (iPacket instanceof RequestInformationPacket.Player packet) {
                 connection.sendPacket(new RequestInformationPacket.PlayerResponse(packet.getRequestId(), ResponsePacket.OK,
@@ -467,14 +487,14 @@ public abstract class Controller {
      * Writes the data object at the given id with the given permission key.
      * When no data object exists at the given id, it is created.
      * Otherwise, the data object is updated.
-     * When the permission key does not grant writing, it is not updated.
+     * When the permission key does not grant writing, a {@link PermissionFailedException} is thrown in the {@link CompletableFuture}.
      * If the permission key is not an individual key, the completable future is thrown with an {@link IllegalArgumentException}.
      *
-     * @param permissionKey the individual permission key to use while writing
+     * @param permissionKey the permission key to use while writing
      * @param object        the data object to update it with
-     * @return a completable future with the status as boolean: true if successful or false if not enough permission
+     * @return a completable future with the void type to signify success: it has been written
      */
-    public CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object) {
+    public CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object) {
         if (!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
@@ -483,18 +503,40 @@ public abstract class Controller {
 
     /**
      * Removes the data object at the given id with the given permission key.
-     * When the permission key does not grant removing, it is not removed.
+     * When the permission key does not grant removing, it is not removed, and a {@link PermissionFailedException} is thrown in the {@link CompletableFuture}.
      * If the permission key is not an individual key, the completable future is thrown with an {@link IllegalArgumentException}.
      *
-     * @param permissionKey the individual permission key to use while removing
+     * @param permissionKey the permission key to use while removing
      * @param id            the id of the data object to remove
-     * @return a completable future with the status as boolean: true if successful or did not exist or false if not enough permission
+     * @return a completable future with the void type to signify success: it was removed or did not exist
      */
-    public CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
+    public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
         if (!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.removeDataObject(permissionKey, id);
+    }
+
+    /**
+     * Updates the data object at the given id with the given permission key.
+     * First the data object is read from the given id, then is accepted in the consumer.
+     * The function can modify the values within the given data object.
+     * After the consumer has been run, the updated data object is written back.
+     * It is only written if the updater has returned true.
+     * When the permission key does not grant writing, a {@link PermissionFailedException} is thrown in the {@link CompletableFuture}.
+     * If the permission key is not an individual key, the completable future is thrown with an {@link IllegalArgumentException}.
+     *
+     * @param permissionKey the permission key to use while reading and writing
+     * @param id            the id of the data object to update
+     * @param updater       the updater consumer that handles the update
+     * @return a completable future with the status as boolean: true if updated successfully or when the updater had returned false,
+     * false when the data object did not exist.
+     */
+    CompletableFuture<Boolean> updateDataObject(PermissionKey permissionKey, DataObjectId id, Function<DataObject, Boolean> updater) {
+        if (!permissionKey.isIndividual()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
+        }
+        return dataManager.updateDataObject(permissionKey, id, updater);
     }
 
     // TODO Redo

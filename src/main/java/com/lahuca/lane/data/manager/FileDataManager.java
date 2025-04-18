@@ -90,10 +90,10 @@ public class FileDataManager implements DataManager {
     }
 
     @Override
-    public CompletableFuture<Boolean> writeDataObject(PermissionKey permissionKey, DataObject object) {
+    public CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object) {
         // Check if given object is even valid.
         if(!object.isWriteable()) return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
-        if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.completedFuture(false);
+        if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
         File file = buildFilePath(object.getId());
         // Check if it already exists
         if(!file.exists()) {
@@ -111,7 +111,7 @@ public class FileDataManager implements DataManager {
             try (FileReader reader = new FileReader(file)) {
                 DataObject current = gson.fromJson(reader, DataObject.class);
                 boolean writeAccess = current.hasWriteAccess(permissionKey, false);
-                if(!writeAccess) return CompletableFuture.completedFuture(false);
+                if(!writeAccess) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing saved object"));
             } catch (IOException | JsonIOException | JsonSyntaxException | SecurityException e) {
                 return CompletableFuture.failedFuture(e);
             }
@@ -128,23 +128,23 @@ public class FileDataManager implements DataManager {
                     removeOnStop.remove(object.getId());
                 }
             });
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(null);
         } catch (IOException e) {
             return CompletableFuture.failedFuture(e);
         }
     }
 
     @Override
-    public CompletableFuture<Boolean> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
+    public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
         File file = buildFilePath(id);
-        if(!file.exists()) return CompletableFuture.completedFuture(true);
+        if(!file.exists()) return CompletableFuture.completedFuture(null);
         try (FileReader reader = new FileReader(file)) {
             DataObject object = gson.fromJson(reader, DataObject.class);
             boolean writeAccess = object.hasWriteAccess(permissionKey, false);
-            if(!writeAccess) return CompletableFuture.completedFuture(false);
+            if(!writeAccess) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow removing saved object"));
             else {
                 // Remove
-                if(file.delete()) return CompletableFuture.completedFuture(true);
+                if(file.delete()) return CompletableFuture.completedFuture(null);
                 else return CompletableFuture.failedFuture(new SecurityException("Could not delete file"));
             }
         } catch (IOException | JsonIOException | JsonSyntaxException | SecurityException e) {
