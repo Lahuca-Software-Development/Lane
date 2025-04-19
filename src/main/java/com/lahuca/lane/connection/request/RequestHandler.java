@@ -15,8 +15,6 @@
  */
 package com.lahuca.lane.connection.request;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.concurrent.*;
 import java.util.function.Function;
 
@@ -28,8 +26,8 @@ public class RequestHandler {
 
     private final ScheduledExecutorService scheduledExecutor;
     private int computeTimeoutSeconds;
-    private ScheduledFuture<?> scheduledComputeTimeout;
-    private final HashMap<Long, Request<?>> requests = new HashMap<>(); // TODO Definitely check for concurrency!
+    private ScheduledFuture<?> scheduledComputeTimeout; // TODO Maybe AtomicReference?
+    private final ConcurrentHashMap<Long, Request<?>> requests = new ConcurrentHashMap<>();
 
     public RequestHandler() {
         this(1);
@@ -81,7 +79,7 @@ public class RequestHandler {
         if(scheduledComputeTimeout == null) return;
         scheduledComputeTimeout.cancel(true);
         scheduledComputeTimeout = null;
-        requests.values().forEach(request -> request.getFutureResult().cancel(true));
+        requests.forEach((id, request) -> request.getFutureResult().cancel(true));
         requests.clear();
     }
 
@@ -111,7 +109,7 @@ public class RequestHandler {
             scheduledExecutor.shutdownNow();
         } finally {
             if(scheduledComputeTimeout != null) scheduledComputeTimeout = null;
-            requests.values().forEach(request -> request.getFutureResult().cancel(true));
+            requests.forEach((id, request) -> request.getFutureResult().cancel(true));
             requests.clear();
         }
     }
@@ -129,14 +127,12 @@ public class RequestHandler {
      * When a request is timed out, cancel its future and remove it from the requests.
      */
     private void removeTimedOutRequests() {
-        ArrayList<Long> timedOutRequests = new ArrayList<>();
-        for(Request<?> request : requests.values()) {
+        requests.forEach((id, request) -> {
             if(request.isTimedOut()) {
                 request.getFutureResult().cancel(true);
-                timedOutRequests.add(request.getRequestId());
+                requests.remove(id, request);
             }
-        }
-        timedOutRequests.forEach(requests::remove);
+        });
     }
 
     /**
@@ -153,21 +149,23 @@ public class RequestHandler {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        if(!requests.containsKey(requestId)) return false;
         Request<?> request = requests.remove(requestId);
         if(request == null) return false;
         return request.parsedComplete(result);
     }
 
     /**
-     * Gets a new request ID that has not yet been requested.
-     * @return The new request ID.
+     * Generates a new unique request ID by using the current timestamp and ensures
+     * it is not already present in the requests map.
+     * It sets the value to null in the map to indicate that the request is scheduled, to reserve the id (concurrency).
+     *
+     * @return A unique request ID as a long value.
      */
     private long getNewRequestId() {
         long id;
         do {
             id = System.currentTimeMillis();
-        } while(requests.containsKey(id));
+        } while(requests.putIfAbsent(id, null) != null);
         return id;
     }
 
@@ -183,7 +181,7 @@ public class RequestHandler {
         // TODO Disable requests when it is disabled!!!
         CompletableFuture<Result<T>> future = new CompletableFuture<>();
         Request<T> request = new Request<>(getNewRequestId(), future);
-        requests.put(request.getRequestId(), request);
+        requests.replace(request.getRequestId(), request);
         return request;
     }
 
@@ -199,7 +197,7 @@ public class RequestHandler {
     protected <T> Request<T> request(int timeoutSeconds) {
         CompletableFuture<Result<T>> future = new CompletableFuture<>();
         Request<T> request = new Request<>(getNewRequestId(), future, timeoutSeconds);
-        requests.put(request.getRequestId(), request);
+        requests.replace(request.getRequestId(), request);
         return request;
     }
 
@@ -215,7 +213,7 @@ public class RequestHandler {
     protected <T> Request<T> request(Function<Result<?>, Result<T>> resultParser) {
         CompletableFuture<Result<T>> future = new CompletableFuture<>();
         Request<T> request = new Request<>(getNewRequestId(), resultParser, future);
-        requests.put(request.getRequestId(), request);
+        requests.replace(request.getRequestId(), request);
         return request;
     }
 
@@ -232,7 +230,7 @@ public class RequestHandler {
     protected <T> Request<T> request(Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
         CompletableFuture<Result<T>> future = new CompletableFuture<>();
         Request<T> request = new Request<>(getNewRequestId(), resultParser, future, timeoutSeconds);
-        requests.put(request.getRequestId(), request);
+        requests.replace(request.getRequestId(), request);
         return request;
     }
 
