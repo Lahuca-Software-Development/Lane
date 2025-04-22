@@ -1,15 +1,23 @@
 package com.lahuca.lanecontrollervelocity;
 
+import java.util.Locale;
+
 public class VelocityControllerConfiguration {
 
+    private final String defaultLocale;
     private final Connection connection;
     private final DataManager dataManager;
     private final Commands commands;
 
     public VelocityControllerConfiguration() {
+        defaultLocale = Locale.ENGLISH.toLanguageTag();
         connection = new Connection();
         dataManager = new DataManager();
         commands = new Commands();
+    }
+
+    public String getDefaultLocale() {
+        return defaultLocale;
     }
 
     public Connection getConnection() {

@@ -20,25 +20,27 @@ import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 
-import java.util.*;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.StringJoiner;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class ControllerPlayer implements LanePlayer {
 
     private final UUID uuid;
     private final String username;
     private String displayName;
-    private Locale language;
     private QueueRequest queueRequest;
     private String instanceId = null;
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
 
-    public ControllerPlayer(UUID uuid, String username, String displayName, Locale language) {
+    public ControllerPlayer(UUID uuid, String username, String displayName) {
         this.uuid = uuid;
         this.username = username;
         this.displayName = displayName;
-        this.language = language;
     }
 
     @Override
@@ -54,11 +56,6 @@ public class ControllerPlayer implements LanePlayer {
     @Override
     public String getDisplayName() {
         return displayName;
-    }
-
-    @Override
-    public Locale getLanguage() {
-        return language;
     }
 
     @Override
@@ -134,7 +131,7 @@ public class ControllerPlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, username, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
 
     /**
@@ -145,7 +142,6 @@ public class ControllerPlayer implements LanePlayer {
     @Override
     public void applyRecord(PlayerRecord record) {
         displayName = record.displayName();
-        language = Locale.forLanguageTag(record.languageTag());
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
@@ -158,9 +154,29 @@ public class ControllerPlayer implements LanePlayer {
         getInstanceId().ifPresent(instanceId -> Controller.getInstance().getConnection().sendPacket(new InstanceUpdatePlayerPacket(convertRecord()), instanceId));
     }
 
+    /**
+     * Retrieves the saved {@link Locale} associated with this player asynchronously.
+     *
+     * @return a {@link CompletableFuture} that resolves to an {@link Optional} containing the saved {@link Locale}.
+     *         If no locale was saved, the {@link Optional} will be empty.
+     */
+    public CompletableFuture<Optional<Locale>> getSavedLocale() {
+        return Controller.getInstance().getPlayerManager().getSavedLocale(uuid);
+    }
+
+    /**
+     * Sets the saved locale for this player asynchronously.
+     *
+     * @param locale The {@link Locale} to be saved for the player.
+     * @return A {@link CompletableFuture} that completes when the operation finishes.
+     */
+    public CompletableFuture<Void> setSavedLocale(Locale locale) {
+        return Controller.getInstance().getPlayerManager().setSavedLocale(uuid, locale);
+    }
+
     @Override
     public String toString() {
-        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
+        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
     }
 
     // TODO Abstract sendMessage? Let VelocityController implement?

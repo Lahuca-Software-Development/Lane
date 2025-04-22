@@ -103,7 +103,7 @@ public class FriendCommand {
             });
         });
         uuidToOfflineUsername = Caffeine.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).buildAsync((uuid, executor) ->
-                controller.getOfflinePlayerName(uuid)); // TODO Probably want to move this to Controller!
+                controller.getPlayerManager().getOfflinePlayerName(uuid)); // TODO Probably want to move this to Controller!
         invitations = Caffeine.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build();
     }
 
@@ -169,7 +169,7 @@ public class FriendCommand {
                                     }
                                     // TODO: check if already friends, otherwise send invitation [IF player has enabled!]
                                     String username = c.getArgument("username", String.class);
-                                    controller.getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
+                                    controller.getPlayerManager().getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
                                         if (ex != null) {
                                             player.sendMessage(Component.translatable("lane.controller.velocity.friend.error",
                                                     "Error happened while retrieving friends: " + ex.getMessage()));
@@ -225,7 +225,7 @@ public class FriendCommand {
                                     }
                                     String username = c.getArgument("username", String.class);
                                     // Get UUID to username
-                                    controller.getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
+                                    controller.getPlayerManager().getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
                                         if (ex != null) {
                                             player.sendPlainMessage("Error happened while retrieving friends: " + ex.getMessage());
                                             return;
@@ -274,7 +274,7 @@ public class FriendCommand {
                                     }
                                     String username = c.getArgument("username", String.class);
                                     // Get UUID to username
-                                    controller.getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
+                                    controller.getPlayerManager().getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
                                         if (ex != null) {
                                             player.sendPlainMessage("Error happened while accepting friend: " + ex.getMessage());
                                             return;
@@ -315,7 +315,7 @@ public class FriendCommand {
                                     }
                                     String username = c.getArgument("username", String.class);
                                     // Get UUID to username
-                                    controller.getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
+                                    controller.getPlayerManager().getPlayerUuid(username).whenComplete((uuidOptional, ex) -> {
                                         if (ex != null) {
                                             player.sendPlainMessage("Error happened while denying friend: " + ex.getMessage());
                                             return;

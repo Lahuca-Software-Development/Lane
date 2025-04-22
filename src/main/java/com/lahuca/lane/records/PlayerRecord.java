@@ -19,6 +19,6 @@ import com.lahuca.lane.queue.QueueRequest;
 
 import java.util.UUID;
 
-public record PlayerRecord(UUID uuid, String username, String displayName, String languageTag, QueueRequest queueRequest,
+public record PlayerRecord(UUID uuid, String username, String displayName, QueueRequest queueRequest,
 						   String instanceId, Long gameId, PlayerStateRecord state, Long partyId) {
 }

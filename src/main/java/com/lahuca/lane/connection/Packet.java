@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.packet.connection.ConnectionKeepAliveResultPac
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
+import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
 import com.lahuca.lane.connection.request.result.DataObjectResultPacket;
 import com.lahuca.lane.connection.request.result.LongResultPacket;
 import com.lahuca.lane.connection.request.result.SimpleResultPacket;
@@ -71,6 +72,8 @@ public interface Packet {
 		Packet.registerPacket(DataObjectReadPacket.packetId, DataObjectReadPacket.class);
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
+		Packet.registerPacket(SavedLocalePacket.Get.packetId, SavedLocalePacket.Get.class);
+		Packet.registerPacket(SavedLocalePacket.Set.packetId, SavedLocalePacket.Set.class);
 
 		Packet.registerPacket(RequestInformationPacket.Player.packetId, RequestInformationPacket.Player.class);
 		Packet.registerPacket(RequestInformationPacket.PlayerResponse.packetId, RequestInformationPacket.PlayerResponse.class);

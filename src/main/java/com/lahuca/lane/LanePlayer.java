@@ -19,7 +19,6 @@ import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
 
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,7 +27,6 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
 	UUID getUuid();
 	String getUsername();
 	String getDisplayName();
-	Locale getLanguage();
 	Optional<QueueRequest> getQueueRequest();
 	Optional<String> getInstanceId();
 	Optional<Long> getGameId();

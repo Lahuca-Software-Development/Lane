@@ -15,9 +15,8 @@
  */
 package com.lahuca.laneinstance;
 
-import com.lahuca.lane.connection.Connection;
-import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.ReconnectConnection;
+import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
@@ -32,8 +31,8 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.*;
+import com.lahuca.laneinstance.managers.InstancePlayerManager;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
 import java.io.IOException;
 import java.util.*;
@@ -49,17 +48,19 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     private static LaneInstance instance;
 
-    public static LaneInstance getInstance() {
+    public static LaneInstance getInstance() { // TODO Optional?
         return instance;
     }
 
     private final String id;
     private final ReconnectConnection connection;
-    private final HashMap<UUID, InstancePlayer> players = new HashMap<>();
-    private final HashMap<Long, LaneGame> games = new HashMap<>();
     private String type;
     private boolean joinable;
     private boolean nonPlayable; // Tells whether the instance is also non-playable: e.g. lobby
+
+    private final InstancePlayerManager playerManager;
+
+    private final HashMap<Long, LaneGame> games = new HashMap<>();
 
     public LaneInstance(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
@@ -72,6 +73,9 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         this.connection = connection;
         this.joinable = joinable;
         this.nonPlayable = nonPlayable;
+
+        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus);
+
         connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
             if (input.packet() instanceof InstanceJoinPacket packet) {
@@ -100,13 +104,11 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     // TODO What about max players in a game?
                 }
                 // We are here, so we can apply it.
-                PlayerRecord record = packet.player();
-                getInstancePlayer(record.uuid()).ifPresentOrElse(player -> player.applyRecord(record),
-                        () -> players.put(record.uuid(), new InstancePlayer(record))); // TODO What happens if the player fails the connect?
+                getPlayerManager().registerPlayer(packet.player());
                 sendSimpleResult(packet, ResponsePacket.OK);
             } else if (input.packet() instanceof InstanceUpdatePlayerPacket packet) {
                 PlayerRecord record = packet.playerRecord();
-                getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
+                getPlayerManager().getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
             } else if (input.packet() instanceof ResponsePacket<?> response) {
                 if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Handle output: failed response
@@ -122,7 +124,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         // TODO Probably other stuff?
     }
 
-    private Connection getConnection() {
+    public ReconnectConnection getConnection() {
         return connection;
     }
 
@@ -157,6 +159,10 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     public abstract int getMaxPlayers();
 
+    public InstancePlayerManager getPlayerManager() {
+        return playerManager;
+    }
+
     public abstract void disconnectPlayer(UUID player, Component message);
 
     public void sendController(Packet packet) {
@@ -177,11 +183,11 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @param result The result.
      * @return A CompletableFuture consisting of no additional data and the result.
      */
-    private static CompletableFuture<Result<Void>> simpleFuture(String result) {
+    private static CompletableFuture<Result<Void>> simpleFuture(String result) { // TODO Move, it is also
         return CompletableFuture.completedFuture(new Result<>(result));
     }
 
-    private static <T> Request<T> simpleRequest(String result) {
+    private static <T> Request<T> simpleRequest(String result) { // TODO Move
         return new Request<>(new Result<>(result));
     }
 
@@ -198,93 +204,6 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      */
     public Request<Void> queue(UUID playerId, QueueRequestParameters requestParameters) {
         return connection.sendRequestPacket(id -> new QueueRequestPacket(id, playerId, requestParameters), null);
-    }
-
-    /**
-     * This method is to be called when a player joins the instance.
-     * This will transfer the player to the correct game, if applicable.
-     *
-     * @param uuid the player's uuid
-     */
-    public void joinInstance(UUID uuid) {
-        // TODO When we disconnect, maybe not always display message? Where would it be put? Chat?
-        getInstancePlayer(uuid).ifPresentOrElse(player -> {
-            // Okay, we should allow the join.
-            player.getGameId().ifPresentOrElse(gameId -> {
-                // Player tries to join game
-                getInstanceGame(gameId).ifPresentOrElse(game -> {
-                    // Player tries to join this instance. Check if possible.
-                    if (!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
-                        // We cannot be at this instance.
-                        disconnectPlayer(uuid, Component.text("Instance not joinable or full")); // TODO Translate
-                        return;
-                    }
-                    // TODO Maybe game also has slots? Or limitations?
-                    // Send queue finished to controller
-                    try {
-                        Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
-                        if (result == null || !result.isSuccessful()) {
-                            disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-                            return;
-                        }
-                        sendInstanceStatus();
-                        game.onJoin(player);
-                    } catch (InterruptedException | ExecutionException | CancellationException e) {
-                        disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
-                    }
-                }, () -> {
-                    // The given game ID does not exist on this instance. Disconnect
-                    disconnectPlayer(uuid, Component.text("Invalid game ID on instance.")); // TODO Translateable
-                });
-            }, () -> {
-                // Player tries to join this instance. Check if possible.
-                if (!isJoinable() || getCurrentPlayers() >= getMaxPlayers()) {
-                    // We cannot be at this instance.
-                    disconnectPlayer(uuid, Component.text("Instance not joinable or full")); // TODO Translate
-                    return;
-                }
-                // Join allowed, finalize
-                try {
-                    Result<Void> result = connection.<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
-                    if (!result.isSuccessful()) {
-                        disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-                        return;
-                    }
-                    sendInstanceStatus();
-                    // TODO Handle, like TP, etc. Only after response.
-                } catch (InterruptedException | ExecutionException | CancellationException e) {
-                    disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
-                }
-            });
-        }, () -> {
-            // We do not have the details about this player. Controller did not send it.
-            // Disconnect player, as we are unaware if this is correct.
-            disconnectPlayer(uuid, Component.text("Incorrect state.")); // TODO Translateable
-        });
-    }
-
-    /**
-     * Sets that the given player is leaving the current server, only works for players on this instance.
-     * If the player is on this server, will remove its data and call the correct functions.
-     *
-     * @param uuid
-     */
-    public void quitInstance(UUID uuid) {
-        getInstancePlayer(uuid).ifPresent(player -> quitGame(uuid));
-        players.remove(uuid);
-        sendInstanceStatus();
-    }
-
-    /**
-     * Sets that the given player is quitting its game, only works for players on this instance.
-     *
-     * @param uuid the player's uuid
-     */
-    public void quitGame(UUID uuid) {
-        getInstancePlayer(uuid).ifPresent(player -> player.getGameId().flatMap(this::getInstanceGame).ifPresent(game -> {
-            game.onQuit(player);
-            // TODO Remove player actually from player list in the game
-        }));
     }
 
     private Request<Long> requestId(RequestIdPacket.Type idType) {
@@ -363,44 +282,8 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         return connection.sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null);
     }
 
-    /**
-     * Retrieves an InstancePlayer by a given UUID on this instance.
-     *
-     * @param player the UUID of the player
-     * @return an optional of the InstancePlayer object.
-     */
-    public Optional<InstancePlayer> getInstancePlayer(UUID player) {
-        return Optional.ofNullable(players.get(player));
-    }
-
-    /**
-     * Retrieves a collection of all instance players on this instance.
-     *
-     * @return the collection
-     */
-    public Collection<InstancePlayer> getInstancePlayers() {
-        return players.values();
-    }
-
-    /**
-     * Retrieves a request of the player record of the player with the given UUID on the controller.
-     * The value is null when no player with the given UUID is present.
-     * @param uuid the UUID of the player
-     * @return the request
-     */
-    public Request<PlayerRecord> getPlayerRecord(UUID uuid) {
-        if(uuid == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        return connection.sendRequestPacket(id -> new RequestInformationPacket.Player(id, uuid), null);
-    }
-
-    /**
-     * Retrieves a request of a collection of immutable records of all players on the controller.
-     *
-     * @return the request
-     */
-    public Request<ArrayList<PlayerRecord>> getAllPlayerRecords() {
-        return connection.sendRequestPacket(RequestInformationPacket.Players::new, null);
-    }
+    // TODO updateDataObject
+    // TODO Maybe still delagate getInstancePLayer()?
 
     /**
      * Retrieves an InstanceGame by a given game ID on this instance.
@@ -463,11 +346,6 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     @Override
     public InstanceRecord convertRecord() {
         return new InstanceRecord(id, type, joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers());
-    }
-
-    public void sendMessage(UUID player, Component component) {
-        if(player == null || component == null) return;
-        connection.sendPacket(new SendMessagePacket(player, GsonComponentSerializer.gson().serialize(component)), null);
     }
 
     // TODO Below: todo

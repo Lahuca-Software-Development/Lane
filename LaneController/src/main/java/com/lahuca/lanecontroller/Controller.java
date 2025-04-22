@@ -23,6 +23,7 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
+import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.Result;
 import com.lahuca.lane.connection.request.result.DataObjectResultPacket;
@@ -33,7 +34,6 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
-import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.queue.*;
@@ -42,6 +42,7 @@ import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
+import com.lahuca.lanecontroller.managers.ControllerPlayerManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
@@ -64,7 +65,8 @@ public abstract class Controller {
     private final Connection connection;
     private final DataManager dataManager;
 
-    private final HashMap<UUID, ControllerPlayer> players = new HashMap<>();
+    private final ControllerPlayerManager playerManager;
+
     private final HashMap<Long, ControllerParty> parties = new HashMap<>();
     private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
     private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
@@ -74,6 +76,7 @@ public abstract class Controller {
         instance = this;
         this.connection = connection;
         this.dataManager = dataManager;
+        playerManager = new ControllerPlayerManager(this, dataManager);
 
         Packet.registerPackets();
 
@@ -252,7 +255,7 @@ public abstract class Controller {
                         getPlayer(packet.uuid()).map(ControllerPlayer::convertRecord).orElse(null)), input.from());
             } else if (iPacket instanceof RequestInformationPacket.Players packet) {
                 ArrayList<PlayerRecord> data = new ArrayList<>();
-                for (ControllerPlayer value : players.values()) {
+                for (ControllerPlayer value : getPlayerManager().getPlayers()) {
                     // TODO Concurrent?
                     data.add(value.convertRecord());
                 }
@@ -279,6 +282,36 @@ public abstract class Controller {
                 connection.sendPacket(new RequestInformationPacket.InstancesResponse(packet.getRequestId(), ResponsePacket.OK, data), input.from());
             } else if (iPacket instanceof SendMessagePacket packet) {
                 sendMessage(packet.player(), GsonComponentSerializer.gson().deserialize(packet.message()));
+            } else if (iPacket instanceof SavedLocalePacket.Get packet) { // TODO Fix this! All, too many else if
+                getPlayerManager().getSavedLocale(packet.player()).whenComplete((locale, ex) -> {
+                   if(ex != null) {
+                       // TODO Additional instnceof? As read?
+                       if(ex instanceof IllegalArgumentException) {
+                           connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                           return;
+                       }
+                       connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                       return;
+                   }
+                   if(locale.isPresent()) {
+                       connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, locale.get().toLanguageTag()), input.from());
+                   } else {
+                       connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, null), input.from());
+                   }
+                });
+            } else if(iPacket instanceof SavedLocalePacket.Set packet) {
+                getPlayerManager().setSavedLocale(packet.player(), Locale.of(packet.locale())).whenComplete((bool, ex) -> {
+                    if(ex != null) {
+                        // TODO Additional instnceof? As write?
+                        if(ex instanceof IllegalArgumentException) {
+                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                            return;
+                        }
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                        return;
+                    }
+                    connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                });
             } else if (iPacket instanceof ResponsePacket<?> response) {
                 if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
                     // TODO Well, log about packet that is not wanted.
@@ -301,6 +334,10 @@ public abstract class Controller {
         return dataManager;
     }
 
+    public ControllerPlayerManager getPlayerManager() {
+        return playerManager;
+    }
+
     private ControllerLaneInstance createGetInstance(String id) {
         if (!instances.containsKey(id)) instances.put(id, new ControllerLaneInstance(id, null));
         return instances.get(id);
@@ -312,6 +349,18 @@ public abstract class Controller {
 
     public Collection<ControllerLaneInstance> getInstances() { // TODO Really public?
         return instances.values();
+    }
+
+    /**
+     * Retrieves the player associated with the given UUID.
+     * If the player is not found, an empty {@link Optional} is returned.
+     *
+     * @param uuid the unique identifier of the player
+     * @return an {@link Optional} containing the {@link ControllerPlayer} if found,
+     *         or an empty {@link Optional} if the player does not exist
+     */
+    public Optional<ControllerPlayer> getPlayer(UUID uuid) {
+        return getPlayerManager().getPlayer(uuid);
     }
 
     /**
@@ -544,29 +593,6 @@ public abstract class Controller {
         games.remove(id);
     }
 
-
-    // TODO Redo
-    public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.remove(controllerPlayer.getUuid());
-    }
-
-    /**
-     * Registers the player on the controller
-     *
-     * @param player the player to register
-     * @return true if succesful
-     */
-    public boolean registerPlayer(ControllerPlayer player) {
-        if (player == null || player.getUuid() == null) return false;
-        if (players.containsKey(player.getUuid())) return false;
-        players.put(player.getUuid(), player);
-        return true;
-    }
-
-    public void unregisterPlayer(UUID player) {
-        players.remove(player);
-    } // TODO Redo
-
     /**
      * @param owner
      * @param invited
@@ -589,73 +615,6 @@ public abstract class Controller {
         }
 
         party.disband();
-    }
-
-    public Collection<ControllerPlayer> getPlayers() {
-        return players.values();
-    } // TODO Redo
-
-    public Optional<ControllerPlayer> getPlayer(UUID uuid) {
-        return Optional.ofNullable(players.get(uuid));
-    } // TODO Redo
-
-    public Optional<ControllerPlayer> getPlayerByUsername(String name) { // TODO Redo
-        return players.values().stream().filter(player -> player.getUsername().equals(name)).findFirst();
-    }
-
-    /**
-     * Gets the last known username of the player with the given UUID.
-     * It is taken either immediately if the player is online, otherwise the value that is present in the data manager.
-     *
-     * @param uuid the player's UUID.
-     * @return a CompletableFuture with an optional, if data has been found the optional is populated with the username; otherwise it is empty.
-     */
-    public CompletableFuture<Optional<String>> getPlayerUsername(UUID uuid) {
-        // TODO Allow option to enable case-insensitive
-        Optional<String> optional = getPlayer(uuid).map(ControllerPlayer::getUsername);
-        if (optional.isPresent()) {
-            return CompletableFuture.completedFuture(optional);
-        }
-        // TODO Probably we want to cache!
-        // TODO Put in!
-        return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(uuid), "username")).thenApply(dataObject ->
-                dataObject.flatMap(DataObject::getValue));
-    }
-
-    /**
-     * Gets the last known UUID of the player with the given username.
-     * It is taken either immediately if the player is online, otherwise the value that is present in the data manager.
-     *
-     * @param username the player's username
-     * @return a CompletableFuture with an optional, if data has been found the optional is populated with the UUID; otherwise it is empty
-     */
-    public CompletableFuture<Optional<UUID>> getPlayerUuid(String username) {
-        // TODO
-        // usernames.Laurenshup.uuid = UUID
-        Optional<UUID> optional = getPlayerByUsername(username).map(ControllerPlayer::getUuid);
-        if (optional.isPresent()) {
-            return CompletableFuture.completedFuture(optional);
-        }
-        // TODO Probably we want to caache!
-        // TODO Put in
-        return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Usernames(username), "uuid"))
-                .thenApply(dataObject -> dataObject.flatMap(object -> object.getValue().map(UUID::fromString)));
-    }
-
-    /**
-     * Gets the last known username of the player with the given UUID.
-     *
-     * @param uuid the uuid
-     * @return a completable future that retrieves an optional that has the username or is empty when no one with the given UUID was online at least once.
-     */
-    public CompletableFuture<Optional<String>> getOfflinePlayerName(UUID uuid) {
-        // TODO Put the username in!
-        return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(uuid), "username")).thenApply(dataObject -> {
-            if (dataObject.isPresent()) {
-                return dataObject.get().getValue();
-            }
-            return Optional.empty();
-        });
     }
 
     public Collection<ControllerParty> getParties() {
@@ -707,17 +666,23 @@ public abstract class Controller {
      *
      * @param player  the player's UUID
      * @param message the message to send
-     * @return true whether the message was successfully sent
      */
-    public abstract boolean sendMessage(UUID player, Component message);
+    public abstract void sendMessage(UUID player, Component message);
 
     /**
      * Disconnect the player with the given message from the network.
      *
      * @param player  The player's UUID
      * @param message The message to show when disconnecting
-     * @return true whether the player was successfully disconnected.
      */
-    public abstract boolean disconnectPlayer(UUID player, Component message);
+    public abstract void disconnectPlayer(UUID player, Component message);
+
+    /**
+     * Sets the effective locale for the given player.
+     *
+     * @param player the UUID of the player whose effective locale is being set
+     * @param locale the locale to set as the effective locale for the player
+     */
+    public abstract void setEffectiveLocale(UUID player, Locale locale);
 
 }

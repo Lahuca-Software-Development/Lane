@@ -119,12 +119,12 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        implementation().ifPresent(impl -> impl.joinInstance(event.getPlayer().getUniqueId()));
+        implementation().ifPresent(impl -> impl.getPlayerManager().joinInstance(event.getPlayer().getUniqueId()));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        implementation().ifPresent(impl -> impl.quitInstance(event.getPlayer().getUniqueId()));
+        implementation().ifPresent(impl -> impl.getPlayerManager().quitInstance(event.getPlayer().getUniqueId()));
     }
 
     private class Implementation extends LaneInstance {

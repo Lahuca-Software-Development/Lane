@@ -211,12 +211,6 @@ public class VelocityController {
         return Optional.ofNullable(controller);
     }
 
-    private Locale getLocale(Player player) {
-        Locale locale = player.getEffectiveLocale();
-        if(locale == null) locale = Locale.ENGLISH;
-        return locale;
-    }
-
     /**
      * When a proxy player is correctly authenticated, we first register the player to the controller.
      * @param event the login event
@@ -224,10 +218,9 @@ public class VelocityController {
     @Subscribe
     public void onLogin(LoginEvent event) {
         Player player = event.getPlayer();
-        Locale locale = getLocale(player);
-        getController().ifPresentOrElse(ctrl -> {
+        getController().ifPresentOrElse(controller -> {
             String name = player.getUsername(); // TODO Load custom display name (maybe nicked name)?
-            boolean registered = ctrl.registerPlayer(new ControllerPlayer(player.getUniqueId(), name, name, locale));
+            boolean registered = controller.getPlayerManager().registerPlayer(player.getUniqueId(), name, Locale.of(configuration.getDefaultLocale()));
             if(!registered) {
                 TranslatableComponent message = Component.translatable("failedToRegister"); // TODO Change all keys in this file for .translateable
                 event.setResult(ResultedEvent.ComponentResult.denied(message));// TODO Change key
@@ -241,7 +234,6 @@ public class VelocityController {
     }
 
     private void runOnControllerPlayer(Player player, BiConsumer<Controller, ControllerPlayer> accept, Consumer<Component> failed) {
-        Locale locale = getLocale(player);
         getController().ifPresentOrElse(ctrl -> ctrl.getPlayer(player.getUniqueId()).ifPresentOrElse(cPlayer -> {
             accept.accept(ctrl, cPlayer);
         }, () -> {
@@ -378,15 +370,15 @@ public class VelocityController {
         runOnControllerPlayer(event.getPlayer(), (controller, player) -> {
             if(player.getState() == null) {
                 // TODO Even after X seconds it should unregister: timer
-                controller.unregisterPlayer(player.getUuid());
+                controller.getPlayerManager().unregisterPlayer(player.getUuid());
                 return;
             }
             if(player.getState().getName().equals(LanePlayerState.OFFLINE)) {
-                controller.unregisterPlayer(player.getUuid());
+                controller.getPlayerManager().unregisterPlayer(player.getUuid());
                 return;
             }
             // TODO Even after X seconds it should unregister: timer
-            controller.unregisterPlayer(player.getUuid());
+            controller.getPlayerManager().unregisterPlayer(player.getUuid());
         }, null);
     }
 
@@ -788,19 +780,18 @@ public class VelocityController {
         }
 
         @Override
-        public boolean sendMessage(UUID player, Component message) {
-            Optional<Player> optionalPlayer = server.getPlayer(player);
-            if(optionalPlayer.isEmpty()) return false;
-            optionalPlayer.get().sendMessage(message);
-            return true;
+        public void sendMessage(UUID player, Component message) {
+            server.getPlayer(player).ifPresent(p -> p.sendMessage(message));
         }
 
         @Override
-        public boolean disconnectPlayer(UUID player, Component message) {
-            Optional<Player> optionalPlayer = server.getPlayer(player);
-            if(optionalPlayer.isEmpty()) return false;
-            optionalPlayer.get().disconnect(message);
-            return true;
+        public void disconnectPlayer(UUID player, Component message) {
+            server.getPlayer(player).ifPresent(p -> p.disconnect(message));
+        }
+
+        @Override
+        public void setEffectiveLocale(UUID player, Locale locale) {
+            server.getPlayer(player).ifPresent(p -> p.setEffectiveLocale(locale));
         }
 
     }

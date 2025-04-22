@@ -2,10 +2,14 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 
-import java.util.*;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.StringJoiner;
+import java.util.UUID;
 
 /**
  * @author _Neko1
@@ -17,7 +21,6 @@ public class InstancePlayer implements LanePlayer {
     private final UUID uuid;
     private final String username;
     private String displayName;
-    private Locale language;
     private QueueRequest queueRequest;
     private String instanceId = null;
     private Long gameId = null;
@@ -36,18 +39,24 @@ public class InstancePlayer implements LanePlayer {
         applyRecord(record);
     }
 
-    public void setLanguage(String languageTag) {
-        setLanguage(Locale.forLanguageTag(languageTag));
+    /**
+     * Retrieves the saved locale associated with this player.
+     *
+     * @return a {@code Request} containing an {@code Optional} of {@code Locale} representing the saved locale,
+     *         or an empty {@code Optional} if no locale is saved.
+     */
+    public Request<Optional<Locale>> getSavedLocale() {
+        return LaneInstance.getInstance().getPlayerManager().getSavedLocale(uuid);
     }
 
-    public void setLanguage(Locale language) {
-        this.language = language;
-        //LaneInstance.getInstance().sendController(new InstanceUpdatePlayerPacket(convertRecord())); // TODO Use something different. Never use InstanceUpdatePlayerPacket for if it is going to the controller.
-    }
-
-    @Override
-    public Locale getLanguage() {
-        return language;
+    /**
+     * Sets the saved locale for this player.
+     *
+     * @param locale the {@code Locale} to be set as the saved locale for this player.
+     * @return a {@code Request<Void>} representing the asynchronous operation for setting the saved locale.
+     */
+    public Request<Void> setSavedLocale(Locale locale) {
+        return LaneInstance.getInstance().getPlayerManager().setSavedLocale(uuid, locale);
     }
 
     @Override
@@ -92,14 +101,13 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, displayName, language.toLanguageTag(), queueRequest, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, username, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
 
     @Override
     public void applyRecord(PlayerRecord record) {
         // TODO Maybe better recode?
         displayName = record.displayName();
-        language = Locale.forLanguageTag(record.languageTag());
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
@@ -110,7 +118,7 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("language=" + language).add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
+        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
     }
 
 }

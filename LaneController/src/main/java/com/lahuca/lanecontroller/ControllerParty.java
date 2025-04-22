@@ -60,7 +60,7 @@ public class ControllerParty implements LaneParty {
 
     public void setOwner(UUID owner) {
         this.owner = owner;
-        Controller.getInstance().getPlayer(owner).ifPresent(controllerPlayer -> controllerPlayer.setParty(partyId));
+        Controller.getInstance().getPlayerManager().getPlayer(owner).ifPresent(controllerPlayer -> controllerPlayer.setParty(partyId));
     }
 
     @Override
