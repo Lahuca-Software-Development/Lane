@@ -300,6 +300,7 @@ public abstract class Controller {
                    }
                 });
             } else if(iPacket instanceof SavedLocalePacket.Set packet) {
+                Locale locale = Locale.of(packet.locale());
                 getPlayerManager().setSavedLocale(packet.player(), Locale.of(packet.locale())).whenComplete((bool, ex) -> {
                     if(ex != null) {
                         // TODO Additional instnceof? As write?
@@ -310,6 +311,7 @@ public abstract class Controller {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                         return;
                     }
+                    setEffectiveLocale(packet.player(), locale); // TODO On evnet
                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                 });
             } else if (iPacket instanceof ResponsePacket<?> response) {

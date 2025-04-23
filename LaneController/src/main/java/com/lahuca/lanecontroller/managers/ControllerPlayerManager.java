@@ -53,6 +53,7 @@ public class ControllerPlayerManager {
         ControllerPlayer player = new ControllerPlayer(uuid, username, username); // TODO Display name!
         players.put(uuid, player);
         dataManager.writeDataObject(PermissionKey.CONTROLLER, new DataObject(new DataObjectId(RelationalId.Players(player.getUuid()), "username"), PermissionKey.CONTROLLER, player.getUsername()));
+        applySavedLocale(player.getUuid(), defaultLocale);
         dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(player.getUuid()), "locale")).whenComplete((object, exception) -> {
             // We tried to fetch the saved locale. If present set to saved locale, otherwise client locale.
             if (object != null && object.isPresent()) {
@@ -63,6 +64,27 @@ public class ControllerPlayerManager {
             }
         });
         return true;
+    }
+
+    /**
+     * Applies the effective locale for a player.
+     * Fetches the player's saved locale from the data manager.
+     * If a saved locale is found, it is set as the player's effective locale.
+     * If no saved locale is available, the default locale is applied instead.
+     *
+     * @param player        the unique identifier of the player whose locale is to be set. Must not be null.
+     * @param defaultLocale the default locale to apply if no saved locale is found. Must not be null.
+     */
+    public void applySavedLocale(UUID player, Locale defaultLocale) {
+        dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(player), "locale")).whenComplete((object, exception) -> {
+            // We tried to fetch the saved locale. If present set to saved locale, otherwise client locale.
+            if (object != null && object.isPresent()) {
+                object.flatMap(DataObject::getValue).ifPresentOrElse(savedLocale -> controller.setEffectiveLocale(player, Locale.of(savedLocale)),
+                        () -> controller.setEffectiveLocale(player, defaultLocale));
+            } else {
+                controller.setEffectiveLocale(player, defaultLocale);
+            }
+        });
     }
 
     public void unregisterPlayer(UUID player) {

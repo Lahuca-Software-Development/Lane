@@ -42,6 +42,7 @@ import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.event.player.PlayerSettingsChangedEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -517,6 +518,20 @@ public class VelocityController {
             event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
             // TODO Maybe we should keep the player at the lobby?, or register the player back
         });
+    }
+
+    @Subscribe
+    public void onSettingsChanged(PlayerSettingsChangedEvent event) {
+        Locale changedLocale = event.getPlayerSettings().getLocale();
+        Locale currentLocale = event.getPlayer().getEffectiveLocale();
+        if(currentLocale == null || !currentLocale.equals(changedLocale)) {
+            // We need to update the locale
+            if(changedLocale == null) {
+                // Use the default locale if the changed one is null.
+                changedLocale = Locale.of(configuration.getDefaultLocale());
+            }
+            Controller.getInstance().getPlayerManager().applySavedLocale(event.getPlayer().getUniqueId(), changedLocale);
+        }
     }
 
     public ProxyServer getServer() {
