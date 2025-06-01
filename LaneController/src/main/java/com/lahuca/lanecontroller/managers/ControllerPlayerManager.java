@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 public class ControllerPlayerManager {
 
@@ -37,33 +38,33 @@ public class ControllerPlayerManager {
 
     /**
      * Registers a player in the system with the provided information.
-     * Sets the effective locale to the saved locale, if it is not present, it will be set to the default locale.
      * Also updates the data object so that the username is stored to the UUID.
+     * Returns the effective locale to the saved locale, if it is not present, it will be set to the default locale.
      *
      * @param uuid          the unique identifier for the player. Must not be null.
      * @param username      the username of the player. Must not be null.
      * @param defaultLocale the default locale to be set for the player if no saved locale is found. Must not be null.
-     * @return {@code true} if the player was successfully registered, {@code false} if the UUID is already registered or any parameter is null.
+     * @return {@code null} if the UUID is already registered or any parameter is null, otherwise the effective locale to set.
      */
-    public boolean registerPlayer(UUID uuid, String username, Locale defaultLocale) {
+    public Locale registerPlayer(UUID uuid, String username, Locale defaultLocale) {
         if (uuid == null || username == null || defaultLocale == null) {
-            return false;
+            return null;
         }
-        if (players.containsKey(uuid)) return false;
+        if (players.containsKey(uuid)) return null;
         ControllerPlayer player = new ControllerPlayer(uuid, username, username); // TODO Display name!
         players.put(uuid, player);
         dataManager.writeDataObject(PermissionKey.CONTROLLER, new DataObject(new DataObjectId(RelationalId.Players(player.getUuid()), "username"), PermissionKey.CONTROLLER, player.getUsername()));
         applySavedLocale(player.getUuid(), defaultLocale);
-        dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(player.getUuid()), "locale")).whenComplete((object, exception) -> {
-            // We tried to fetch the saved locale. If present set to saved locale, otherwise client locale.
+        try {
+            // TODO This is blocking, but doing it using whenComplete; is incorrect in the register. As it will not find the player yet
+            Optional<DataObject> object = dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(player.getUuid()), "locale")).get();
             if (object != null && object.isPresent()) {
-                object.flatMap(DataObject::getValue).ifPresentOrElse(savedLocale -> controller.setEffectiveLocale(uuid, Locale.of(savedLocale)),
-                        () -> controller.setEffectiveLocale(uuid, defaultLocale));
-            } else {
-                controller.setEffectiveLocale(uuid, defaultLocale);
+                return object.flatMap(DataObject::getValue).map(Locale::forLanguageTag).orElse(defaultLocale);
             }
-        });
-        return true;
+            return defaultLocale;
+        } catch (InterruptedException | ExecutionException e) {
+            return defaultLocale;
+        }
     }
 
     /**

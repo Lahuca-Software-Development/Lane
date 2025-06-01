@@ -53,13 +53,14 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
+import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
+import net.kyori.adventure.translation.GlobalTranslator;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -97,6 +98,7 @@ public class VelocityController {
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
         initializeConfig();
+        initializeResourceBundles();
         // TODO Log whenever the config is the default one! So when it has made an error
 
         // Connection
@@ -159,6 +161,7 @@ public class VelocityController {
     }
 
     private void initializeConfig() {
+        // Config
         File file = new File(dataDirectory.toFile(), "config.toml");
         if(!file.exists()) {
             // File does not exist
@@ -203,6 +206,76 @@ public class VelocityController {
         }
     }
 
+    private void initializeResourceBundles() {
+        // Resource Bundles
+        File resourceBundleFolder = new File(dataDirectory.toFile(), "lang");
+        File defaultResourceBundle = new File(resourceBundleFolder, "messages_en.properties");
+        // TODO Here, where it did not work! do something like exception
+        if(!defaultResourceBundle.exists()) {
+            // File does not exist
+            if(!defaultResourceBundle.getParentFile().exists()) {
+                // Parent folder does not exist, create it.
+                if(!defaultResourceBundle.getParentFile().mkdirs()) {
+                    // We could not make parent folder, stop
+                    return;
+                }
+            }
+            try {
+                if(!defaultResourceBundle.createNewFile()) {
+                    return;
+                }
+            } catch (IOException e) {
+                return;
+            }
+            // Create default
+            boolean done = false;
+            try (InputStream inputStream = getClass().getResourceAsStream("/messages.properties")) {
+                if (inputStream != null) {
+                    Files.copy(inputStream, defaultResourceBundle.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    done = true;
+                }
+            } catch (IOException ignored) {
+                ignored.printStackTrace();
+            }
+            if(!done) {
+                return;
+            }
+        }
+        loadResourceBundles(resourceBundleFolder, MiniMessageTranslationStore.create(Key.key("lane:controller")));
+    }
+
+    private static void loadResourceBundles(File langFolder, MiniMessageTranslationStore store) {
+        File[] files = langFolder.listFiles((dir, name) -> name.endsWith(".properties"));
+        if (files == null) return;
+
+        for (File file : files) {
+            Locale locale = parseLocale(file.getName());
+
+            try (InputStream in = new FileInputStream(file);
+                 Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+
+                ResourceBundle bundle = new PropertyResourceBundle(reader);
+                store.registerAll(locale, bundle, true);
+            } catch (IOException e) {
+                e.printStackTrace(); // TODO Hmmm
+            }
+        }
+        GlobalTranslator.translator().addSource(store);
+    }
+
+    private static Locale parseLocale(String filename) {
+        // messages_en_US_v.properties → en_US_v
+        String base = filename.replace(".properties", "");
+        String[] parts = base.split("_");
+
+        if (parts.length == 1) return Locale.ROOT;
+        if (parts.length == 2) return Locale.of(parts[1]);
+        if (parts.length == 3) return Locale.of(parts[1], parts[2]);
+        if (parts.length == 4) return Locale.of(parts[1], parts[2], parts[3]);
+        return Locale.ROOT;
+    }
+
+
     @Subscribe
     public void onProxyInitialization(ProxyShutdownEvent event) {
         if(controller != null) controller.shutdown();
@@ -221,16 +294,17 @@ public class VelocityController {
         Player player = event.getPlayer();
         getController().ifPresentOrElse(controller -> {
             String name = player.getUsername(); // TODO Load custom display name (maybe nicked name)?
-            boolean registered = controller.getPlayerManager().registerPlayer(player.getUniqueId(), name, Locale.of(configuration.getDefaultLocale()));
-            if(!registered) {
-                TranslatableComponent message = Component.translatable("failedToRegister"); // TODO Change all keys in this file for .translateable
-                event.setResult(ResultedEvent.ComponentResult.denied(message));// TODO Change key
+            Locale effectiveLocale = controller.getPlayerManager().registerPlayer(player.getUniqueId(), name, Locale.of(configuration.getDefaultLocale()));
+            if(effectiveLocale == null) {
+                TranslatableComponent message = Component.translatable("lane.controller.error.login.register"); // TODO This will always use English?
+                event.setResult(ResultedEvent.ComponentResult.denied(message));
             } else {
+                player.setEffectiveLocale(effectiveLocale);
                 event.setResult(ResultedEvent.ComponentResult.allowed());
             }
         }, () -> {
-            TranslatableComponent message = Component.translatable("cannotReachController");
-            event.setResult(ResultedEvent.ComponentResult.denied(message));// TODO Change key
+            TranslatableComponent message = Component.translatable("lane.controller.error.controller.unavailable");
+            event.setResult(ResultedEvent.ComponentResult.denied(message));
         });
     }
 
@@ -238,9 +312,9 @@ public class VelocityController {
         getController().ifPresentOrElse(ctrl -> ctrl.getPlayer(player.getUniqueId()).ifPresentOrElse(cPlayer -> {
             accept.accept(ctrl, cPlayer);
         }, () -> {
-            if(failed != null) failed.accept(Component.translatable("notRegisteredPlayer"));
+            if(failed != null) failed.accept(Component.translatable("lane.controller.error.player.unregistered"));
         }), () -> {
-            if(failed != null) failed.accept(Component.translatable("cannotReachController"));
+            if(failed != null) failed.accept(Component.translatable("lane.controller.error.controller.unavailable"));
         });
     }
 
@@ -268,7 +342,7 @@ public class VelocityController {
                     // We should disconnect the player.
                     Component message;
                     if(messageableResult.getMessage() == null) {
-                        message = Component.translatable("cannotFindFreeInstance");
+                        message = Component.translatable("lane.controller.error.login.unavailable");
                     } else {
                         message = messageableResult.getMessage();
                     }
@@ -421,7 +495,7 @@ public class VelocityController {
                 if(result instanceof QueueStageEventResult.None none) {
                     Component message;
                     if(none.getMessage() == null) {
-                        message = Component.translatable("none"); // TODO Different key!
+                        message = Component.translatable("lane.controller.error.queue.kicked.none"); // TODO Add more information: kick reason, what server, during join?
                     } else {
                         message = none.getMessage();
                     }
@@ -430,7 +504,7 @@ public class VelocityController {
                 } else if(result instanceof QueueStageEventResult.Disconnect disconnect) {
                     Component message;
                     if(disconnect.getMessage() == null) {
-                        message = Component.translatable("disconnect"); // TODO Different key!
+                        message = Component.translatable("lane.controller.error.queue.kicked.disconnect"); // TODO Add more information: kick reason, what server, during join?
                     } else {
                         message = disconnect.getMessage();
                     }
@@ -809,6 +883,10 @@ public class VelocityController {
             server.getPlayer(player).ifPresent(p -> p.setEffectiveLocale(locale));
         }
 
+        @Override
+        public Locale getEffectiveLocale(UUID player) {
+            return server.getPlayer(player).map(Player::getEffectiveLocale).orElse(null);
+        }
     }
 
 }

@@ -219,7 +219,7 @@ public abstract class Controller {
                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
-                    if(ex != null) {
+                    if (ex != null) {
                         String result = switch (ex) {
                             case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                             case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
@@ -237,7 +237,7 @@ public abstract class Controller {
                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                 }
                 dataManager.removeDataObject(packet.permissionKey(), packet.id()).whenComplete((bool, ex) -> {
-                    if(ex != null) {
+                    if (ex != null) {
                         String result = switch (ex) {
                             case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                             case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
@@ -284,27 +284,27 @@ public abstract class Controller {
                 sendMessage(packet.player(), GsonComponentSerializer.gson().deserialize(packet.message()));
             } else if (iPacket instanceof SavedLocalePacket.Get packet) { // TODO Fix this! All, too many else if
                 getPlayerManager().getSavedLocale(packet.player()).whenComplete((locale, ex) -> {
-                   if(ex != null) {
-                       // TODO Additional instnceof? As read?
-                       if(ex instanceof IllegalArgumentException) {
-                           connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
-                           return;
-                       }
-                       connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                       return;
-                   }
-                   if(locale.isPresent()) {
-                       connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, locale.get().toLanguageTag()), input.from());
-                   } else {
-                       connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, null), input.from());
-                   }
+                    if (ex != null) {
+                        // TODO Additional instnceof? As read?
+                        if (ex instanceof IllegalArgumentException) {
+                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                            return;
+                        }
+                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                        return;
+                    }
+                    if (locale.isPresent()) {
+                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, locale.get().toLanguageTag()), input.from());
+                    } else {
+                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, null), input.from());
+                    }
                 });
-            } else if(iPacket instanceof SavedLocalePacket.Set packet) {
+            } else if (iPacket instanceof SavedLocalePacket.Set packet) {
                 Locale locale = Locale.of(packet.locale());
                 getPlayerManager().setSavedLocale(packet.player(), Locale.of(packet.locale())).whenComplete((bool, ex) -> {
-                    if(ex != null) {
+                    if (ex != null) {
                         // TODO Additional instnceof? As write?
-                        if(ex instanceof IllegalArgumentException) {
+                        if (ex instanceof IllegalArgumentException) {
                             connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                             return;
                         }
@@ -359,7 +359,7 @@ public abstract class Controller {
      *
      * @param uuid the unique identifier of the player
      * @return an {@link Optional} containing the {@link ControllerPlayer} if found,
-     *         or an empty {@link Optional} if the player does not exist
+     * or an empty {@link Optional} if the player does not exist
      */
     public Optional<ControllerPlayer> getPlayer(UUID uuid) {
         return getPlayerManager().getPlayer(uuid);
@@ -686,5 +686,13 @@ public abstract class Controller {
      * @param locale the locale to set as the effective locale for the player
      */
     public abstract void setEffectiveLocale(UUID player, Locale locale);
+
+    /**
+     * Gets the effective locale for the given player.
+     *
+     * @param player the UUID of the player whose effective locale is being retrieved
+     * @return the effective locale, or null if the player is not online
+     */
+    public abstract Locale getEffectiveLocale(UUID player);
 
 }
