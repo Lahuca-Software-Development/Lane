@@ -42,6 +42,7 @@ import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
+import com.lahuca.lanecontroller.managers.ControllerPartyManager;
 import com.lahuca.lanecontroller.managers.ControllerPlayerManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
@@ -66,8 +67,9 @@ public abstract class Controller {
     private final DataManager dataManager;
 
     private final ControllerPlayerManager playerManager;
+    private final ControllerPartyManager partyManager;
 
-    private final HashMap<Long, ControllerParty> parties = new HashMap<>();
+
     private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
     private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
 
@@ -77,6 +79,7 @@ public abstract class Controller {
         this.connection = connection;
         this.dataManager = dataManager;
         playerManager = new ControllerPlayerManager(this, dataManager);
+        partyManager = new ControllerPartyManager(this, dataManager);
 
         Packet.registerPackets();
 
@@ -111,18 +114,18 @@ public abstract class Controller {
             } else if (iPacket instanceof InstanceStatusUpdatePacket packet) {
                 createGetInstance(input.from()).applyRecord(packet.record());
             } else if (iPacket instanceof PartyPacket.Retrieve.Request packet) {
-                getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
+                getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertToRecord()), input.from()),
                         () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if (iPacket instanceof PartyPacket.Player.Add packet) {
-                getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::addPlayer,
+                getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::addPlayer,
                                 () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                         () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if (iPacket instanceof PartyPacket.Player.Remove packet) {
-                getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::removePlayer,
+                getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> getPlayer(packet.player()).ifPresentOrElse(party::removePlayer,
                                 () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                         () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if (iPacket instanceof PartyPacket.Disband.Request packet) {
-                getParty(packet.partyId()).ifPresentOrElse(this::disbandParty, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                getPartyManager().getParty(packet.partyId()).ifPresentOrElse(getPartyManager()::disbandParty, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
             } else if (iPacket instanceof QueueRequestPacket packet) {
                 getPlayer(packet.player()).ifPresentOrElse(player -> {
                     queue(player, new QueueRequest(QueueRequestReason.PLUGIN_INSTANCE, packet.parameters())).whenComplete((result, exception) -> {
@@ -338,6 +341,10 @@ public abstract class Controller {
 
     public ControllerPlayerManager getPlayerManager() {
         return playerManager;
+    }
+
+    public ControllerPartyManager getPartyManager() {
+        return partyManager;
     }
 
     private ControllerLaneInstance createGetInstance(String id) {
@@ -594,38 +601,6 @@ public abstract class Controller {
     public void endGame(long id) { // TODO Check
         games.remove(id);
     }
-
-    /**
-     * @param owner
-     * @param invited
-     */
-    public void createParty(ControllerPlayer owner, ControllerPlayer invited) {
-        if (owner == null || invited == null) return;
-        if (owner.getPartyId().isPresent()) return;
-        ControllerParty controllerParty = new ControllerParty(System.currentTimeMillis(), owner.getUuid());
-        // TODO Check ID for doubles
-
-        controllerParty.sendRequest(invited);
-    }
-
-    public void disbandParty(ControllerParty party) { // TODO Redo: might send packets to servers with party info
-        if (!parties.containsKey(party.getId())) return;
-        parties.remove(party.getId());
-
-        for (UUID uuid : party.getPlayers()) {
-            getPlayer(uuid).ifPresent(player -> player.setParty(null));
-        }
-
-        party.disband();
-    }
-
-    public Collection<ControllerParty> getParties() {
-        return parties.values();
-    } // TODO Redo
-
-    public Optional<ControllerParty> getParty(long id) {
-        return Optional.ofNullable(parties.get(id));
-    } // TODO Redo
 
     public Collection<ControllerGame> getGames() {
         return games.values();
