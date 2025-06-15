@@ -41,9 +41,6 @@ import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
-import com.lahuca.lanecontroller.events.QueueStageEventResult;
-import com.lahuca.lanecontroller.managers.ControllerPartyManager;
-import com.lahuca.lanecontroller.managers.ControllerPlayerManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
@@ -61,6 +58,19 @@ public abstract class Controller {
 
     public static Controller getInstance() {
         return instance;
+    }
+
+    /**
+     * Retrieves the player associated with the given UUID statically from the controller.
+     * It is preferred to use the {@link ControllerPlayerManager#getPlayer(UUID)} method on an instance instead.
+     * If the player is not found, an empty {@link Optional} is returned.
+     *
+     * @param uuid the unique identifier of the player
+     * @return an {@link Optional} containing the {@link ControllerPlayer} if found,
+     * or an empty {@link Optional} if the player does not exist
+     */
+    public static Optional<ControllerPlayer> getPlayer(UUID uuid) {
+        return getInstance().getPlayerManager().getPlayer(uuid);
     }
 
     private final Connection connection;
@@ -361,169 +371,6 @@ public abstract class Controller {
     }
 
     /**
-     * Retrieves the player associated with the given UUID.
-     * If the player is not found, an empty {@link Optional} is returned.
-     *
-     * @param uuid the unique identifier of the player
-     * @return an {@link Optional} containing the {@link ControllerPlayer} if found,
-     * or an empty {@link Optional} if the player does not exist
-     */
-    public Optional<ControllerPlayer> getPlayer(UUID uuid) {
-        return getPlayerManager().getPlayer(uuid);
-    }
-
-    /**
-     * A dynamic way of queuing a player to join an instance or game.
-     *
-     * @param player            The player
-     * @param requestParameters The queue request parameters
-     * @return
-     */
-    public CompletableFuture<Result<Void>> queue(ControllerPlayer player, QueueRequestParameters requestParameters) {
-        return queue(player, new QueueRequest(QueueRequestReason.PLUGIN_CONTROLLER, requestParameters));
-    }
-
-    /**
-     * A dynamic way of queuing a player to join an instance or game.
-     * This immediately retrieves the queue request instead of the request parameters.
-     * This method is therefore intended to only be used internally, as the request reason should be set by the system.
-     *
-     * @param player  The player
-     * @param request The queue request
-     * @return The result of the queuing the request, this does not return the result of the queue
-     */
-    private CompletableFuture<Result<Void>> queue(ControllerPlayer player, QueueRequest request) {
-        player.setQueueRequest(request); // TODO This could override an existing queue, do we want this?. Also check if this happens everywehere.
-        QueueStageEvent stageEvent = new QueueStageEvent(player, request);
-        handleQueueStage(player, stageEvent);
-        return CompletableFuture.completedFuture(new Result<>(ResponsePacket.OK));
-    }
-
-    /**
-     * Handles a single state of queueing a player which has been initialized by a plugin.
-     * This assumes that the new state has already been added to the request.
-     *
-     * @param player     The player
-     * @param stageEvent The event tied to this queue request
-     */
-    private void handleQueueStage(ControllerPlayer player, QueueStageEvent stageEvent) {
-        QueueRequest request = stageEvent.getQueueRequest();
-        stageEvent.setNoneResult();
-        handleQueueStageEvent(stageEvent);
-        QueueStageEventResult result = stageEvent.getResult();
-        if (result instanceof QueueStageEventResult.None none) {
-            // Queue is being cancelled
-            if (none.getMessage() != null) {
-                sendMessage(player.getUuid(), none.getMessage());
-            }
-            player.setQueueRequest(null);
-            return;
-        } else if (result instanceof QueueStageEventResult.Disconnect disconnect) {
-            if (disconnect.getMessage() != null) {
-                disconnectPlayer(player.getUuid(), disconnect.getMessage());
-            } else {
-                disconnectPlayer(player.getUuid(), null);
-            }
-            player.setQueueRequest(null);
-            return;
-        } else if (result instanceof QueueStageEventResult.QueueStageEventJoinableResult joinable) {
-            ControllerLaneInstance instance;
-            String resultInstanceId;
-            Long resultGameId;
-            // TODO playTogetherPlayers!
-            if (joinable instanceof QueueStageEventResult.JoinGame joinGame) {
-                resultInstanceId = null;
-                resultGameId = joinGame.getGameId();
-                Optional<ControllerGame> gameOptional = getGame(joinGame.getGameId());
-                if (gameOptional.isEmpty()) {
-                    request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID));
-                    handleQueueStage(player, stageEvent);
-                    return;
-                }
-                ControllerGame game = gameOptional.get();
-                Optional<ControllerLaneInstance> instanceOptional = getInstance(game.getInstanceId());
-                if (instanceOptional.isEmpty()) {
-                    // Run the stage event again to determine a new ID.
-                    request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID));
-                    handleQueueStage(player, stageEvent);
-                    return;
-                }
-                instance = instanceOptional.get();
-            } else {
-                resultGameId = null;
-                QueueStageEventResult.JoinInstance joinInstance = (QueueStageEventResult.JoinInstance) result;
-                resultInstanceId = joinInstance.getInstanceId();
-                Optional<ControllerLaneInstance> instanceOptional = getInstance(joinInstance.getInstanceId());
-                if (instanceOptional.isEmpty()) {
-                    // Run the stage event again to determine a new ID.
-                    request.stages().add(joinInstance.constructStage(QueueStageResult.UNKNOWN_ID));
-                    handleQueueStage(player, stageEvent);
-                    return;
-                }
-                instance = instanceOptional.get();
-            }
-            Set<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
-            if (instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + playTogetherPlayers.size() + 1 <= instance.getMaxPlayers()) {
-                // Run the stage event again to find a joinable instance.
-                request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, resultInstanceId, resultGameId));
-                handleQueueStage(player, stageEvent);
-                return;
-            }
-            // TODO Check whether the game actually has a place left (for 1 + playTogetherPlayers). ONLY WHEN result is JoinGame
-            // We found a hopefully free instance, try do send the packet.
-            ControllerPlayerState state;
-            if (joinable instanceof QueueStageEventResult.JoinGame) {
-                state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
-            } else {
-                state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
-            }
-            player.setState(state); // TODO Better state handling!
-            player.setQueueRequest(request);
-            CompletableFuture<Result<Void>> future = connection.<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
-            future.whenComplete((joinPacketResult, exception) -> {
-                if (exception != null) {
-                    request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
-                    handleQueueStage(player, stageEvent);
-                    return;
-                }
-                if (joinPacketResult.isSuccessful()) {
-                    CompletableFuture<Result<Void>> joinFuture = joinServer(player.getUuid(), instance.getId());
-                    joinFuture.whenComplete((joinResult, joinException) -> {
-                        if (joinException != null) {
-                            request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
-                            handleQueueStage(player, stageEvent);
-                            return;
-                        }
-                        if (!joinResult.isSuccessful()) {
-                            // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
-                            request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
-                            handleQueueStage(player, stageEvent);
-                            return;
-                        }
-                        // WOOO, we have joined!, we are done for THIS player
-
-                        if (!playTogetherPlayers.isEmpty()) {
-                            QueueRequestParameter partyJoinParameter;
-                            if (resultGameId != null) {
-                                partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(instance.getId()).build();
-                            } else {
-                                partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstanceId).build();
-                            }
-                            QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                            playTogetherPlayers.forEach(uuid -> getPlayer(uuid).ifPresent(controllerPlayer -> queue(controllerPlayer, partyRequest)));
-                        }
-                    });
-                } else {
-                    // We are not allowing to join at this instance.
-                    request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
-                    handleQueueStage(player, stageEvent);
-                    return;
-                }
-            });
-        }
-    }
-
-    /**
      * Retrieves the data object at the given id with the given permission key.
      * When no data object exists at the given id, the optional is empty.
      * Otherwise, the data object is populated with the given data.
@@ -638,6 +485,8 @@ public abstract class Controller {
      */
     public abstract void handleQueueStageEvent(QueueStageEvent event);
 
+
+    // TODO These implementation dependent functions could technically also use ControllerPlayer instead of UUID?
     /**
      * Send a message to the player with the given UUID.
      *

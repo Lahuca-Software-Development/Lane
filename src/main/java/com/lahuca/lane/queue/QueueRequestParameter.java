@@ -170,6 +170,14 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
             return new QueueRequestParameter(data);
         }
 
+        /**
+         * Build a parameters object where the only parameter is this single object.
+         * @return the queue request parameters
+         */
+        public final QueueRequestParameters buildParameters() {
+            return QueueRequestParameters.create().add(this).build();
+        }
+
     }
 
 }

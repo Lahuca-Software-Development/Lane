@@ -35,6 +35,12 @@ public class QueueStageEvent implements ControllerPlayerEvent {
     private QueueStageEventResult result;
 
     public QueueStageEvent(ControllerPlayer player, QueueRequest queueRequest) {
+        if(player == null) {
+            throw new IllegalArgumentException("player cannot be null");
+        }
+        if(queueRequest == null) {
+            throw new IllegalArgumentException("queueRequest cannot be null");
+        }
         this.player = player;
         this.queueRequest = queueRequest;
         setNoneResult();

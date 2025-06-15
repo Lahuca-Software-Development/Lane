@@ -4,267 +4,558 @@ import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerParty;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import com.lahuca.lanecontrollervelocity.VelocityController;
-import com.velocitypowered.api.command.SimpleCommand;
+import com.lahuca.lanecontrollervelocity.VelocityPlayerPair;
+import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.velocitypowered.api.command.BrigadierCommand;
+import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
+import net.kyori.adventure.text.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.UUID;
 
 /**
  * @author _Neko1
  * @date 17.03.2024
  **/
-public class PartyCommand implements SimpleCommand {
+public class PartyCommand { // TODO Probably want to set it to final, sealed, non-sealed everywhere!
 
-    @Override
-    public void execute(Invocation invocation) {
-        if(!(invocation.source() instanceof Player player)) {
-            invocation.source().sendPlainMessage("You must be a requested to run this command!"); //TODO: replace
-            return;
-        }
+    private final VelocityController velocityController;
+    private final Controller controller;
 
-        String[] args = invocation.arguments();
+    public PartyCommand(VelocityController velocityController, Controller controller) {
+        this.velocityController = velocityController;
+        this.controller = controller;
+    }
 
-        Optional<ControllerPlayer> optionalPlayer = Controller.getInstance().getPlayer(player.getUniqueId());
-        if(optionalPlayer.isEmpty()) {
-            return;
-        }
+    /*
+     * /party <Player> - Sends a request to the requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+     * /party info - Sends an information about the party
+     * /party accept <Player> - Accepts the request from the given requested
+     * /party deny <Player> - Denies the request from the given requested
+     * /party disband - Disbands the party [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+     * /party kick <Player> - Kicks the requested from the party [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+     * /party warp - Sends all players to the leader's server [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+     * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
+     * /party leave
+     * /party join <player> - Join an open party
+     * /party public - Disable invitations and enable it for everyone to join freely
+     * /party private - Enable invitations and disable joining for everyone
+     */
 
-        ControllerPlayer controllerPlayer = optionalPlayer.get();
-        Optional<ControllerParty> playerParty = getPartyOfPlayer(controllerPlayer);
-
-        if(args.length == 0) {
-
-            /*
-             *
-             * /party <Player> - Sends a request to the requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
-             * /party info - Sends an information about the party
-             * /party accept <Player> - Accepts the request from the given requested
-             * /party deny <Player> - Denies the request from the given requested
-             * /party disband - Disbands the party [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
-             * /party kick <Player> - Kicks the requested from the party [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
-             * /party warp - Sends all players to the leader's server [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
-             * /party leader <Player> - Passes the leader to the given requested [ONLY OWNER OF THE PARTY CAN RUN THIS CMD]
-             * /party leave
-             *
-             */
-
-            //TODO: Send help message
-            return;
-        }
-
-        if(args[0].equalsIgnoreCase("disband")) {
-            runAsPartyLeader(controllerPlayer, party -> Controller.getInstance().disbandParty(party));
-        } else if(args[0].equalsIgnoreCase("warp")) {
-            // TODO Make sure to actually queue instead!
-           /* runAsPartyLeader(controllerPlayer, party -> controllerPlayer.getGameId()
-                    .flatMap(game -> Controller.getInstance().getGame(game))
-                    .ifPresent(gameServer -> {
-                        Controller.getInstance().joinInstance(party.getId(), gameServer.getInstanceId());//TODO check if its really serverId
-                        //TODO: Send message that party was warped
-                    }));*/
-        } else if(args[0].equalsIgnoreCase("kick")) {
-            if(args.length < 2) {
-                //TODO: send help message
-                // /party kick <Player>
-                return;
-            }
-
-            runAsPartyLeader(controllerPlayer, party -> {
-                String name = args[1];
-                Controller.getInstance().getPlayerManager().getPlayerByUsername(name).ifPresentOrElse(target -> {
-                    if(!party.contains(target.getUuid())) {
-                        //TODO: send message that given player is not in party
-                        return;
-                    }
-
-                    party.removePlayer(target);
-                    //TODO: send message that given player was kicked from party
-                }, () -> {
-                    //TODO: send message that given player is not online
-                });
+    public BrigadierCommand createBrigadierCommand() {
+        // TODO Tab completion?
+        Command<CommandSource> needArguments = c -> {
+            // TODO Is this needed? Maybe auto?
+            c.getSource().sendMessage(Component.translatable("lane.controller.commands.party.needArguments"));
+            return Command.SINGLE_SUCCESS;
+        };
+        SuggestionProvider<CommandSource> partyMemberSuggestions = (c, builder) -> {
+            if(!(c.getSource() instanceof Player player)) return builder.buildFuture();
+            controller.getPlayerManager().getPlayer(player.getUniqueId()).flatMap(ControllerPlayer::getParty).ifPresent(party -> {
+                party.getControllerPlayers().forEach(member -> builder.suggest(member.getUsername())); // TODO Display name?
             });
-        } else if(args[0].equalsIgnoreCase("info")) {
-            //Displays the information about the party: members, ?
-            //TODO: Edit the message
-            playerParty.ifPresent(party -> player.sendPlainMessage(party.toString()));
-        } else if(args[0].equalsIgnoreCase("accept")) {
-            if(args.length < 2) {
-                //TODO: send help message
-                // /party accept <Player>
-                return;
-            }
+            return builder.buildFuture();
+        };
+        LiteralCommandNode<CommandSource> node = BrigadierCommand.literalArgumentBuilder("party")
+                .requires(source -> source instanceof Player)
+                .then(BrigadierCommand.literalArgumentBuilder("add")
+                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(addCommand())))
+                .then(BrigadierCommand.literalArgumentBuilder("accept")
+                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(acceptCommand())))
+                .then(BrigadierCommand.literalArgumentBuilder("deny")
+                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(denyCommand())))
+                .then(BrigadierCommand.literalArgumentBuilder("join")
+                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(joinCommand())))
+                .then(BrigadierCommand.literalArgumentBuilder("disband").executes(disbandCommand()))
+                .then(BrigadierCommand.literalArgumentBuilder("leader")
+                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word())
+                                .suggests(partyMemberSuggestions)
+                                .executes(leaderCommand())))
+                .then(BrigadierCommand.literalArgumentBuilder("public").executes(publicPrivateCommand(true)))
+                .then(BrigadierCommand.literalArgumentBuilder("private").executes(publicPrivateCommand(false)))
+                .then(BrigadierCommand.literalArgumentBuilder("kick")
+                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word())
+                                .suggests(partyMemberSuggestions)
+                                .executes(kickCommand())))
+                .then(BrigadierCommand.literalArgumentBuilder("leave").executes(leaveCommand()))
+                .then(BrigadierCommand.literalArgumentBuilder("warp").executes(warpCommand()))
+                .then(BrigadierCommand.literalArgumentBuilder("list").executes(listCommand()))
+                .executes(help().getCommand())
+                .build();
+        return new BrigadierCommand(node);
+    }
 
-            String inviter = args[1];
+    // TODO Probably if a party member joins/leaves, then always send message to all party members!
 
-            Controller.getInstance().getPlayerManager().getPlayerByUsername(inviter).ifPresentOrElse(controllerInviter -> {
-                getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
-                    if(!party.getInvited().contains(player.getUniqueId())) {
-                        //TODO send message that this player didnt invite him
-                        return;
-                    }
+    // Subcommands
 
-                    party.addPlayer(controllerPlayer);
-                    //TODO: send message that he accepted it
-                }, () -> {
-                    //TODO send message that this player didnt invite him
-                });
-            }, () -> {
-                //TODO: send msg to the player that player is offline
-            });
-        } else if(args[0].equalsIgnoreCase("deny")) {
-            if(args.length < 2) {
-                //TODO: send help message
-                // /party deny <Player>
-                return;
-            }
+    private LiteralCommandNode<CommandSource> help() {
+        return BrigadierCommand.literalArgumentBuilder("help")
+                .executes(c -> {
+                    c.getSource().sendMessage(Component.translatable("lane.controller.commands.party.help", Component.text(c.getInput())));
+                    return 1;
+                })
+                .build();
+    }
 
-            String inviter = args[1];
+    private Command<CommandSource> addCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, true);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
 
-            Controller.getInstance().getPlayerManager().getPlayerByUsername(inviter).ifPresentOrElse(controllerInviter -> getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
-                if(!party.getInvited().contains(player.getUniqueId())) {
-                    //TODO send message that this player didnt invite him
-                    return;
+            // Got players, get party
+            ControllerParty party;
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isPresent()) {
+                party = partyOpt.get();
+                // Already in a party
+                if (!party.getOwner().equals(executor.getUniqueId())) { // Check if owner
+                    executor.sendMessage(Component.translatable("lane.controller.commands.party.needOwner"));
+                    return Command.SINGLE_SUCCESS;
                 }
-
-                party.getInvited().remove(player.getUniqueId());
-                //TODO: send message that he denied it
-            }, () -> {
-                //TODO send message that this player didnt invite him
-            }), () -> {
-                //TODO: send msg to the player that player is offline
-            });
-        } else if(args[0].equalsIgnoreCase("leader")) {
-            //Only party leader can run this command.
-
-            if(args.length < 2) {
-                //TODO: send help message
-                // /party leader <Player>
-                return;
-            }
-
-            runAsPartyLeader(controllerPlayer, party -> {
-
-                String newLeader = args[1];
-                Optional<Player> leader = VelocityController.getInstance().getServer().getPlayer(newLeader);
-
-                leader.ifPresentOrElse(leaderPlayer -> {
-                    if(!party.contains(leaderPlayer.getUniqueId())) {
-                        //TODO: send message that requested is not in the party
-                        return;
-                    }
-
-                    party.setOwner(leaderPlayer.getUniqueId());
-                    //TODO: send message to the new party leader
-                }, () -> {
-                    //TODO send message that given player is offline.
-                });
-            });
-        } else if(args[0].equalsIgnoreCase("leave")) {
-            playerParty.ifPresentOrElse(party -> {
-                Controller.getInstance().getPlayer(player.getUniqueId()).ifPresent(target -> {
-                    if(!party.contains(target.getUuid())) {
-                        //TODO: send message that player is no longer in the party
-                        return;
-                    }
-
-                    party.removePlayer(target);
-                    //TODO: send message that player left the party
-                });
-            }, () -> {
-                //TODO: send message that player is not in the party
-            });
-
-        } else {
-            // /party <Player> - Will send invitation
-            String name = args[0];
-
-            Controller.getInstance().getPlayerManager().getPlayerByUsername(name).ifPresentOrElse(target -> {
-                if(playerParty.isEmpty()) {
-                    Controller.getInstance().createParty(controllerPlayer, target);
+            } else {
+                partyOpt = controller.getPartyManager().createParty(executor.getUniqueId());
+                if (partyOpt.isPresent()) {
+                    party = partyOpt.get();
                 } else {
-                    playerParty.get().sendRequest(target);
+                    executor.sendMessage(Component.translatable("lane.controller.commands.party.add.unknown"));
+                    return Command.SINGLE_SUCCESS;
                 }
-            }, () -> {
-                //TODO send message that player is offline.
+            }
+
+            // We got rights to invite in the party object
+            if (party.containsPlayer(actors.target.getUuid())) { // Check if target already party member
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.add.alreadyMember"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.isInvitationsOnly()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.add.notInvitationOnly"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (party.hasInvitation(actors.target.getUuid())) { // Check if target already invited
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.add.alreadyInvited"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.addInvitation(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.add.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            // Woo hooo, invited!
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.add.invited", Component.text(actors.target.cPlayer().getUsername()))); // TODO Display name?
+            actors.executor().player().sendMessage(Component.translatable("lane.controller.commands.party.add.received", Component.text(executor.getUsername()))); // TODO Display name?
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> acceptCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, true);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+
+            // Got players, get party
+            if (actors.executor.cPlayer().getParty().isPresent()) {
+                // Already in a party
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.alreadyInParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            Optional<ControllerParty> partyOpt = actors.target.cPlayer().getParty();
+            if (partyOpt.isEmpty() || !partyOpt.get().getOwner().equals(actors.target.getUuid())) {
+                // That target player does not have a party or is not the owner
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.noInvitation"));
+                return Command.SINGLE_SUCCESS;
+            }
+
+            // We can get party, check if we have rights to join it
+            ControllerParty party = partyOpt.get();
+            if (party.containsPlayer(executor.getUniqueId())) { // Check if target already party member
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.alreadyMember"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.isInvitationsOnly()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.notInvitationOnly"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.hasInvitation(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.noInvitation"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.acceptInvitation(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.unknown"));
+            }
+            // TODO Fix all of this: invitation check. This all!
+            // Woo hooo, accepted!
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.accepted", Component.text(actors.target.cPlayer().getUsername()))); // TODO Display name?
+            Component joined = Component.translatable("lane.controller.commands.party.accept.joined", Component.text(actors.executor.cPlayer().getUsername())); // TODO Display name?
+            party.getPlayers().forEach(partyMember -> {
+                if (!partyMember.equals(executor.getUniqueId())) {
+                    velocityController.getServer().getPlayer(partyMember).ifPresent(current -> current.sendMessage(joined));
+                }
             });
-
-
-            //TODO: Send message that requested was invited
-        }
+            return Command.SINGLE_SUCCESS;
+        };
     }
 
+    private Command<CommandSource> denyCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, true);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
 
-    private void runAsPartyLeader(ControllerPlayer controllerPlayer, Consumer<? super ControllerParty> consumer) {
-        getPartyOfPlayer(controllerPlayer).ifPresentOrElse(party -> {
-            if(!party.getOwner().equals(controllerPlayer.getUuid())) {
-                //TODO: send message that only owner can do this
-                return;
+            // Got players, get party
+            Optional<ControllerParty> partyOpt = actors.target.cPlayer().getParty();
+            if (partyOpt.isEmpty() || !partyOpt.get().getOwner().equals(actors.target.getUuid())) {
+                // That target player does not have a party or is not the owner
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.noInvitation"));
+                return Command.SINGLE_SUCCESS;
             }
 
-            consumer.accept(party);
-        }, () -> {
-            //TODO send message that player isnt in party
-        });
+            // We can get party, check if we have been invited
+            ControllerParty party = partyOpt.get();
+            if (party.containsPlayer(executor.getUniqueId())) { // Check if target already party member
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.alreadyMember"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.isInvitationsOnly()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.notInvitationOnly"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.hasInvitation(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.noInvitation"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.denyInvitation(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.unknown"));
+            }
+            // TODO Fix all of this: invitation check. This all!
+            // Woo hooo, denied!
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.denied", Component.text(actors.target.cPlayer().getUsername()))); // TODO Display name?
+            return Command.SINGLE_SUCCESS;
+        };
     }
 
-    private Optional<ControllerParty> getPartyOfPlayer(ControllerPlayer controllerPlayer) {
-        if(controllerPlayer.getPartyId().isEmpty()) return Optional.empty();
-        else return Controller.getInstance().getParty(controllerPlayer.getPartyId().get());
-    }
+    private Command<CommandSource> joinCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, true);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS;
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
 
-
-    @Override
-    public List<String> suggest(Invocation invocation) {
-        List<String> possibilities = new ArrayList<>();
-        if(!(invocation.source() instanceof Player player)) return possibilities;
-
-
-        Optional<ControllerPlayer> optionalPlayer = Controller.getInstance().getPlayer(player.getUniqueId());
-        if(optionalPlayer.isEmpty()) {
-            return possibilities;
-        }
-
-        ControllerPlayer controllerPlayer = optionalPlayer.get();
-
-        Optional<ControllerParty> controllerParty = getPartyOfPlayer(controllerPlayer);
-        String[] args = invocation.arguments();
-
-        if(args.length == 2 && (args[0].equalsIgnoreCase("kick") || args[0].equalsIgnoreCase("leader"))) {
-            List<String> partyMembers = new ArrayList<>();
-            controllerParty.ifPresent(party -> party.getPlayers().forEach(partyPlayer -> partyMembers.add(partyPlayer.toString())));//TODO: fix the message its just UUID for now
-
-            if(args[1].isEmpty()) {
-                return partyMembers;
+            // Got players, get party
+            if (actors.executor.cPlayer().getParty().isPresent()) {
+                // Already in a party
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.join.alreadyInParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            Optional<ControllerParty> partyOpt = actors.target.cPlayer().getParty();
+            if (partyOpt.isEmpty() || !partyOpt.get().getOwner().equals(actors.target.getUuid())) {
+                // That target player does not have a party or is not the owner
+                // Do not leak if player has party, show a general message
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.join.unavailable"));
+                return Command.SINGLE_SUCCESS;
             }
 
-            for(String current : partyMembers) {
-                if(current.toLowerCase().startsWith(args[1].toLowerCase()) || args[1].toLowerCase().startsWith(current.toLowerCase())) {
-                    possibilities.add(current);
+            // We can get party, check if we have been invited
+            ControllerParty party = partyOpt.get();
+            if (party.containsPlayer(executor.getUniqueId())) { // Check if target already party member
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.join.alreadyMember"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (party.isInvitationsOnly()) {
+                // Do not leak if player has party, show a general message
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.join.unavailable"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.joinPlayer(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.join.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.join.success", Component.text(actors.target.cPlayer().getUsername()))); // TODO Display name?
+            Component joined = Component.translatable("lane.controller.commands.party.join.joined",
+                    Component.text(actors.executor.cPlayer().getUsername()), Component.text(actors.target.cPlayer().getUsername())); // TODO Display name?
+            // TODO CHECK THIS EVERYWHERE!!!
+            party.getPlayers().forEach(partyMember -> {
+                if (!partyMember.equals(executor.getUniqueId())) {
+                    velocityController.getServer().getPlayer(partyMember).ifPresent(current -> current.sendMessage(joined));
+                }
+            });
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> disbandCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, false);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS;
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+
+            // Got the executor, retrieve party
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            if (!party.getOwner().equals(actors.executor.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.notOwner"));
+                return Command.SINGLE_SUCCESS;
+            }
+            HashSet<UUID> partyMembers = party.getPlayers();
+            if (!party.disband()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            Component component = Component.translatable("lane.controller.commands.party.disband.disbanded");
+            partyMembers.forEach(uuid -> velocityController.getServer().getPlayer(uuid).ifPresent(current -> current.sendMessage(component)));
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> leaderCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, true);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+
+            // Got players, get party
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            if (!party.getOwner().equals(actors.executor.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.notOwner"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.containsPlayer(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.needPartyMember"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (party.getOwner().equals(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.yourself"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (!party.setOwner(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            Component component = Component.translatable("lane.controller.commands.party.leader.changed",
+                    Component.text(actors.target.cPlayer().getUsername())); // TODO Displayname?
+            party.getPlayers().forEach(uuid -> velocityController.getServer().getPlayer(uuid)
+                    .ifPresent(current -> current.sendMessage(component)));
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> publicPrivateCommand(boolean publicCommand) {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, false);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+
+            String subcommand = publicCommand ? "public" : "private";
+
+            // Got players, get party
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party." + subcommand + ".needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            if (!party.getOwner().equals(actors.executor.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party." + subcommand + ".notOwner"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if((publicCommand && !party.isInvitationsOnly()) || (!publicCommand && party.isInvitationsOnly())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party." + subcommand + ".already"));
+                return Command.SINGLE_SUCCESS;
+            }
+            party.setInvitationsOnly(!publicCommand);
+            if(publicCommand) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.public.changed",
+                        Component.text(actors.executor.cPlayer().getUsername()))); // TODO Displayname?
+            } else {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.private.changed")); // TODO Displayname?
+            }
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> kickCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, true);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+
+            // Got players, get party
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            if (!party.getOwner().equals(actors.executor.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.notOwner"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if(party.getOwner().equals(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.yourself"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if(!party.containsPlayer(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.needPartyMember"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if(!party.removePlayer(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.success",
+                    Component.text(actors.target.cPlayer().getUsername()))); // TODO Displayname?
+            actors.target.player().sendMessage(Component.translatable("lane.controller.commands.party.kick.kicked"));
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> leaveCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, false);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS; // TODO Return invalid?
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+
+            // Got players, get party
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leave.needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            if(!party.removePlayer(actors.target.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leave.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.leave.left"));
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> warpCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, false);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS;
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.warp.needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            if(!party.getOwner().equals(actors.executor.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.warp.notOwner"));
+                return Command.SINGLE_SUCCESS;
+            }
+            // Okay, we got a party and are the owner, do the warp
+            if(!party.warpParty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.warp.unknown"));
+                return Command.SINGLE_SUCCESS;
+            }
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.warp.warped"));
+            return Command.SINGLE_SUCCESS;
+        };
+    }
+
+    private Command<CommandSource> listCommand() {
+        return c -> {
+            Optional<CommandActors> actorsOptional = fetchCommandActors(c, false);
+            if (actorsOptional.isEmpty()) return Command.SINGLE_SUCCESS;
+            CommandActors actors = actorsOptional.get();
+            Player executor = actors.executor.player();
+            Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
+            if (partyOpt.isEmpty()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.list.needParty"));
+                return Command.SINGLE_SUCCESS;
+            }
+            ControllerParty party = partyOpt.get();
+            Component nameSeparator = Component.translatable("lane.controller.commands.party.list.nameSeparator");
+            Component names = null;
+            for (ControllerPlayer player : party.getControllerPlayers()) {
+                if(names == null) {
+                    names = Component.translatable("lane.controller.commands.party.list.name", Component.text(player.getDisplayName()));
+                } else {
+                    names = names.append(nameSeparator, Component.translatable("lane.controller.commands.party.list.name", Component.text(player.getDisplayName())));
                 }
             }
+            executor.sendMessage(Component.translatable("lane.controller.commands.party.list.style",
+                    Component.text(party.getControllerOwner().getUsername()), names));
+            return Command.SINGLE_SUCCESS;
+        };
+    }
 
-            return possibilities;
-        } else if(args.length == 1) {
-            List<String> allNames = new ArrayList<>();
-            VelocityController.getInstance().getServer().getAllPlayers().forEach(online -> controllerParty.ifPresent(party -> {
-                if(!party.contains(online.getUniqueId())) allNames.add(online.getUsername());
-            }));
+    // Helpers
 
-            if(args[0].isEmpty()) return allNames;
+    /**
+     * A record containing the two player pairs that are mentioned when running the command.
+     * This includes both the information about the executor and the person being targeted.
+     * It is possible that there is only an executor involved, then the target values are null.
+     *
+     * @param executor the executor of the command
+     * @param target   the target of the command
+     */
+    private record CommandActors(VelocityPlayerPair executor, VelocityPlayerPair target, String targetUsername) {
+    }
 
-
-            for(String current : allNames) {
-                if(current.toLowerCase().startsWith(args[0].toLowerCase()) || args[0].toLowerCase().startsWith(current.toLowerCase())) {
-                    possibilities.add(current);
-                }
-            }
-
-            return possibilities;
+    /**
+     * Runs the logic to retrieve the command actors for the given command context.
+     * This retrieves both the executor of the command and the person given in the command, if both are given.
+     * When one of them is not found, but expected, the command source of the command context is notified.
+     *
+     * @param c         the command context
+     * @param hasTarget {@code true} whether the command also has a target
+     * @return an optionnal with the command actors, null when one of them fails
+     */
+    private Optional<CommandActors> fetchCommandActors(CommandContext<CommandSource> c, boolean hasTarget) {
+        // Check if executed by a player
+        if (!(c.getSource() instanceof Player player)) {
+            c.getSource().sendMessage(Component.translatable("lane.controller.commands.error.playerRequired"));
+            return Optional.empty();
         }
 
-        return possibilities;
+        // Fetch the player details
+        Optional<VelocityPlayerPair> playerPair = velocityController.getPlayerPair(player.getUniqueId());
+        if (playerPair.isEmpty()) {
+            player.sendMessage(Component.translatable("lane.controller.commands.error.playerRequired"));
+            return Optional.empty();
+        }
+        // Fetch the target details
+        if (!hasTarget) {
+            return Optional.of(new CommandActors(playerPair.get(), null, null));
+        }
+        String targetUsername = c.getArgument("player", String.class);
+
+        Optional<VelocityPlayerPair> targetPair = velocityController.getPlayerPair(targetUsername, true);
+        if (targetPair.isEmpty()) {
+            player.sendMessage(Component.translatable("lane.controller.commands.error.unknownPlayer", Component.text(targetUsername)));
+            return Optional.empty();
+        }
+        targetUsername = targetPair.get().cPlayer().getUsername();
+        return Optional.of(new CommandActors(playerPair.get(), targetPair.get(), targetUsername));
     }
+
 }

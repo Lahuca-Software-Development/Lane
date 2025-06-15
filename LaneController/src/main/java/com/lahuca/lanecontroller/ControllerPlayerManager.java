@@ -1,13 +1,10 @@
-package com.lahuca.lanecontroller.managers;
+package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
-import com.lahuca.lanecontroller.Controller;
-import com.lahuca.lanecontroller.ControllerGame;
-import com.lahuca.lanecontroller.ControllerPlayer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -28,7 +25,7 @@ public class ControllerPlayerManager {
     }
 
     void put(UUID uuid, ControllerPlayer player) {
-        players.put(uuid, player);
+        players.put(uuid, player); // TODO ????
     }
 
     // TODO Redo
@@ -37,22 +34,23 @@ public class ControllerPlayerManager {
     }
 
     /**
-     * Registers a player in the system with the provided information.
+     * Registers a player in the system with the provided information
      * Also updates the data object so that the username is stored to the UUID.
      * Returns the effective locale to the saved locale, if it is not present, it will be set to the default locale.
      *
-     * @param uuid          the unique identifier for the player. Must not be null.
-     * @param username      the username of the player. Must not be null.
+     * @param uuid the player's uuid
+     * @param username the player's username
      * @param defaultLocale the default locale to be set for the player if no saved locale is found. Must not be null.
-     * @return {@code null} if the UUID is already registered or any parameter is null, otherwise the effective locale to set.
+     * @return {@code null} if the UUID is already registered, otherwise the effective locale to set.
+     * @throws IllegalArgumentException when any of the arguments is null
      */
     public Locale registerPlayer(UUID uuid, String username, Locale defaultLocale) {
         if (uuid == null || username == null || defaultLocale == null) {
-            return null;
+            throw new IllegalArgumentException("player, username and defaultLocale cannot be null");
         }
-        if (players.containsKey(uuid)) return null;
-        ControllerPlayer player = new ControllerPlayer(uuid, username, username); // TODO Display name!
-        players.put(uuid, player);
+        ControllerPlayer player = new ControllerPlayer(uuid, username, username);
+        if (players.containsKey(player.getUuid())) return null;
+        players.put(player.getUuid(), player);
         dataManager.writeDataObject(PermissionKey.CONTROLLER, new DataObject(new DataObjectId(RelationalId.Players(player.getUuid()), "username"), PermissionKey.CONTROLLER, player.getUsername()));
         applySavedLocale(player.getUuid(), defaultLocale);
         try {
@@ -90,6 +88,8 @@ public class ControllerPlayerManager {
 
     public void unregisterPlayer(UUID player) {
         players.remove(player);
+        // TODO Remove from party, disband party, etc.?
+        //  or maybe keep it, but then hmm
     } // TODO Redo
 
     public @NotNull Collection<ControllerPlayer> getPlayers() {
@@ -100,8 +100,9 @@ public class ControllerPlayerManager {
         return Optional.ofNullable(players.get(uuid)); // TODO Maybe add this as short cut into Controller? So it is not controller.getPlayerManager().getPlayer(uuid) but controller.getPlayer(uuid)
     } // TODO Redo
 
-    public Optional<ControllerPlayer> getPlayerByUsername(String name) { // TODO Redo
-        return players.values().stream().filter(player -> player.getUsername().equals(name)).findFirst();
+    public Optional<ControllerPlayer> getPlayerByUsername(String name, boolean caseInsensitive) { // TODO Redo
+        return players.values().stream().filter(player -> (caseInsensitive && player.getUsername().equalsIgnoreCase(name))
+                || (!caseInsensitive && player.getUsername().equals(name))).findFirst();
     }
 
     /**
@@ -131,9 +132,9 @@ public class ControllerPlayerManager {
      * @return a CompletableFuture with an optional, if data has been found the optional is populated with the UUID; otherwise it is empty
      */
     public CompletableFuture<Optional<UUID>> getPlayerUuid(String username) {
-        // TODO
+        // TODO Case insentivive? Then also edit the boolean on the next line: false to true/var
         // usernames.Laurenshup.uuid = UUID
-        Optional<UUID> optional = getPlayerByUsername(username).map(ControllerPlayer::getUuid);
+        Optional<UUID> optional = getPlayerByUsername(username, false).map(ControllerPlayer::getUuid);
         if (optional.isPresent()) {
             return CompletableFuture.completedFuture(optional);
         }
@@ -151,6 +152,7 @@ public class ControllerPlayerManager {
      */
     public CompletableFuture<Optional<String>> getOfflinePlayerName(UUID uuid) {
         // TODO Put the username in!
+        // TODO Cache?
         return dataManager.readDataObject(PermissionKey.CONTROLLER, new DataObjectId(RelationalId.Players(uuid), "username")).thenApply(dataObject -> {
             if (dataObject.isPresent()) {
                 return dataObject.get().getValue();

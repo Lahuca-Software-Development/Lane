@@ -60,6 +60,8 @@ public class FriendCommand {
     // TODO Add GUI, if wanted
     // TODO Maybe add some caching!
 
+    // TODO We might also want to seperate functionality: getFriendships, getInvitations, etc. To a different class
+
     private final VelocityController velocityController;
     private final Controller controller;
     private final DataManager dataManager;

@@ -75,6 +75,11 @@ import java.util.logging.Logger;
         url = "https://lahuca.com", description = "I did it!", authors = {"Lahuca Software Development (Laurenshup)", "_Neko1"})
 public class VelocityController {
 
+    // TODO Go through everything and clean up: final classes/functions (or sealed); public/private/etc.
+    // TODO Either use ControllerPlayer everywhere, or use UUID. Not both. Maybe it is better to like make sure that ControllerPlayer objects cannot be consturcted
+    // TODO Go through everything and make sure that some objects cannot be constructed.
+    // TODO Go through everything and check whether the parsed parameters are correct: null checks, etc.
+
     private static VelocityController instance;
 
     public static final int port = 7766;
@@ -94,6 +99,53 @@ public class VelocityController {
         this.logger = logger;
         this.dataDirectory = dataDirectory;
     }
+
+    public Optional<Controller> getController() {
+        return Optional.ofNullable(controller);
+    }
+
+    public ProxyServer getServer() {
+        return server;
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
+
+    /**
+     * Returns a new pair of a Velocity player and Controller player by the given uuid.
+     * @param uuid the uuid of the player
+     * @return an optional with the pair
+     * @throws IllegalArgumentException when {@code uuid} is null
+     */
+    public Optional<VelocityPlayerPair> getPlayerPair(UUID uuid) {
+        if (uuid == null) throw new IllegalArgumentException("uuid cannot be null");
+        return getServer().getPlayer(uuid).flatMap(player ->
+                getController().flatMap(control ->
+                        control.getPlayerManager().getPlayer(uuid)).map(cPlayer ->
+                        new VelocityPlayerPair(player, cPlayer)));
+    }
+
+    /**
+     * Returns a new pair of a Velocity player and Controller player by the given username.
+     * The retrieved Velocity player is always checked case insensitively.
+     * @param username the username of the player
+     * @param caseInsensitive whether the Controller player should be searched case insensitively
+     * @return an optional with the pair
+     * @throws IllegalArgumentException when {@code username} is null
+     */
+    public Optional<VelocityPlayerPair> getPlayerPair(String username, boolean caseInsensitive) {
+        if (username == null) throw new IllegalArgumentException("username cannot be null");
+        return getServer().getPlayer(username).flatMap(player ->
+                getController().flatMap(control ->
+                        control.getPlayerManager().getPlayerByUsername(username, caseInsensitive)).map(cPlayer ->
+                        new VelocityPlayerPair(player, cPlayer)));
+    }
+
+    public static VelocityController getInstance() {
+        return instance;
+    }
+
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
@@ -156,7 +208,7 @@ public class VelocityController {
             commandManager.register(commandManager.metaBuilder("friend").aliases("f", "friends").plugin(this).build(), new FriendCommand(this, controller, dataManager, gson).createBrigadierCommand());
         }
         if(configuration.getCommands().isParty()) {
-            commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand());
+            commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand(this, controller).createBrigadierCommand());
         }
     }
 
@@ -279,10 +331,6 @@ public class VelocityController {
     @Subscribe
     public void onProxyInitialization(ProxyShutdownEvent event) {
         if(controller != null) controller.shutdown();
-    }
-
-    public Optional<Controller> getController() {
-        return Optional.ofNullable(controller);
     }
 
     /**
@@ -608,18 +656,6 @@ public class VelocityController {
         }
     }
 
-    public ProxyServer getServer() {
-        return server;
-    }
-
-    public Logger getLogger() {
-        return logger;
-    }
-
-    public static VelocityController getInstance() {
-        return instance;
-    }
-
     public static class Implementation extends Controller {
 
         private final ProxyServer server;
@@ -771,7 +807,7 @@ public class VelocityController {
         private boolean handleQueueStageEventParameters(QueueStageEvent event, boolean useParty, boolean allowExclude) {
             // Fetch potential party members
             HashSet<UUID> partyMembers = new HashSet<>();
-            Optional<Long> partyIdOptional = event.getPlayer().getPartyId();
+            Optional<Long> partyIdOptional = event.getPlayer().getPartyId(); // TODO Check
             if(useParty && partyIdOptional.isPresent()) {
                 Optional<ControllerParty> partyOptional = getParty(partyIdOptional.get());
                 if(partyOptional.isPresent()) {
