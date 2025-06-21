@@ -26,6 +26,20 @@ public record SimpleResultPacket<T>(long requestId, String result, T data) imple
         Packet.registerPacket(packetId, SimpleResultPacket.class);
     }
 
+    /**
+     * Constructor for a result that is successful.
+     * @param requestId the request ID
+     * @param data the data
+     */
+    public SimpleResultPacket(long requestId, T data) {
+        this(requestId, ResponsePacket.OK, data);
+    }
+
+    /**
+     * Constructor for a result that is unsuccessful.
+     * @param requestId the request ID
+     * @param result the error
+     */
     public SimpleResultPacket(long requestId, String result) {
         this(requestId, result, null);
     }

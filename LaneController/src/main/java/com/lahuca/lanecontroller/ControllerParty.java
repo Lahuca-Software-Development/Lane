@@ -6,18 +6,16 @@ import com.lahuca.lane.LaneParty;
 import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
+import com.lahuca.lane.records.RecordConverter;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author _Neko1
  * @date 14.03.2024
  **/
-public class ControllerParty implements LaneParty {
+public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> {
 
     // TODO Do we maybe want to add roles to party members? This could for example allow other players to kick players instead of only the owner.
 
@@ -29,9 +27,13 @@ public class ControllerParty implements LaneParty {
     private final Cache<UUID, String> invitations;
     private final long creationTimestamp;
 
-    ControllerParty(long partyId, UUID owner) { // TODO Maybe not public. VERY IMPORTANT!!!
+    ControllerParty(long partyId, ControllerPlayer owner) {
+        Objects.requireNonNull(owner, "owner is null");
+        if (owner.getParty().isPresent()) throw new IllegalStateException("owner is already in a party");
         this.partyId = partyId;
+        players.add(owner.getUuid());
         setOwner(owner);
+        // TODO we cannot do owner.setPartyId here due to the object not being registered yet
 
         invitations = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
         creationTimestamp = System.currentTimeMillis();
@@ -67,15 +69,15 @@ public class ControllerParty implements LaneParty {
     }
 
     /**
-     * Returns whether the player with the given UUID is part of this party.
+     * Returns whether the player is part of this party.
      *
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the player is part of the party
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean containsPlayer(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        return getPlayers().contains(uuid);
+    public boolean containsPlayer(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        return getPlayers().contains(player.getUuid());
     }
 
     public boolean isInvitationsOnly() {
@@ -96,8 +98,9 @@ public class ControllerParty implements LaneParty {
         return creationTimestamp;
     }
 
-    public PartyRecord convertToRecord() {
-        return new PartyRecord(owner, players, creationTimestamp);
+    @Override
+    public PartyRecord convertRecord() {
+        return new PartyRecord(partyId, owner, players, invitationsOnly, creationTimestamp);
     }
 
     @Override
@@ -121,29 +124,27 @@ public class ControllerParty implements LaneParty {
     /**
      * Returns whether the given player is invited to this party.
      *
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the player is invited, otherwise {@code false}
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean hasInvitation(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        return invitations.getIfPresent(uuid) != null;
+    public boolean hasInvitation(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        return invitations.getIfPresent(player.getUuid()) != null;
     }
 
     /**
      * Invites the given player to this party.
      * This only works when the party is in invitation-only mode, and they have not yet received an invitation to this party.
      *
-     * @param uuid the player to invite
+     * @param player the player
      * @return {@code true} if the player was invited, otherwise {@code false}
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean addInvitation(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null"); // TODO Check this in the whole codebase!
-        if (!isInvitationsOnly() || hasInvitation(uuid) || containsPlayer(uuid)) return false;
-        Optional<ControllerPlayer> playerOptional = Controller.getPlayer(uuid);
-        if (playerOptional.isEmpty()) return false;
-        playerOptional.ifPresent(player -> invitations.put(uuid, player.getDisplayName()));
+    public boolean addInvitation(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null"); // TODO Check this in the whole codebase!
+        if (!isInvitationsOnly() || hasInvitation(player) || containsPlayer(player)) return false;
+        invitations.put(player.getUuid(), player.getDisplayName());
         return true;
     }
 
@@ -152,19 +153,16 @@ public class ControllerParty implements LaneParty {
      * This only works when the party is in invitation-only mode, and they have received an invitation.
      * The given player should not be in another party.
      *
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the player is now in the party, otherwise {@code false}
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean acceptInvitation(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        if (!isInvitationsOnly() || !hasInvitation(uuid) || containsPlayer(uuid)) return false;
-        Optional<ControllerPlayer> playerOptional = Controller.getPlayer(uuid);
-        if (playerOptional.isEmpty()) return false;
-        ControllerPlayer player = playerOptional.get();
+    public boolean acceptInvitation(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        if (!isInvitationsOnly() || !hasInvitation(player) || containsPlayer(player)) return false;
         if (player.getParty().isPresent()) return false;
-        invitations.invalidate(uuid);
-        players.add(uuid);
+        invitations.invalidate(player.getUuid());
+        players.add(player.getUuid());
         player.setPartyId(partyId);
         return true;
     }
@@ -173,14 +171,15 @@ public class ControllerParty implements LaneParty {
      * Denies the invitation of the given player.
      * This only works when the party is in invitation-only mode, and they have received an invitation.
      *
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the invitation has been removed, otherwise {@code false}
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean denyInvitation(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        if (!isInvitationsOnly() || !hasInvitation(uuid) || containsPlayer(uuid)) return false;
-        if (invitations.getIfPresent(uuid) == null) return false;
-        invitations.invalidate(uuid);
+    public boolean denyInvitation(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        if (!isInvitationsOnly() || !hasInvitation(player) || containsPlayer(player)) return false;
+        if (invitations.getIfPresent(player.getUuid()) == null) return false;
+        invitations.invalidate(player.getUuid());
         return true;
     }
 
@@ -188,37 +187,33 @@ public class ControllerParty implements LaneParty {
      * Joins the party for the given player.
      * This only works when the party is not in invitation-only mode, i.e., everyone can join freely.
      * The given player should not be in another party.
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the player is now in the party, otherwise {@code false}
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean joinPlayer(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        if (isInvitationsOnly() || containsPlayer(uuid)) return false;
-        Optional<ControllerPlayer> playerOptional = Controller.getPlayer(uuid);
-        if (playerOptional.isEmpty()) return false;
-        ControllerPlayer player = playerOptional.get();
+    public boolean joinPlayer(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        if (isInvitationsOnly() || containsPlayer(player)) return false;
         if (player.getParty().isPresent()) return false;
-        players.add(uuid);
+        players.add(player.getUuid());
         player.setPartyId(partyId);
-        invitations.invalidate(uuid);
+        invitations.invalidate(player.getUuid());
         return true;
     }
 
     /**
      * Removes the player from the party.
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the player has been removed from the party, otherwise {@code false}
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean removePlayer(UUID uuid) {
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        if (!containsPlayer(uuid)) return false;
-        Optional<ControllerPlayer> playerOptional = Controller.getPlayer(uuid);
-        if (playerOptional.isEmpty()) return false;
-        invitations.invalidate(uuid);
-        players.remove(uuid);
-        playerOptional.get().setPartyId(null);
+    public boolean removePlayer(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        if (!containsPlayer(player)) return false;
+        if (getOwner().equals(player.getUuid())) return false;
+        invitations.invalidate(player.getUuid());
+        players.remove(player.getUuid());
+        player.setPartyId(null);
         return true;
     }
 
@@ -237,20 +232,20 @@ public class ControllerParty implements LaneParty {
      * Changes the owner to the given player.
      * This only works if the given player is already in the party.
      *
-     * @param uuid the uuid of the player
+     * @param player the player
      * @return {@code true} if the player is now the owner of the party (or was already the owner), otherwise {@code false}
-     * @throws IllegalArgumentException if {@code uuid} is null
+     * @throws IllegalArgumentException if {@code player} is null
      */
-    public boolean setOwner(UUID uuid) { // TODO Maybe use ControllerPlayer, to make it more nice?
-        if (uuid == null) throw new IllegalArgumentException("uuid is null");
-        if (!containsPlayer(uuid)) return false; // TODO Also check on the player itself?
-        owner = uuid;
+    public boolean setOwner(ControllerPlayer player) {
+        if (player == null) throw new IllegalArgumentException("player is null");
+        if (!containsPlayer(player)) return false; // TODO Also check on the player itself?
+        owner = player.getUuid();
         return true;
     }
 
     /**
      * Warps all party members to the owner's game/instance.
-     * This is different then when the owner joins a game, as a party join is automatically applied in that case
+     * This is different from when the owner joins a game, as a party join is automatically applied in that case
      * @return {@code true} whether the party has been warped, {@code false} otherwise
      */
     public boolean warpParty() {

@@ -19,7 +19,7 @@ import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import net.kyori.adventure.text.Component;
 
-import java.util.Set;
+import java.util.HashSet;
 import java.util.UUID;
 
 /**
@@ -93,7 +93,7 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.JoinInstance(instanceId);
     }
 
-    public void setJoinInstanceResult(String instanceId, Set<UUID> joinTogetherPlayers) {
+    public void setJoinInstanceResult(String instanceId, HashSet<UUID> joinTogetherPlayers) {
         result = new QueueStageEventResult.JoinInstance(instanceId, joinTogetherPlayers);
     }
 
@@ -101,7 +101,7 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.JoinGame(gameId);
     }
 
-    public void setJoinGameResult(long gameId, Set<UUID> joinTogetherPlayers) {
+    public void setJoinGameResult(long gameId, HashSet<UUID> joinTogetherPlayers) {
         result = new QueueStageEventResult.JoinGame(gameId, joinTogetherPlayers);
     }
 

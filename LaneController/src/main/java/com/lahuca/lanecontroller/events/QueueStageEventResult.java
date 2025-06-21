@@ -19,7 +19,8 @@ import com.lahuca.lane.queue.QueueStage;
 import com.lahuca.lane.queue.QueueStageResult;
 import net.kyori.adventure.text.Component;
 
-import java.util.Set;
+import java.util.HashSet;
+import java.util.StringJoiner;
 import java.util.UUID;
 
 /**
@@ -52,7 +53,7 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
          * The players (in UUID form) that should also try to join the given instance ID.
          * @return A set of UUIDs of the players that should also join the given instance ID.
          */
-        Set<UUID> getJoinTogetherPlayers();
+        HashSet<UUID> getJoinTogetherPlayers();
 
     }
 
@@ -77,6 +78,13 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
         public Component getMessage() {
             return message;
         }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", None.class.getSimpleName() + "[", "]")
+                    .add("message=" + message)
+                    .toString();
+        }
     }
 
     /**
@@ -100,6 +108,12 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
             return message;
         }
 
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", Disconnect.class.getSimpleName() + "[", "]")
+                    .add("message=" + message)
+                    .toString();
+        }
     }
 
     /**
@@ -109,13 +123,13 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
     public final static class JoinInstance extends QueueStageEventResult implements QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
         private final String instanceId;
-        private final Set<UUID> joinTogetherPlayers;
+        private final HashSet<UUID> joinTogetherPlayers;
 
         public JoinInstance(String instanceId) {
             this(instanceId, null);
         }
 
-        public JoinInstance(String instanceId, Set<UUID> joinTogetherPlayers) {
+        public JoinInstance(String instanceId, HashSet<UUID> joinTogetherPlayers) {
             this.instanceId = instanceId;
             this.joinTogetherPlayers = joinTogetherPlayers;
         }
@@ -132,8 +146,16 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
         }
 
         @Override
-        public Set<UUID> getJoinTogetherPlayers() {
+        public HashSet<UUID> getJoinTogetherPlayers() {
             return joinTogetherPlayers;
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", JoinInstance.class.getSimpleName() + "[", "]")
+                    .add("instanceId='" + instanceId + "'")
+                    .add("joinTogetherPlayers=" + joinTogetherPlayers)
+                    .toString();
         }
     }
 
@@ -144,13 +166,13 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
     public final static class JoinGame extends QueueStageEventResult implements QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
         private final long gameId;
-        private final Set<UUID> joinTogetherPlayers;
+        private final HashSet<UUID> joinTogetherPlayers;
 
         public JoinGame(long gameId) {
             this(gameId, null);
         }
 
-        public JoinGame(long gameId, Set<UUID> joinTogetherPlayers) {
+        public JoinGame(long gameId, HashSet<UUID> joinTogetherPlayers) {
             this.gameId = gameId;
             this.joinTogetherPlayers = joinTogetherPlayers;
         }
@@ -169,10 +191,17 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
          * @return A set of UUIDs of the players that should also join the given instance ID.
          */
         @Override
-        public Set<UUID> getJoinTogetherPlayers() {
+        public HashSet<UUID> getJoinTogetherPlayers() {
             return joinTogetherPlayers;
         }
 
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", JoinGame.class.getSimpleName() + "[", "]")
+                    .add("gameId=" + gameId)
+                    .add("joinTogetherPlayers=" + joinTogetherPlayers)
+                    .toString();
+        }
     }
 
 }

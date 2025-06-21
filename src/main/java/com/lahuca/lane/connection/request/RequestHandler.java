@@ -136,42 +136,27 @@ public class RequestHandler {
     }
 
     /**
-     * Sends the retrieved result into the requests' future.
+     * Sends the retrieved response into the requests' future.
      * @param requestId The ID of the request.
-     * @param result The retrieved result.
+     * @param response The retrieved response.
      * @return True whether a request with this ID exists.
      * Or {@code true} if this invocation caused the CompletableFuture
      * to transition to a completed state, else {@code false}.
      */
-    protected boolean response(long requestId, Result<?> result) {
+    protected boolean response(long requestId, ResponsePacket<Object> response) {
         try {
-            System.out.println("Response: " + requestId + " " + requests.containsKey(requestId) + " " + result);
+            System.out.println("Response: " + requestId + " " + requests.containsKey(requestId) + " " + response);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         Request<?> request = requests.remove(requestId);
         if(request == null) return false;
-        return request.parsedComplete(result);
-    }
-
-    /**
-     * Generates a new unique request ID by using the current timestamp and ensures
-     * it is not already present in the requests map.
-     * It sets the value to null in the map to indicate that the request is scheduled, to reserve the id (concurrency).
-     *
-     * @return A unique request ID as a long value.
-     */
-    private long getNewRequestId() {
-        long id;
-        do {
-            id = System.currentTimeMillis();
-        } while(requests.putIfAbsent(id, null) != null);
-        return id;
+        return request.parsedComplete(response);
     }
 
     /**
      * Schedules a new request in this request handler.
-     * Its response is to be waited for, by default 1 second.
+     * Its response is to be waited for, by default, 3 seconds.
      * This method does not send the request itself over the connection.
      * Any generic results are cast by default.
      * @return the request with the future and request ID bundled within it.
@@ -179,9 +164,14 @@ public class RequestHandler {
      */
     protected <T> Request<T> request() {
         // TODO Disable requests when it is disabled!!!
-        CompletableFuture<Result<T>> future = new CompletableFuture<>();
-        Request<T> request = new Request<>(getNewRequestId(), future);
-        requests.replace(request.getRequestId(), request);
+        CompletableFuture<T> future = new CompletableFuture<>();
+        long id;
+        Request<T> request;
+        do {
+            id = System.currentTimeMillis();
+            request = new Request<>(id, future);
+        } while(requests.putIfAbsent(id, request) != null);
+        requests.put(request.getRequestId(), request);
         return request;
     }
 
@@ -195,8 +185,13 @@ public class RequestHandler {
      * @param <T> the type of the expected result.
      */
     protected <T> Request<T> request(int timeoutSeconds) {
-        CompletableFuture<Result<T>> future = new CompletableFuture<>();
-        Request<T> request = new Request<>(getNewRequestId(), future, timeoutSeconds);
+        CompletableFuture<T> future = new CompletableFuture<>();
+        long id;
+        Request<T> request;
+        do {
+            id = System.currentTimeMillis();
+            request = new Request<>(id, future, timeoutSeconds);
+        } while(requests.putIfAbsent(id, request) != null);
         requests.replace(request.getRequestId(), request);
         return request;
     }
@@ -210,9 +205,14 @@ public class RequestHandler {
      * @return the request with the future and request ID bundled within it.
      * @param <T> the type of the expected result.
      */
-    protected <T> Request<T> request(Function<Result<?>, Result<T>> resultParser) {
-        CompletableFuture<Result<T>> future = new CompletableFuture<>();
-        Request<T> request = new Request<>(getNewRequestId(), resultParser, future);
+    protected <T> Request<T> request(Function<Object, T> resultParser) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        long id;
+        Request<T> request;
+        do {
+            id = System.currentTimeMillis();
+            request = new Request<>(id, resultParser, future);
+        } while(requests.putIfAbsent(id, request) != null);
         requests.replace(request.getRequestId(), request);
         return request;
     }
@@ -227,9 +227,14 @@ public class RequestHandler {
      * @return the request with the future and request ID bundled within it.
      * @param <T> the type of the expected result.
      */
-    protected <T> Request<T> request(Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
-        CompletableFuture<Result<T>> future = new CompletableFuture<>();
-        Request<T> request = new Request<>(getNewRequestId(), resultParser, future, timeoutSeconds);
+    protected <T> Request<T> request(Function<Object, T> resultParser, int timeoutSeconds) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        long id;
+        Request<T> request;
+        do {
+            id = System.currentTimeMillis();
+            request = new Request<>(id, resultParser, future, timeoutSeconds);
+        } while(requests.putIfAbsent(id, request) != null);
         requests.replace(request.getRequestId(), request);
         return request;
     }

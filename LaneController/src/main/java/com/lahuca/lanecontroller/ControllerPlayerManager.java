@@ -83,7 +83,7 @@ public class ControllerPlayerManager {
             } else {
                 controller.setEffectiveLocale(player, defaultLocale);
             }
-        });
+        }); // TODO Maybe move the function to ControllerPlayer?
     }
 
     public void unregisterPlayer(UUID player) {

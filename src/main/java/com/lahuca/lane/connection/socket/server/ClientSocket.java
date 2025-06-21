@@ -148,7 +148,7 @@ public class ClientSocket {
 			// Send packet back immediately.
 			sendPacket(ConnectionKeepAliveResultPacket.ok(packet));
 		} else if(iPacket instanceof ConnectionKeepAliveResultPacket packet) {
-			connection.retrieveResponse(packet.getRequestId(), packet.transformResult());
+			connection.retrieveResponse(packet.getRequestId(), packet.toObjectResponsePacket());
 		} else if(iPacket instanceof ConnectionClosePacket packet) {
 			// We are expecting a close, close immediately.
 			close();
@@ -185,8 +185,8 @@ public class ClientSocket {
 	}
 
 	private void checkKeepAlive() {
-		connection.sendRequestPacket(requestId -> new ConnectionKeepAlivePacket(requestId, System.currentTimeMillis()), id).getFutureResult().whenComplete((result, exception) -> {
-			if(exception != null || result == null || !result.isSuccessful()) {
+		connection.<Void>sendRequestPacket(requestId -> new ConnectionKeepAlivePacket(requestId, System.currentTimeMillis()), id).getFutureResult().whenComplete((result, exception) -> {
+			if(exception != null) {
 				numberKeepAliveFails++;
 				if(numberKeepAliveFails > maximumKeepAliveFails) {
 					close();

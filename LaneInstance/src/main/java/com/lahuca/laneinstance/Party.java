@@ -2,7 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LaneParty;
 
-import java.util.Set;
+import java.util.HashSet;
 import java.util.UUID;
 
 /**
@@ -14,10 +14,10 @@ public class Party implements LaneParty {
 
     private final long partyId;
     private UUID owner;
-    private final Set<UUID> players;
+    private final HashSet<UUID> players;
     private final long creationStamp;
 
-    public Party(long partyId, UUID owner, Set<UUID> players, long creationStamp) {
+    public Party(long partyId, UUID owner, HashSet<UUID> players, long creationStamp) {
         this.partyId = partyId;
         this.owner = owner;
         this.players = players;
@@ -44,7 +44,7 @@ public class Party implements LaneParty {
     }
 
     @Override
-    public Set<UUID> getPlayers() {
+    public HashSet<UUID> getPlayers() {
         return players;
     }
 }

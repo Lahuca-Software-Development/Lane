@@ -14,7 +14,11 @@ import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.translation.GlobalTranslator;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.UUID;
@@ -64,28 +68,29 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
         };
         LiteralCommandNode<CommandSource> node = BrigadierCommand.literalArgumentBuilder("party")
                 .requires(source -> source instanceof Player)
-                .then(BrigadierCommand.literalArgumentBuilder("add")
+                .then(BrigadierCommand.literalArgumentBuilder("add").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(addCommand())))
-                .then(BrigadierCommand.literalArgumentBuilder("accept")
+                .then(BrigadierCommand.literalArgumentBuilder("accept").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(acceptCommand())))
-                .then(BrigadierCommand.literalArgumentBuilder("deny")
+                .then(BrigadierCommand.literalArgumentBuilder("deny").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(denyCommand())))
-                .then(BrigadierCommand.literalArgumentBuilder("join")
+                .then(BrigadierCommand.literalArgumentBuilder("join").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(joinCommand())))
                 .then(BrigadierCommand.literalArgumentBuilder("disband").executes(disbandCommand()))
-                .then(BrigadierCommand.literalArgumentBuilder("leader")
+                .then(BrigadierCommand.literalArgumentBuilder("leader").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word())
                                 .suggests(partyMemberSuggestions)
                                 .executes(leaderCommand())))
                 .then(BrigadierCommand.literalArgumentBuilder("public").executes(publicPrivateCommand(true)))
                 .then(BrigadierCommand.literalArgumentBuilder("private").executes(publicPrivateCommand(false)))
-                .then(BrigadierCommand.literalArgumentBuilder("kick")
+                .then(BrigadierCommand.literalArgumentBuilder("kick").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word())
                                 .suggests(partyMemberSuggestions)
                                 .executes(kickCommand())))
                 .then(BrigadierCommand.literalArgumentBuilder("leave").executes(leaveCommand()))
                 .then(BrigadierCommand.literalArgumentBuilder("warp").executes(warpCommand()))
                 .then(BrigadierCommand.literalArgumentBuilder("list").executes(listCommand()))
+                .then(BrigadierCommand.literalArgumentBuilder("help").redirect(help()))
                 .executes(help().getCommand())
                 .build();
         return new BrigadierCommand(node);
@@ -98,7 +103,11 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
     private LiteralCommandNode<CommandSource> help() {
         return BrigadierCommand.literalArgumentBuilder("help")
                 .executes(c -> {
-                    c.getSource().sendMessage(Component.translatable("lane.controller.commands.party.help", Component.text(c.getInput())));
+                    String input = c.getInput();
+                    if(input.contains(" ")) {
+                        input = input.split(" ")[0];
+                    }
+                    c.getSource().sendMessage(Component.translatable("lane.controller.commands.party.help", Component.text(input)));
                     return 1;
                 })
                 .build();
@@ -111,6 +120,11 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             CommandActors actors = actorsOptional.get();
             Player executor = actors.executor.player();
 
+            if(actors.target.getUuid().equals(executor.getUniqueId())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.add.yourself"));
+                return Command.SINGLE_SUCCESS;
+            }
+
             // Got players, get party
             ControllerParty party;
             Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
@@ -122,7 +136,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                     return Command.SINGLE_SUCCESS;
                 }
             } else {
-                partyOpt = controller.getPartyManager().createParty(executor.getUniqueId());
+                partyOpt = controller.getPartyManager().createParty(actors.executor.cPlayer());
                 if (partyOpt.isPresent()) {
                     party = partyOpt.get();
                 } else {
@@ -132,7 +146,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             }
 
             // We got rights to invite in the party object
-            if (party.containsPlayer(actors.target.getUuid())) { // Check if target already party member
+            if (party.containsPlayer(actors.target.cPlayer())) { // Check if target already party member
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.add.alreadyMember"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -140,20 +154,24 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.add.notInvitationOnly"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (party.hasInvitation(actors.target.getUuid())) { // Check if target already invited
+            if (party.hasInvitation(actors.target.cPlayer())) { // Check if target already invited
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.add.alreadyInvited"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.addInvitation(executor.getUniqueId())) {
+            if (!party.addInvitation(actors.target.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.add.unknown"));
                 return Command.SINGLE_SUCCESS;
             }
             // Woo hooo, invited!
             executor.sendMessage(Component.translatable("lane.controller.commands.party.add.invited", Component.text(actors.target.cPlayer().getUsername()))); // TODO Display name?
-            actors.executor().player().sendMessage(Component.translatable("lane.controller.commands.party.add.received", Component.text(executor.getUsername()))); // TODO Display name?
+            Player target = actors.target().player();
+            target.sendMessage(Component.translatable("lane.controller.commands.party.add.received", Component.text(executor.getUsername()))); // TODO Display name?
+            target.sendMessage(Component.translatable("lane.controller.commands.party.add.accept", Component.text(executor.getUsername())).clickEvent(ClickEvent.runCommand("party accept " + executor.getUsername())));
+            target.sendMessage(Component.translatable("lane.controller.commands.party.add.deny", Component.text(executor.getUsername())).clickEvent(ClickEvent.runCommand("party deny " + executor.getUsername())));
             return Command.SINGLE_SUCCESS;
         };
     }
+
 
     private Command<CommandSource> acceptCommand() {
         return c -> {
@@ -177,7 +195,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
 
             // We can get party, check if we have rights to join it
             ControllerParty party = partyOpt.get();
-            if (party.containsPlayer(executor.getUniqueId())) { // Check if target already party member
+            if (party.containsPlayer(actors.executor.cPlayer())) { // Check if target already party member
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.alreadyMember"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -185,11 +203,11 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.notInvitationOnly"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.hasInvitation(executor.getUniqueId())) {
+            if (!party.hasInvitation(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.noInvitation"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.acceptInvitation(executor.getUniqueId())) {
+            if (!party.acceptInvitation(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.unknown"));
             }
             // TODO Fix all of this: invitation check. This all!
@@ -222,7 +240,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
 
             // We can get party, check if we have been invited
             ControllerParty party = partyOpt.get();
-            if (party.containsPlayer(executor.getUniqueId())) { // Check if target already party member
+            if (party.containsPlayer(actors.executor.cPlayer())) { // Check if target already party member
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.alreadyMember"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -230,11 +248,11 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.notInvitationOnly"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.hasInvitation(executor.getUniqueId())) {
+            if (!party.hasInvitation(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.noInvitation"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.denyInvitation(executor.getUniqueId())) {
+            if (!party.denyInvitation(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.deny.unknown"));
             }
             // TODO Fix all of this: invitation check. This all!
@@ -267,7 +285,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
 
             // We can get party, check if we have been invited
             ControllerParty party = partyOpt.get();
-            if (party.containsPlayer(executor.getUniqueId())) { // Check if target already party member
+            if (party.containsPlayer(actors.executor.cPlayer())) { // Check if target already party member
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.join.alreadyMember"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -276,7 +294,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.join.unavailable"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.joinPlayer(executor.getUniqueId())) {
+            if (!party.joinPlayer(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.join.unknown"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -340,7 +358,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.notOwner"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.containsPlayer(actors.target.getUuid())) {
+            if (!party.containsPlayer(actors.target.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.needPartyMember"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -348,7 +366,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.yourself"));
                 return Command.SINGLE_SUCCESS;
             }
-            if (!party.setOwner(actors.target.getUuid())) {
+            if (!party.setOwner(actors.target.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.leader.unknown"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -417,11 +435,11 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.yourself"));
                 return Command.SINGLE_SUCCESS;
             }
-            if(!party.containsPlayer(actors.target.getUuid())) {
+            if(!party.containsPlayer(actors.target.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.needPartyMember"));
                 return Command.SINGLE_SUCCESS;
             }
-            if(!party.removePlayer(actors.target.getUuid())) {
+            if(!party.removePlayer(actors.target.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.kick.unknown"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -446,7 +464,11 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 return Command.SINGLE_SUCCESS;
             }
             ControllerParty party = partyOpt.get();
-            if(!party.removePlayer(actors.target.getUuid())) {
+            if(party.getOwner().equals(actors.executor.getUuid())) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.leave.yourself"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if(!party.removePlayer(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.leave.unknown"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -493,15 +515,17 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 return Command.SINGLE_SUCCESS;
             }
             ControllerParty party = partyOpt.get();
-            Component nameSeparator = Component.translatable("lane.controller.commands.party.list.nameSeparator");
-            Component names = null;
+
+            ArrayList<Component> nameComponents = new ArrayList<>();
             for (ControllerPlayer player : party.getControllerPlayers()) {
-                if(names == null) {
-                    names = Component.translatable("lane.controller.commands.party.list.name", Component.text(player.getDisplayName()));
-                } else {
-                    names = names.append(nameSeparator, Component.translatable("lane.controller.commands.party.list.name", Component.text(player.getDisplayName())));
-                }
+                nameComponents.add(GlobalTranslator.translator().translate(Component.translatable(
+                        "lane.controller.commands.party.list.name",
+                        Component.text(player.getDisplayName())
+                ), executor.getEffectiveLocale()));
             }
+            Component nameSeparator = GlobalTranslator.translator().translate(Component.translatable("lane.controller.commands.party.list.nameSeparator"),
+                    executor.getEffectiveLocale());
+            Component names = Component.join(JoinConfiguration.separator(nameSeparator), nameComponents);
             executor.sendMessage(Component.translatable("lane.controller.commands.party.list.style",
                     Component.text(party.getControllerOwner().getUsername()), names));
             return Command.SINGLE_SUCCESS;

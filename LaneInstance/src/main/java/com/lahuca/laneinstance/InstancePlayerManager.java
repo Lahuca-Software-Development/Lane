@@ -1,4 +1,4 @@
-package com.lahuca.laneinstance.managers;
+package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.packet.QueueFinishedPacket;
 import com.lahuca.lane.connection.packet.RequestInformationPacket;
@@ -6,10 +6,8 @@ import com.lahuca.lane.connection.packet.SendMessagePacket;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
 import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
 import com.lahuca.lane.records.PlayerRecord;
-import com.lahuca.laneinstance.InstancePlayer;
-import com.lahuca.laneinstance.LaneInstance;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
@@ -17,6 +15,7 @@ import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 public class InstancePlayerManager {
 
@@ -49,10 +48,6 @@ public class InstancePlayerManager {
         return Collections.unmodifiableCollection(players.values());
     }
 
-    private static <T> Request<T> simpleRequest(String result) { // TODO Move
-        return new Request<>(new Result<>(result));
-    }
-
     /**
      * Retrieves a request of the player record of the player with the given UUID on the controller.
      * The value is null when no player with the given UUID is present.
@@ -61,7 +56,7 @@ public class InstancePlayerManager {
      * @return the request
      */
     public Request<PlayerRecord> getPlayerRecord(UUID uuid) {
-        if (uuid == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
+        if (uuid == null) return new Request<>(new ResultUnsuccessfulException(ResponsePacket.INVALID_PARAMETERS));
         return instance.getConnection().sendRequestPacket(id -> new RequestInformationPacket.Player(id, uuid), null);
     }
 
@@ -118,13 +113,11 @@ public class InstancePlayerManager {
                     // TODO Maybe game also has slots? Or limitations?
                     // Send queue finished to controller
                     try {
-                        Result<Void> result = instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
-                        if (result == null || !result.isSuccessful()) {
-                            disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-                            return;
-                        }
+                        instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
                         sendInstanceStatus.run();
                         game.onJoin(player);
+                    } catch (ResultUnsuccessfulException e) {
+                        disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
                     } catch (InterruptedException | ExecutionException | CancellationException e) {
                         disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
                     }
@@ -141,13 +134,11 @@ public class InstancePlayerManager {
                 }
                 // Join allowed, finalize
                 try {
-                    Result<Void> result = instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
-                    if (!result.isSuccessful()) {
-                        disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-                        return;
-                    }
+                    instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
                     sendInstanceStatus.run();
                     // TODO Handle, like TP, etc. Only after response.
+                } catch (ResultUnsuccessfulException e) {
+                    disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
                 } catch (InterruptedException | ExecutionException | CancellationException e) {
                     disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
                 }
@@ -190,14 +181,10 @@ public class InstancePlayerManager {
      * @return a request object containing an optional Locale if successful, or empty if no locale is found or an error occurs
      */
     public Request<Optional<Locale>> getSavedLocale(UUID uuid) {
-        if (uuid == null) return new Request<>(new Result<>(ResponsePacket.ILLEGAL_ARGUMENT));
+        if (uuid == null) return new Request<>(new ResultUnsuccessfulException(ResponsePacket.ILLEGAL_ARGUMENT));
         return instance.getConnection().<String>sendRequestPacket(id -> new SavedLocalePacket.Get(id, uuid), null)
-                .thenApplyConstruct(result -> {
-                    if(result.isSuccessful()) {
-                        return new Result<>(result.result(), result.data() == null ? Optional.empty() : Optional.of(Locale.of(result.data())));
-                    }
-                    return new Result<>(result.result(), Optional.empty());
-                });
+                .thenApplyConstruct((Function<ResultUnsuccessfulException, Optional<Locale>>) failed -> Optional.empty(),
+                        data -> data == null ? Optional.empty() : Optional.of(Locale.of(data)));
     }
 
     /**
@@ -205,13 +192,13 @@ public class InstancePlayerManager {
      * This method sends a request to update the player's saved locale to the provided language.
      * If the UUID or Locale is null, an error response is returned.
      *
-     * @param uuid the UUID of the player whose saved locale is being set
+     * @param uuid   the UUID of the player whose saved locale is being set
      * @param locale the Locale to be saved for the player
      * @return a Request object representing the result of the operation;
-     *         contains an error if the arguments are invalid
+     * contains an error if the arguments are invalid
      */
     public Request<Void> setSavedLocale(UUID uuid, Locale locale) {
-        if(uuid == null || locale == null) return new Request<>(new Result<>(ResponsePacket.ILLEGAL_ARGUMENT));
+        if (uuid == null || locale == null) return new Request<>(new ResultUnsuccessfulException(ResponsePacket.ILLEGAL_ARGUMENT));
         return instance.getConnection().sendRequestPacket(id -> new SavedLocalePacket.Set(id, uuid, locale.toLanguageTag()), null);
     }
 

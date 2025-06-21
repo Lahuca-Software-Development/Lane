@@ -17,7 +17,7 @@ package com.lahuca.lane.connection;
 
 import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.connection.request.RequestPacket;
-import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.ResponsePacket;
 
 import java.io.IOException;
 import java.util.function.Consumer;
@@ -51,7 +51,7 @@ public interface Connection {
 	 * Sends a request packet to the given destination, and it handles the response.
 	 * A request ID is generated that is being used to construct the request packet.
 	 * The request is saved and forwarded to its destination.
-	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
 	 * Any generic results are cast by default.
 	 * @param packetConstruction the function that created a packet based upon the request ID.
 	 * @return the request with the future and request ID bundled within it.
@@ -63,7 +63,7 @@ public interface Connection {
 	 * Sends a request packet to the given destination, and it handles the response.
 	 * A request ID is generated that is being used to construct the request packet.
 	 * The request is saved and forwarded to its destination.
-	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
 	 * Any generic results are cast by default.
 	 * @param packetConstruction the function that created a packet based upon the request ID.
 	 * @param timeoutSeconds the number of seconds to wait for the response.
@@ -76,42 +76,43 @@ public interface Connection {
 	 * Sends a request packet to the given destination, and it handles the response.
 	 * A request ID is generated that is being used to construct the request packet.
 	 * The request is saved and forwarded to its destination.
-	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
 	 * Any generic results are cast by default.
 	 * @param packetConstruction the function that created a packet based upon the request ID.
-	 * @param resultParser the generic to specific result parser.
+	 * @param resultParser the generic-to-specific result parser.
 	 * @return the request with the future and request ID bundled within it.
 	 * @param <T> the type of the expected result.
 	 */
-	<T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser);
+	<T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Object, T> resultParser);
 
 	/**
 	 * Sends a request packet to the given destination, and it handles the response.
 	 * A request ID is generated that is being used to construct the request packet.
 	 * The request is saved and forwarded to its destination.
-	 * The future in the request retrieves the response, by default it timeouts after 1 second.
+	 * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
 	 * Any generic results are cast by default.
 	 * @param packetConstruction the function that created a packet based upon the request ID.
-	 * @param resultParser the generic to specific result parser.
+	 * @param resultParser the generic-to-specific result parser.
 	 * @param timeoutSeconds the number of seconds to wait for the response.
 	 * @return the request with the future and request ID bundled within it.
 	 * @param <T> the type of the expected result.
 	 */
-	<T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds);
+	<T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Object, T> resultParser, int timeoutSeconds);
 
 	/**
-	 * Sends the retrieved result into the requests' future.
+	 * Sends the retrieved response into the requests' future.
 	 * @param requestId The ID of the request.
-	 * @param result The retrieved result.
+	 * @param response The retrieved response.
 	 * @return True whether a request with this ID exists.
 	 * Or {@code true} if this invocation caused the CompletableFuture
 	 * to transition to a completed state, else {@code false}.
+	 * @param <T> the response packet type
 	 */
-	boolean retrieveResponse(long requestId, Result<?> result);
+	<T extends ResponsePacket<Object>> boolean retrieveResponse(long requestId, T response);
 
 	/**
 	 * Returns whether this connection is connected.
-	 * @return True if is it connected.
+	 * @return True if it is connected.
 	 */
 	boolean isConnected();
 

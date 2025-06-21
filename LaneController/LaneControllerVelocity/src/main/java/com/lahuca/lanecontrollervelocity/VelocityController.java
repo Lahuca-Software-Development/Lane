@@ -23,7 +23,7 @@ import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
@@ -79,6 +79,8 @@ public class VelocityController {
     // TODO Either use ControllerPlayer everywhere, or use UUID. Not both. Maybe it is better to like make sure that ControllerPlayer objects cannot be consturcted
     // TODO Go through everything and make sure that some objects cannot be constructed.
     // TODO Go through everything and check whether the parsed parameters are correct: null checks, etc.
+    // TODO Use requiresNonNull from Objects, instead! for parameters. Does NPE
+    // TODO Fallback locale components
 
     private static VelocityController instance;
 
@@ -302,6 +304,7 @@ public class VelocityController {
 
         for (File file : files) {
             Locale locale = parseLocale(file.getName());
+            System.out.println("REGISTERED LANG: " + locale.toLanguageTag() + " " + locale.toString());
 
             try (InputStream in = new FileInputStream(file);
                  Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
@@ -318,13 +321,20 @@ public class VelocityController {
     private static Locale parseLocale(String filename) {
         // messages_en_US_v.properties → en_US_v
         String base = filename.replace(".properties", "");
-        String[] parts = base.split("_");
 
-        if (parts.length == 1) return Locale.ROOT;
-        if (parts.length == 2) return Locale.of(parts[1]);
-        if (parts.length == 3) return Locale.of(parts[1], parts[2]);
-        if (parts.length == 4) return Locale.of(parts[1], parts[2], parts[3]);
-        return Locale.ROOT;
+        // Remove prefix like "messages" (everything before first underscore)
+        int underscoreIndex = base.indexOf('_');
+        if (underscoreIndex == -1) return Locale.ROOT;
+
+        String localePart = base.substring(underscoreIndex + 1); // get just "en", "en_US", etc.
+        String[] parts = localePart.split("_");
+
+        return switch (parts.length) {
+            case 1 -> Locale.of(parts[0]); // en
+            case 2 -> Locale.of(parts[0], parts[1]); // en_US
+            case 3 -> Locale.of(parts[0], parts[1], parts[2]); // en_US_v
+            default -> Locale.ROOT;
+        };
     }
 
 
@@ -454,25 +464,23 @@ public class VelocityController {
                     }
                     player.setState(state); // TODO Better state handling!
                     player.setQueueRequest(request);
-                    CompletableFuture<Result<Void>> future = controller.getConnection().<Void>sendRequestPacket((id) ->
+                    CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) ->
                             new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
                     try {
-                        Result<Void> joinResult = future.get();
-                        if(joinResult.isSuccessful()) {
-                            Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
-                            if(instanceServer.isEmpty()) {
-                                request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, instanceId, gameId));
-                                nextStage = true;
-                                continue;
-                            }
-                            // We can join
-                            event.setInitialServer(instanceServer.get());
-                        } else {
-                            // We are not allowing to join at this instance.
-                            request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, instanceId, gameId));
+                        Void joinResult = future.get();
+                        Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
+                        if (instanceServer.isEmpty()) {
+                            request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, instanceId, gameId));
                             nextStage = true;
                             continue;
                         }
+                        // We can join
+                        event.setInitialServer(instanceServer.get());
+                    } catch (ResultUnsuccessfulException e) {
+                        // We are not allowing to join at this instance.
+                        request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, instanceId, gameId));
+                        nextStage = true;
+                        continue;
                     } catch (InterruptedException | ExecutionException e) {
                         // We did not receive a valid response.
                         request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, instanceId, gameId));
@@ -608,25 +616,23 @@ public class VelocityController {
                     }
                     player.setState(state); // TODO Better state handling!
                     player.setQueueRequest(request);
-                    CompletableFuture<Result<Void>> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
+                    CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, player.convertRecord(), false, null), instance.getId()).getFutureResult();
                     try {
-                        Result<Void> joinResult = future.get();
-                        if(joinResult.isSuccessful()) {
-                            Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
-                            if(instanceServer.isEmpty()) {
-                                // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
-                                request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
-                                nextStage = true;
-                                continue;
-                            }
-                            // We can join
-                            event.setResult(KickedFromServerEvent.RedirectPlayer.create(instanceServer.get()));
-                        } else {
-                            // We are not allowing to join at this instance.
-                            request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
+                        Void joinResult = future.get();
+                        Optional<RegisteredServer> instanceServer = server.getServer(instance.getId());
+                        if (instanceServer.isEmpty()) {
+                            // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
+                            request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
                             nextStage = true;
                             continue;
                         }
+                        // We can join
+                        event.setResult(KickedFromServerEvent.RedirectPlayer.create(instanceServer.get()));
+                    } catch (ResultUnsuccessfulException e) {
+                        // We are not allowing to join at this instance.
+                        request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
+                        nextStage = true;
+                        continue;
                     } catch (InterruptedException | ExecutionException e) {
                         // We did not receive a valid response.
                         request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
@@ -666,8 +672,8 @@ public class VelocityController {
         }
 
         @Override
-        public CompletableFuture<Result<Void>> joinServer(UUID uuid, String destination) {
-            CompletableFuture<Result<Void>> future = new CompletableFuture<>();
+        public CompletableFuture<Void> joinServer(UUID uuid, String destination) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
             // Fetch player
             server.getPlayer(uuid).ifPresentOrElse(player -> {
                 // Fetch instance
@@ -680,19 +686,19 @@ public class VelocityController {
                         // Transfer result
                         if(result.getStatus() == ConnectionRequestBuilder.Status.SUCCESS
                                 || result.getStatus() == ConnectionRequestBuilder.Status.ALREADY_CONNECTED) {
-                            future.complete(new Result<>(ResponsePacket.OK));
+                            future.complete(null);
                         } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_IN_PROGRESS) {
-                            future.complete(new Result<>(ResponsePacket.CONNECTION_IN_PROGRESS));
+                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.CONNECTION_IN_PROGRESS));
                         } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_CANCELLED) {
-                            future.complete(new Result<>(ResponsePacket.CONNECTION_CANCELLED));
+                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.CONNECTION_CANCELLED));
                         } else if(result.getStatus() == ConnectionRequestBuilder.Status.SERVER_DISCONNECTED) {
-                            future.complete(new Result<>(ResponsePacket.CONNECTION_DISCONNECTED));
+                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.CONNECTION_DISCONNECTED));
                         } else {
-                            future.complete(new Result<>(ResponsePacket.UNKNOWN));
+                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.UNKNOWN));
                         }
                     });
-                }, () -> future.complete(new Result<>(ResponsePacket.INVALID_ID)));
-            }, () -> future.complete(new Result<>(ResponsePacket.INVALID_PLAYER)));
+                }, () -> future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.INVALID_ID)));
+            }, () -> future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.INVALID_PLAYER)));
             return future;
         }
 
@@ -809,7 +815,7 @@ public class VelocityController {
             HashSet<UUID> partyMembers = new HashSet<>();
             Optional<Long> partyIdOptional = event.getPlayer().getPartyId(); // TODO Check
             if(useParty && partyIdOptional.isPresent()) {
-                Optional<ControllerParty> partyOptional = getParty(partyIdOptional.get());
+                Optional<ControllerParty> partyOptional = getPartyManager().getParty(partyIdOptional.get());
                 if(partyOptional.isPresent()) {
                     ControllerParty party = partyOptional.get();
                     if(party.getOwner().equals(event.getPlayer().getUuid())) {

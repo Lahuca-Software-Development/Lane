@@ -24,20 +24,22 @@ import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
 import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
 import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.queue.QueueRequestParameters;
-import com.lahuca.lane.records.*;
-import com.lahuca.laneinstance.managers.InstancePlayerManager;
+import com.lahuca.lane.records.GameRecord;
+import com.lahuca.lane.records.InstanceRecord;
+import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lane.records.RecordConverter;
+import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -78,41 +80,46 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
         connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
-            if (input.packet() instanceof InstanceJoinPacket packet) {
-                if (!isJoinable()) {
-                    sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
-                    return;
-                }
-                // TODO Find if slot, also when the max players which has been RESERVED is met
-                // TODO Added later at 15 June, it looks like this already accounts for reserved positions.
-                if (!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
-                    sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
-                    return;
-                }
-                if (packet.gameId() != null) {
-                    Optional<LaneGame> instanceGame = getInstanceGame(packet.gameId());
-                    if (instanceGame.isEmpty()) {
-                        sendSimpleResult(packet, ResponsePacket.INVALID_ID);
-                        return;
-                    }
-                    LaneGame game = instanceGame.get();
-                    GameState state = game.getGameState();
-                    if (!state.isJoinable()) {
+            switch (input.packet()) {
+                case InstanceJoinPacket packet -> {
+                    if (!isJoinable()) {
                         sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
                         return;
                     }
-                    // TODO What about max players in a game?
+                    // TODO Find if slot, also when the max players which has been RESERVED is met
+                    // TODO Added later at 15 June, it looks like this already accounts for reserved positions.
+                    if (!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
+                        sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                        return;
+                    }
+                    if (packet.gameId() != null) {
+                        Optional<LaneGame> instanceGame = getInstanceGame(packet.gameId());
+                        if (instanceGame.isEmpty()) {
+                            sendSimpleResult(packet, ResponsePacket.INVALID_ID);
+                            return;
+                        }
+                        LaneGame game = instanceGame.get();
+                        GameState state = game.getGameState();
+                        if (!state.isJoinable()) {
+                            sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
+                            return;
+                        }
+                        // TODO What about max players in a game?
+                    }
+                    // We are here, so we can apply it.
+                    getPlayerManager().registerPlayer(packet.player());
+                    sendSimpleResult(packet, ResponsePacket.OK);
                 }
-                // We are here, so we can apply it.
-                getPlayerManager().registerPlayer(packet.player());
-                sendSimpleResult(packet, ResponsePacket.OK);
-            } else if (input.packet() instanceof InstanceUpdatePlayerPacket packet) {
-                PlayerRecord record = packet.playerRecord();
-                getPlayerManager().getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
-            } else if (input.packet() instanceof ResponsePacket<?> response) {
-                if (!connection.retrieveResponse(response.getRequestId(), response.transformResult())) {
-                    // TODO Handle output: failed response
+                case InstanceUpdatePlayerPacket packet -> {
+                    PlayerRecord record = packet.playerRecord();
+                    getPlayerManager().getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
                 }
+                case ResponsePacket<?> response -> {
+                    if (!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
+                        // TODO Handle output: failed response
+                    }
+                }
+                default -> throw new IllegalStateException("Unexpected value: " + input.packet());
             }
         });
         sendInstanceStatus();
@@ -177,18 +184,8 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         sendSimpleResult(request.getRequestId(), result);
     }
 
-    /**
-     * Constructs a CompletableFuture that contains the direct result.
-     *
-     * @param result The result.
-     * @return A CompletableFuture consisting of no additional data and the result.
-     */
-    private static CompletableFuture<Result<Void>> simpleFuture(String result) { // TODO Move, it is also
-        return CompletableFuture.completedFuture(new Result<>(result));
-    }
-
     private static <T> Request<T> simpleRequest(String result) { // TODO Move
-        return new Request<>(new Result<>(result));
+        return new Request<>(new ResultUnsuccessfulException(result));
     }
 
     private void sendInstanceStatus() {
@@ -220,23 +217,19 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     public Request<LaneGame> registerGame(Function<Long, LaneGame> gameConstructor) {
         if (gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         try {
-            Result<Long> gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
-            if (!gameId.isSuccessful()) {
-                return simpleRequest(ResponsePacket.ILLEGAL_STATE);
-            }
-            LaneGame game = gameConstructor.apply(gameId.data());
-            if (game.getGameId() != gameId.data() || games.containsKey(game.getGameId()))
+            Long gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
+            LaneGame game = gameConstructor.apply(gameId);
+            if (game.getGameId() != gameId || games.containsKey(game.getGameId()))
                 return simpleRequest(ResponsePacket.INVALID_ID);
             games.put(game.getGameId(), game);
             Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
                     game.getGameState().convertRecord()), null);
-            return request.thenApplyConstruct(result -> {
-                if (!result.isSuccessful()) {
-                    games.remove(game.getGameId());
-                    return new Result<>(result.result(), null);
-                }
-                return new Result<>(result.result(), game);
-            });
+            return request.thenApplyConstruct(ex -> {
+                // Failed, remove the game
+                games.remove(game.getGameId());
+            }, data -> game);
+        } catch (ResultUnsuccessfulException e) {
+            return simpleRequest(ResponsePacket.ILLEGAL_STATE);
         } catch (InterruptedException | ExecutionException | CancellationException e) {
             return simpleRequest(ResponsePacket.INTERRUPTED); // TODO Forward to Request?
         }
@@ -348,22 +341,14 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         return new InstanceRecord(id, type, joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers());
     }
 
-    // TODO Below: todo
-
-    public Request<PartyRecord> getParty(long partyId) {
+    /**
+     * Retrieves a party from the instance, identified by the given party ID.
+     * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
+     * @param partyId the party ID
+     * @return a request that completes with the retrieval of the party
+     */
+    public Request<InstancePartyRetrieval> getParty(long partyId) {
         return connection.sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null);
-    }
-
-    public Request<Void> disbandParty(long partyId) {
-        return connection.sendRequestPacket(id -> new PartyPacket.Disband.Request(id, partyId), null);
-    }
-
-    public Request<Void> addPartyPlayer(long partyId, UUID player) {
-        return connection.sendRequestPacket(id -> new PartyPacket.Player.Add(id, partyId, player), null);
-    }
-
-    public Request<Void> removePartyPlayer(long partyId, UUID player) {
-        return connection.sendRequestPacket(id -> new PartyPacket.Player.Remove(id, partyId, player), null);
     }
 
 }

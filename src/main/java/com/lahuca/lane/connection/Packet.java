@@ -45,18 +45,29 @@ public interface Packet {
 	}
 
 	static void registerPackets() {
+		// TODO Definitely do this differently!
 		Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
 		Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
 		Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
 		Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);
 		Packet.registerPacket(InstanceUpdatePlayerPacket.packetId, InstanceUpdatePlayerPacket.class);
-		Packet.registerPacket(PartyPacket.Player.Add.packetId, PartyPacket.Player.Add.class);
-		Packet.registerPacket(PartyPacket.Player.Remove.packetId, PartyPacket.Player.Remove.class);
-		Packet.registerPacket(PartyPacket.Disband.Request.packetId, PartyPacket.Disband.Request.class);
-		Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
-		Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
+
 		Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
 		Packet.registerPacket(ConnectionConnectPacket.packetId, ConnectionConnectPacket.class);
+
+		Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
+		Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
+		Packet.registerPacket(PartyPacket.SetInvitationsOnly.packetId, PartyPacket.SetInvitationsOnly.class);
+		Packet.registerPacket(PartyPacket.Invitation.Has.packetId, PartyPacket.Invitation.Has.class);
+		Packet.registerPacket(PartyPacket.Invitation.Add.packetId, PartyPacket.Invitation.Add.class);
+		Packet.registerPacket(PartyPacket.Invitation.Accept.packetId, PartyPacket.Invitation.Accept.class);
+		Packet.registerPacket(PartyPacket.Invitation.Deny.packetId, PartyPacket.Invitation.Deny.class);
+		Packet.registerPacket(PartyPacket.JoinPlayer.packetId, PartyPacket.JoinPlayer.class);
+		Packet.registerPacket(PartyPacket.RemovePlayer.packetId, PartyPacket.RemovePlayer.class);
+		Packet.registerPacket(PartyPacket.Disband.packetId, PartyPacket.Disband.class);
+		Packet.registerPacket(PartyPacket.SetOwner.packetId, PartyPacket.SetOwner.class);
+		Packet.registerPacket(PartyPacket.Warp.packetId, PartyPacket.Warp.class);
+
 
 		Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
 		Packet.registerPacket(VoidResultPacket.packetId, VoidResultPacket.class);

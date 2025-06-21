@@ -33,6 +33,20 @@ public record LongResultPacket(long requestId, String result, Long data) impleme
         Packet.registerPacket(packetId, LongResultPacket.class);
     }
 
+    /**
+     * Constructor for a result that is successful.
+     * @param requestId the request ID
+     * @param data the data
+     */
+    public LongResultPacket(long requestId, Long data) {
+        this(requestId, ResponsePacket.OK, data);
+    }
+
+    /**
+     * Constructor for a result that is unsuccessful.
+     * @param requestId the request ID
+     * @param result the error
+     */
     public LongResultPacket(long requestId, String result) {
         this(requestId, result, null);
     }

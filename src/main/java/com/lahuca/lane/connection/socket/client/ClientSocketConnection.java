@@ -17,7 +17,10 @@ package com.lahuca.lane.connection.socket.client;
 
 import com.google.gson.Gson;
 import com.lahuca.lane.ReconnectConnection;
-import com.lahuca.lane.connection.*;
+import com.lahuca.lane.connection.ConnectionTransfer;
+import com.lahuca.lane.connection.InputPacket;
+import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.RawPacket;
 import com.lahuca.lane.connection.packet.connection.*;
 import com.lahuca.lane.connection.request.*;
 
@@ -77,7 +80,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     }
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, Runnable onClose, Runnable onFinalClose) {
-        this(id, ip, port, gson, useSSL, onClose, onFinalClose, true, 60, 3, 60);
+        this(id, ip, port, gson, useSSL, onClose, onFinalClose, true, 10, 3, 60); // TODO Modify reconnect time to 60
     }
 
     public ClientSocketConnection(String id, String ip, int port, Gson gson, boolean useSSL, Runnable onClose, Runnable onFinalClose, boolean reconnect, int secondsBetweenReconnections, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) {
@@ -174,7 +177,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
             // Send packet back immediately.
             sendPacket(ConnectionKeepAliveResultPacket.ok(packet), inputPacket.from());
         } else if(iPacket instanceof ConnectionKeepAliveResultPacket packet) {
-            retrieveResponse(packet.getRequestId(), packet.transformResult());
+            retrieveResponse(packet.getRequestId(), packet.toObjectResponsePacket());
         } else if(iPacket instanceof ConnectionClosePacket packet) {
             // We are expecting a close, close immediately.
             closeAndReconnect();
@@ -202,7 +205,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     }
 
     private static <T> Request<T> disconnectedRequest() {
-        return new Request<>(new Result<>(ResponsePacket.CONTROLLER_DISCONNECTED));
+        return new Request<>(new ResultUnsuccessfulException(ResponsePacket.CONTROLLER_DISCONNECTED));
     }
 
     /**
@@ -234,7 +237,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      * Sends a request packet to the given destination, and it handles the response.
      * A request ID is generated that is being used to construct the request packet.
      * The request is saved and forwarded to its destination.
-     * The future in the request retrieves the response, by default it timeouts after 1 second.
+     * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
      * Any generic results are cast by default.
      * @param packetConstruction the function that created a packet based upon the request ID.
      * @param timeoutSeconds the number of seconds to wait for the response.
@@ -260,15 +263,15 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      * Sends a request packet to the given destination, and it handles the response.
      * A request ID is generated that is being used to construct the request packet.
      * The request is saved and forwarded to its destination.
-     * The future in the request retrieves the response, by default it timeouts after 1 second.
+     * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
      * Any generic results are cast by default.
      * @param packetConstruction the function that created a packet based upon the request ID.
-     * @param resultParser the generic to specific result parser.
+     * @param resultParser the generic-to-specific result parser.
      * @return the request with the future and request ID bundled within it.
      * @param <T> the type of the expected result.
      */
     @Override
-    public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser) {
+    public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Object, T> resultParser) {
         if(id == null || !isConnected()) return disconnectedRequest();
         Request<T> request = request(resultParser);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
@@ -286,16 +289,16 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
      * Sends a request packet to the given destination, and it handles the response.
      * A request ID is generated that is being used to construct the request packet.
      * The request is saved and forwarded to its destination.
-     * The future in the request retrieves the response, by default it timeouts after 1 second.
+     * The future in the request retrieves the response, by default, it timeouts after 3 seconds.
      * Any generic results are cast by default.
      * @param packetConstruction the function that created a packet based upon the request ID.
-     * @param resultParser the generic to specific result parser.
+     * @param resultParser the generic-to-specific result parser.
      * @param timeoutSeconds the number of seconds to wait for the response.
      * @return the request with the future and request ID bundled within it.
      * @param <T> the type of the expected result.
      */
     @Override
-    public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Result<?>, Result<T>> resultParser, int timeoutSeconds) {
+    public <T> Request<T> sendRequestPacket(Function<Long, RequestPacket> packetConstruction, String destination, Function<Object, T> resultParser, int timeoutSeconds) {
         if(id == null || !isConnected()) return disconnectedRequest();
         Request<T> request = request(resultParser, timeoutSeconds);
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
@@ -310,16 +313,17 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     }
 
     /**
-     * Sends the retrieved result into the requests' future.
+     * Sends the retrieved response into the requests' future.
      * @param requestId The ID of the request.
-     * @param result The retrieved result.
+     * @param response The retrieved response.
      * @return True whether a request with this ID exists.
      * Or {@code true} if this invocation caused the CompletableFuture
      * to transition to a completed state, else {@code false}.
+     * @param <T> the response packet type
      */
     @Override
-    public boolean retrieveResponse(long requestId, Result<?> result) {
-        return response(requestId, result);
+    public <T extends ResponsePacket<Object>> boolean retrieveResponse(long requestId, T response) {
+        return response(requestId, response);
     }
 
     /**
@@ -419,7 +423,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
 
     private void checkKeepAlive() {
         sendRequestPacket(id -> new ConnectionKeepAlivePacket(id, System.currentTimeMillis()), null).getFutureResult().whenComplete((result, exception) -> {
-            if(exception != null || result == null || !result.isSuccessful()) {
+            if(exception != null) {
                 numberKeepAliveFails++;
                 if(numberKeepAliveFails > maximumKeepAliveFails) {
                     closeAndReconnect();

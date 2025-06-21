@@ -22,8 +22,13 @@ public record VoidResultPacket(long requestId, String result) implements Respons
 
     public static final String packetId = "voidResult";
 
-    public static VoidResultPacket ok(long requestId) {
-        return new VoidResultPacket(requestId, ResponsePacket.OK);
+
+    /**
+     * Constructor for a result that is successful.
+     * @param requestId the request ID
+     */
+    public VoidResultPacket(long requestId) {
+        this(requestId, ResponsePacket.OK);
     }
 
     static {
@@ -49,4 +54,5 @@ public record VoidResultPacket(long requestId, String result) implements Respons
     public Void getData() {
         return null;
     }
+
 }

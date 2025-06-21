@@ -27,13 +27,7 @@ public class InstancePlayer implements LanePlayer {
     private InstancePlayerState state = null;
     private Long partyId = null;
 
-    public InstancePlayer(UUID uuid, String username, String displayName) {
-        this.uuid = uuid;
-        this.username = username;
-        this.displayName = displayName;
-    }
-
-    public InstancePlayer(PlayerRecord record) {
+    InstancePlayer(PlayerRecord record) {
         this.uuid = record.uuid();
         this.username = record.username();
         applyRecord(record);

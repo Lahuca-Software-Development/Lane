@@ -5,7 +5,6 @@ import com.lahuca.lane.data.manager.DataManager;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.UUID;
 
 public class ControllerPartyManager {
 
@@ -34,13 +33,12 @@ public class ControllerPartyManager {
      * @return the party, the optional is null when the party could not be made
      * @throws IllegalArgumentException when {@code owner} is null
      */
-    public Optional<ControllerParty> createParty(UUID owner) {
+    public Optional<ControllerParty> createParty(ControllerPlayer owner) {
         if (owner == null) throw new IllegalArgumentException("owner cannot be null");
-        Optional<ControllerPlayer> playerOpt = Controller.getPlayer(owner);
-        if (playerOpt.isEmpty()) return Optional.empty();
-        ControllerPlayer player = playerOpt.get();
-        if (player.getParty().isPresent()) return Optional.empty();
-        ControllerParty party = new ControllerParty(newId(), owner);
+        if (owner.getParty().isPresent()) return Optional.empty();
+        ControllerParty party = new ControllerParty(newId(), owner); // TODO We assume that we can just do this, like it should lock onto the ID.
+        parties.put(party.getId(), party);
+        owner.setPartyId(party.getId());
         return Optional.of(party);
     }
 
@@ -69,7 +67,7 @@ public class ControllerPartyManager {
         return parties.values(); // TODO Probs immutable?
     } // TODO Redo
 
-    public Optional<ControllerParty> getParty(long id) {
+    public Optional<ControllerParty> getParty(Long id) {
         return Optional.ofNullable(parties.get(id));
     } // TODO Redo
 

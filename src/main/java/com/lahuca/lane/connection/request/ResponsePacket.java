@@ -8,7 +8,6 @@ package com.lahuca.lane.connection.request;
 public interface ResponsePacket<T> extends RequestPacket {
 
     String OK = "ok";
-    String OK_PARTIALLY = "okPartially";
     String UNKNOWN = "unknown";
     String NOT_JOINABLE = "notJoinable";
     String NO_FREE_SLOTS = "noFreeSlots";
@@ -27,8 +26,28 @@ public interface ResponsePacket<T> extends RequestPacket {
     String getResult();
     T getData();
 
-    default Result<T> transformResult() {
-        return new Result<>(this);
+    default ResponsePacket<Object> toObjectResponsePacket() {
+        return new ResponsePacket<>() {
+            @Override
+            public String getResult() {
+                return ResponsePacket.this.getResult();
+            }
+
+            @Override
+            public Object getData() {
+                return ResponsePacket.this.getData();
+            }
+
+            @Override
+            public long getRequestId() {
+                return ResponsePacket.this.getRequestId();
+            }
+
+            @Override
+            public String getPacketId() {
+                return ResponsePacket.this.getPacketId();
+            }
+        };
     }
 
 }

@@ -20,8 +20,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
-import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.Result;
+import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
@@ -112,7 +111,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * @return the result of the queuing the request, this does not return the result of the queue
      * @throws IllegalArgumentException when the provided argument is null
      */
-    public CompletableFuture<Result<Void>> queue(QueueRequestParameters requestParameters) {
+    public CompletableFuture<Void> queue(QueueRequestParameters requestParameters) {
         if(requestParameters == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("requestParameters must not be null"));
         }
@@ -129,14 +128,14 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * @return The result of the queuing the request, this does not return the result of the queue
      * @throws IllegalArgumentException when the provided argument is null
      */
-    private CompletableFuture<Result<Void>> queue(QueueRequest request) {
+    private CompletableFuture<Void> queue(QueueRequest request) {
         if(request == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("request must not be null"));
         }
         setQueueRequest(request); // TODO This could override an existing queue, do we want this?. Also check if this happens everywehere.
         QueueStageEvent stageEvent = new QueueStageEvent(this, request);
         handleQueueStage(stageEvent);
-        return CompletableFuture.completedFuture(new Result<>(ResponsePacket.OK));
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -207,8 +206,9 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 }
                 instance = instanceOptional.get();
             }
-            Set<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
-            if (instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + playTogetherPlayers.size() + 1 <= instance.getMaxPlayers()) {
+            HashSet<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
+            int numberPlayTogetherPlayers = playTogetherPlayers == null ? 0 : playTogetherPlayers.size();
+            if (instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + numberPlayTogetherPlayers + 1 <= instance.getMaxPlayers()) {
                 // Run the stage event again to find a joinable instance.
                 request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, resultInstanceId, resultGameId));
                 handleQueueStage(stageEvent);
@@ -224,46 +224,45 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
             }
             setState(state); // TODO Better state handling!
             setQueueRequest(request);
-            CompletableFuture<Result<Void>> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), false, null), instance.getId()).getFutureResult();
+            CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), false, null), instance.getId()).getFutureResult();
             future.whenComplete((joinPacketResult, exception) -> {
                 if (exception != null) {
+                    if (exception instanceof ResultUnsuccessfulException ex) {
+                        // We are not allowing to join at this instance.
+                        request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
+                        handleQueueStage(stageEvent);
+                        return;
+                    }
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
                     handleQueueStage(stageEvent);
                     return;
                 }
-                if (joinPacketResult.isSuccessful()) {
-                    CompletableFuture<Result<Void>> joinFuture = controller.joinServer(getUuid(), instance.getId());
-                    joinFuture.whenComplete((joinResult, joinException) -> {
-                        if (joinException != null) {
-                            request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
-                            handleQueueStage(stageEvent);
-                            return;
-                        }
-                        if (!joinResult.isSuccessful()) {
+                CompletableFuture<Void> joinFuture = controller.joinServer(getUuid(), instance.getId());
+                joinFuture.whenComplete((joinResult, joinException) -> {
+                    if (joinException != null) {
+                        if(joinException instanceof ResultUnsuccessfulException ex) {
                             // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                             request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
                             handleQueueStage(stageEvent);
                             return;
                         }
-                        // WOOO, we have joined!, we are done for THIS player
+                        request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
+                        handleQueueStage(stageEvent);
+                        return;
+                    }
+                    // WOOO, we have joined!, we are done for THIS player
 
-                        if (!playTogetherPlayers.isEmpty()) {
-                            QueueRequestParameter partyJoinParameter;
-                            if (resultGameId != null) {
-                                partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(instance.getId()).build();
-                            } else {
-                                partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstanceId).build();
-                            }
-                            QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                            playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest)));
+                    if (playTogetherPlayers != null && !playTogetherPlayers.isEmpty()) {
+                        QueueRequestParameter partyJoinParameter;
+                        if (resultGameId != null) {
+                            partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(instance.getId()).build();
+                        } else {
+                            partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstanceId).build();
                         }
-                    });
-                } else {
-                    // We are not allowing to join at this instance.
-                    request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
-                    handleQueueStage(stageEvent);
-                    return;
-                }
+                        QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
+                        playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest)));
+                    }
+                });
             });
         }
     }
@@ -295,7 +294,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         if(partyId == null) {
             // We want to remove, check if we are removed if we are in a party
             Optional<ControllerParty> current = getParty();
-            if(current.isEmpty() || !current.get().containsPlayer(uuid)) {
+            if(current.isEmpty() || !current.get().containsPlayer(this)) {
                 // We are not in our current party
                 this.partyId = partyId;
                 updateInstancePlayer();
@@ -305,7 +304,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         }
         // We want to add, check if we are in the party object
         Optional<ControllerParty> newParty = Controller.getInstance().getPartyManager().getParty(partyId);
-        if(newParty.isPresent() && newParty.get().containsPlayer(uuid)) {
+        if(newParty.isPresent() && newParty.get().containsPlayer(this)) {
             // Party is added
             this.partyId = partyId;
             updateInstancePlayer();
