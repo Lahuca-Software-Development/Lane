@@ -66,6 +66,9 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     public LaneInstance(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
+        Objects.requireNonNull(id, "id cannot be null");
+        Objects.requireNonNull(connection, "connection cannot be null");
+        Objects.requireNonNull(type, "type cannot be null");
         instance = this;
         this.id = id;
         this.type = type;

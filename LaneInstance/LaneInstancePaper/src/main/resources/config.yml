@@ -1,7 +1,12 @@
+id: "Test"
+type: "Test"
+joinable: true
+nonPlayable: true
+
 connection:
-  socketConnection: true
-  id: "surival"
-  ip: "mc.slux.cz"
-  port: 776
-  joinable: true
-  nonPlayable: false
+  port: 7766
+  ip: "localhost"
+  # Currently, only SOCKET is supported
+  type: "SOCKET"
+  socket:
+    ssl: true

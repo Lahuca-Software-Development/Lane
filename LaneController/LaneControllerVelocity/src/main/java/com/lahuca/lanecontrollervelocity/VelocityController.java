@@ -304,7 +304,6 @@ public class VelocityController {
 
         for (File file : files) {
             Locale locale = parseLocale(file.getName());
-            System.out.println("REGISTERED LANG: " + locale.toLanguageTag() + " " + locale.toString());
 
             try (InputStream in = new FileInputStream(file);
                  Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {

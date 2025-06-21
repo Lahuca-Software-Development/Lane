@@ -24,6 +24,7 @@ import com.lahuca.laneinstance.LaneInstance;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -60,18 +61,10 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         saveDefaultConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
 
-        /*FileConfiguration configuration = getConfig();
+        FileConfiguration configuration = getConfig();
 
-        Connection connection = null;
-        if(configuration.getBoolean("socketConnection")) {
-            connection = new ClientSocketConnection(configuration.getString("id"), configuration.getString("ip"),
-                    configuration.getInt("port"), gson);
-        }
 
-        boolean joinable = configuration.getBoolean("joinable"); TODO Undo
-        boolean nonPlayable = configuration.getBoolean("nonPlayable");*/
-        String id = "Lobby";
-        boolean useSSL = false;
+        String id = configuration.getString("id");
         Runnable onClose = () -> {
             getServer().getOnlinePlayers().forEach(player -> {
                 if(getServer().isPrimaryThread()) {
@@ -86,10 +79,15 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
             // More work
         };
         // TODO Maybe onReconnect?
-        ReconnectConnection connection = new ClientSocketConnection(id, "localhost", 7766, gson, useSSL, onClose, onFinalClose);
-        String type = "Lobby";
-        boolean joinable = true;
-        boolean nonPlayable = true;
+        ReconnectConnection connection = null;
+        if(configuration.getString("connection.type", "SOCKET").equalsIgnoreCase("SOCKET")) {
+            connection = new ClientSocketConnection(id, configuration.getString("connection.ip"),
+                    configuration.getInt("connection.port"), gson, configuration.getBoolean("connection.socket.ssl"), onClose, onFinalClose);
+        }
+
+        String type = configuration.getString("type");
+        boolean joinable = configuration.getBoolean("joinable");
+        boolean nonPlayable = configuration.getBoolean("nonPlayable");
         try {
             new Implementation(id, connection, type, joinable, nonPlayable);
         } catch(IOException e) {
