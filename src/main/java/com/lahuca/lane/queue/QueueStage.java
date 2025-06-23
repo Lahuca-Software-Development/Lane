@@ -15,13 +15,28 @@
  */
 package com.lahuca.lane.queue;
 
+import net.kyori.adventure.text.Component;
+
+import java.util.Optional;
+
 /**
  * Contains the data for a stage that has been done.
  * The result represents what has happened for the stage to fail/succeed.
  * The other parameters represent what has tried to join.
  * @param result The result.
- * @param instanceId The ID of an instance to join.
+ * @param resultMessage an additional message that caused the result
+ * @param queueType the queue type that was failed/succeeded
+ * @param instanceId The ID of an instance to join, also the ID of the instance of the game.
  * @param gameId The ID of a game to join.
  */
-public record QueueStage(QueueStageResult result, String instanceId, Long gameId) {
+public record QueueStage(QueueStageResult result, Component resultMessage, QueueType queueType, String instanceId, Long gameId) {
+
+    public QueueStage(QueueStageResult result, QueueType queueType, String instanceId, Long gameId) {
+        this(result, null, queueType, instanceId, gameId);
+    }
+
+    public Optional<Component> getResultMessage() {
+        return Optional.ofNullable(resultMessage);
+    }
+
 }

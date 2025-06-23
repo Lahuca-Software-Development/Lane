@@ -20,6 +20,7 @@ import com.google.gson.GsonBuilder;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
+import com.lahuca.laneinstance.InstancePlayer;
 import com.lahuca.laneinstance.LaneInstance;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -86,18 +87,22 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         }
 
         String type = configuration.getString("type");
-        boolean joinable = configuration.getBoolean("joinable");
-        boolean nonPlayable = configuration.getBoolean("nonPlayable");
+        boolean onlineJoinable = configuration.getBoolean("onlineJoinable");
+        boolean playersJoinable = configuration.getBoolean("playersJoinable");
+        boolean playingJoinable = configuration.getBoolean("playingJoinable");
+        int maxOnlineSlots = configuration.getInt("maxOnlineSlots");
+        int maxPlayersSlots = configuration.getInt("maxPlayersSlots");
+        int maxPlayingSlots = configuration.getInt("maxPlayingSlots");
         try {
-            new Implementation(id, connection, type, joinable, nonPlayable);
+            new Implementation(id, connection, type, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
         } catch(IOException e) {
             e.printStackTrace(); // TODO Send message with exception
             getServer().getPluginManager().disablePlugin(this);
         } catch(InstanceInstantiationException e) {
-            LaneInstance.getInstance().setJoinable(joinable);
-            LaneInstance.getInstance().setNonPlayable(nonPlayable);
+            LaneInstance.getInstance().getPlayerManager().updateJoinableSlots(onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
         }
     }
+
 
     @Override
     public void onDisable() {
@@ -133,22 +138,12 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 
     private class Implementation extends LaneInstance {
 
-        private Implementation(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
-            super(id, connection, type, joinable, nonPlayable);
+        private Implementation(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots) throws IOException, InstanceInstantiationException {
+            super(id, connection, type, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
         }
 
         private Server getServer() {
             return LaneInstancePaper.this.getServer();
-        }
-
-        @Override
-        public int getCurrentPlayers() {
-            return LaneInstancePaper.this.getServer().getOnlinePlayers().size();
-        }
-
-        @Override
-        public int getMaxPlayers() {
-            return LaneInstancePaper.this.getServer().getMaxPlayers();
         }
 
         @Override
@@ -162,5 +157,11 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
                 }
             }
         }
+
+        @Override
+        public void onInstanceJoin(InstancePlayer player) {
+            // TODO Event??
+        }
+
     }
 }

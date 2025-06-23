@@ -15,6 +15,8 @@ import java.util.StringJoiner;
  **/
 public class ControllerPlayerState implements LanePlayerState {
 
+    // TODO Do we really want this state? It feels error prone, due to no limited access.
+
     private String name;
     private final HashMap<String, ControllerStateProperty> properties;
 

@@ -37,7 +37,6 @@ import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.records.GameRecord;
-import com.lahuca.lane.records.GameStateRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
@@ -105,11 +104,15 @@ public abstract class Controller {
             Packet iPacket = input.packet();
             System.out.println("Got Packet: " + input.from());
             switch (iPacket) {
-                case GameStatusUpdatePacket(long requestId, long gameId, String name, GameStateRecord state) -> {
+                case GameStatusUpdatePacket(long requestId, GameRecord record) -> {
+                    long gameId = record.gameId();
+                    if(!input.from().equals(record.instanceId())) {
+                        connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                        return;
+                    }
                     if (!games.containsKey(gameId)) {
                         // A new game has been created, yeey!
-                        ControllerGameState initialState = new ControllerGameState(state);
-                        games.put(gameId, new ControllerGame(gameId, input.from(), name, initialState));
+                        games.put(gameId, new ControllerGame(record));
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                         return;
                     }
@@ -118,10 +121,20 @@ public abstract class Controller {
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                         return;
                     }
-                    games.get(gameId).update(name, state);
+                    games.get(gameId).applyRecord(record);
                     connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                 }
-                case InstanceStatusUpdatePacket packet -> createGetInstance(input.from()).applyRecord(packet.record());
+                case InstanceStatusUpdatePacket(InstanceRecord record) -> {
+                    if(!input.from().equals(record.id())) {
+                        // TODO Report?
+                        return;
+                    }
+                    if (!instances.containsKey(record.id())) {
+                        instances.put(record.id(), new ControllerLaneInstance(record));
+                        return;
+                    }
+                    instances.get(record.id()).applyRecord(record);
+                }
 
                 case PartyPacket.Retrieve.Request packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(
@@ -249,6 +262,7 @@ public abstract class Controller {
                     if (newId == null) {
                         connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                     } else {
+                        // TODO Do reservation, we do not want doubles!
                         connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.OK, newId), input.from());
                     }
                 }
@@ -410,11 +424,6 @@ public abstract class Controller {
         return partyManager;
     }
 
-    private ControllerLaneInstance createGetInstance(String id) {
-        if (!instances.containsKey(id)) instances.put(id, new ControllerLaneInstance(id, null));
-        return instances.get(id);
-    }
-
     public Optional<ControllerLaneInstance> getInstance(String id) {
         return Optional.ofNullable(instances.get(id));
     } // TODO Really public?
@@ -519,16 +528,6 @@ public abstract class Controller {
      * @return the completable future with the result
      */
     public abstract CompletableFuture<Void> joinServer(UUID uuid, String destination);
-
-    /**
-     * Gets a new ControllerLaneInstance for the given ControllerPlayer to join.
-     * This instance is not intended to be played at a game at currently.
-     *
-     * @param player  the player requesting a new instance
-     * @param exclude the collection of instances to exclude from the output
-     * @return the instance to go to, if the optional is null, then no instance could be found
-     */
-    public abstract Optional<ControllerLaneInstance> getNewInstance(ControllerPlayer player, Collection<ControllerLaneInstance> exclude);
 
     /**
      * Lets the implemented controller handle the {@link QueueStageEvent}.

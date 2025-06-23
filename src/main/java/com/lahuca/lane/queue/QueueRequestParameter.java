@@ -16,6 +16,7 @@
 package com.lahuca.lane.queue;
 
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -31,15 +32,61 @@ import java.util.function.Function;
  */
 public record QueueRequestParameter(HashMap<String, Object> data) {
 
+    public Optional<String> instanceId() {
+        return Optional.ofNullable(data.get(instanceId)).filter(String.class::isInstance).map(String.class::cast);
+    }
+
+    public Optional<String> instanceType() {
+        return Optional.ofNullable(data.get(instanceType)).filter(String.class::isInstance).map(String.class::cast);
+    }
+
+    public Optional<Long> gameId() {
+        return Optional.ofNullable(data.get(gameId)).filter(Long.class::isInstance).map(Long.class::cast);
+    }
+
+    public Optional<String> gameType() {
+        return Optional.ofNullable(data.get(gameType)).filter(String.class::isInstance).map(String.class::cast);
+    }
+
+    public Optional<String> gameMap() {
+        return Optional.ofNullable(data.get(gameMap)).filter(String.class::isInstance).map(String.class::cast);
+    }
+
+    public Optional<String> gameMode() {
+        return Optional.ofNullable(data.get(gameMode)).filter(String.class::isInstance).map(String.class::cast);
+    }
+
+    public Optional<Boolean> partySkip() {
+        return Optional.ofNullable(data.get(partySkip)).filter(Boolean.class::isInstance).map(Boolean.class::cast);
+    }
+
+    public Optional<QueueType> queueType() {
+        return Optional.ofNullable(data.get(queueType))
+                .map(Object::toString)
+                .map(str -> {
+                    try {
+                        return QueueType.valueOf(str);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                });
+    }
+
+    public Optional<Object> extra(String key) {
+        return Optional.ofNullable(data.get(key));
+    }
+
     public static final String lobbyInstanceType = "Lobby";
 
-    public static final String instanceId = "INSTANCE.ID";
-    public static final String instanceType = "INSTANCE.TYPE";
-    public static final String gameId = "GAME.ID";
-    public static final String gameType = "GAME.TYPE";
-    public static final String gameMap = "GAME.MAP";
-    public static final String gameMode = "GAME.MODE";
-    public static final String partySkip = "PARTY.SKIP";
+    public static final String instanceId = "INSTANCE.ID"; // Instance ID
+    public static final String instanceType = "INSTANCE.TYPE"; // Instance Type
+    public static final String gameId = "GAME.ID"; // Game ID
+    public static final String gameType = "GAME.TYPE"; // Game Type, example: SkyWars
+    public static final String gameMap = "GAME.MAP"; // Game Map, example: Village
+    public static final String gameMode = "GAME.MODE"; // Game Mode, example: Singles
+    public static final String partySkip = "PARTY.SKIP"; // Whether the party should not be warped (only if owner)
+    public static final String queueType = "QUEUE.TYPE"; // Queue Type: default use is PLAYING.
+
 
     public static Builder create() {
         return new Builder();
@@ -147,6 +194,17 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          */
         public final Builder partySkip(boolean partySkip) {
             data.put(QueueRequestParameter.partySkip, partySkip); // TODO Maybe add config setting to change default way of doing?
+            return this;
+        }
+
+        /**
+         * Tells the controller to use a different queue type.
+         *
+         * @param queueType the queue type
+         * @return This builder
+         */
+        public final Builder queueType(QueueType queueType) {
+            data.put(QueueRequestParameter.queueType, queueType);
             return this;
         }
 

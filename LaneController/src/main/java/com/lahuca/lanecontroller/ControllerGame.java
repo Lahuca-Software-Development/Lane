@@ -1,74 +1,183 @@
 package com.lahuca.lanecontroller;
 
-import com.lahuca.lane.LaneGameState;
+import com.lahuca.lane.game.LaneGame;
 import com.lahuca.lane.records.GameRecord;
-import com.lahuca.lane.records.GameStateRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
+import com.lahuca.lane.records.StatePropertyRecord;
 
-import java.util.StringJoiner;
+import java.util.*;
 
 /**
  * @author _Neko1
  * @date 14.03.2024
  **/
-public class ControllerGame implements RecordConverterApplier<GameRecord> {
+public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneGame {
 
     private final long gameId;
     private final String instanceId;
-    private String name;
-    private final ControllerGameState state;
+    private String gameType;
+    private String gameMode;
+    private String gameMap;
 
-    // TODO Fix .set()!!!
+    private final HashSet<UUID> reserved = new HashSet<>();
+    private final HashSet<UUID> online = new HashSet<>();
+    private final HashSet<UUID> players = new HashSet<>();
+    private final HashSet<UUID> playing = new HashSet<>();
+    private boolean onlineJoinable;
+    private boolean playersJoinable;
+    private boolean playingJoinable;
+    private int maxOnlineSlots;
+    private int maxPlayersSlots;
+    private int maxPlayingSlots;
 
-    public ControllerGame(long gameId, String instanceId, String name, ControllerGameState state) {
-        this.gameId = gameId;
-        this.instanceId = instanceId;
-        this.name = name;
-        this.state = state;
+    private String state;
+    private final HashMap<String, ControllerStateProperty> properties = new HashMap<>();
+
+    ControllerGame(GameRecord record) {
+        this.gameId = record.gameId();
+        this.instanceId = record.instanceId();
+        applyRecord(record);
     }
 
+    @Override
     public long getGameId() {
         return gameId;
     }
 
+    @Override
     public String getInstanceId() {
         return instanceId;
     }
 
-    public String getName() {
-        return name;
+    @Override
+    public String getGameType() {
+        return gameType;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    @Override
+    public Optional<String> getGameMode() {
+        return Optional.ofNullable(gameMode);
     }
 
-    public LaneGameState getState() {
-        return state;
+    @Override
+    public Optional<String> getGameMap() {
+        return Optional.ofNullable(gameMap);
     }
 
-    public void setState(GameStateRecord state) {
-        this.state.applyRecord(state);
+    @Override
+    public HashSet<UUID> getReserved() {
+        return reserved; // TODO Immutable?
     }
 
-    public void update(String name, GameStateRecord state) {
-        setName(name);
-        setState(state);
+    @Override
+    public HashSet<UUID> getOnline() {
+        return online; // TODO Immutable
+    }
+
+    @Override
+    public HashSet<UUID> getPlayers() {
+        return players; // TODO Immutable?
+    }
+
+    @Override
+    public HashSet<UUID> getPlaying() {
+        return playing; // TODO Immutable?
+    }
+
+    @Override
+    public boolean isOnlineJoinable() {
+        return onlineJoinable;
+    }
+
+    @Override
+    public boolean isPlayersJoinable() {
+        return playersJoinable;
+    }
+
+    @Override
+    public boolean isPlayingJoinable() {
+        return playingJoinable;
+    }
+
+    @Override
+    public int getMaxOnlineSlots() {
+        return maxOnlineSlots;
+    }
+
+    @Override
+    public int getMaxPlayersSlots() {
+        return maxPlayersSlots;
+    }
+
+    @Override
+    public int getMaxPlayingSlots() {
+        return maxPlayingSlots;
+    }
+
+    @Override
+    public Optional<String> getState() {
+        return Optional.ofNullable(state);
+    }
+
+    @Override
+    public HashMap<String, ControllerStateProperty> getProperties() {
+        return properties;
     }
 
     @Override
     public GameRecord convertRecord() {
-        return new GameRecord(gameId, instanceId, name, state.convertRecord());
+        HashMap<String, StatePropertyRecord> propertyRecords = new HashMap<>();
+        properties.forEach((k, v) -> propertyRecords.put(k, v.convertRecord()));
+        return new GameRecord(gameId, instanceId, gameType, gameMode, gameMap, reserved, online, players, playing,
+                onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots,
+                state, propertyRecords);
     }
 
     @Override
     public void applyRecord(GameRecord record) {
-        name = record.name();
-        state.applyRecord(record.state());
+        gameType = record.gameType();
+        gameMode = record.gameMode();
+        gameMap = record.gameMap();
+        reserved.clear();
+        reserved.addAll(record.reserved());
+        online.clear();
+        online.addAll(record.online());
+        players.clear();
+        players.addAll(record.players());
+        playing.clear();
+        playing.addAll(record.playing());
+        onlineJoinable = record.onlineJoinable();
+        playersJoinable = record.playersJoinable();
+        playingJoinable = record.playingJoinable();
+        maxOnlineSlots = record.maxOnlineSlots();
+        maxPlayersSlots = record.maxPlayersSlots();
+        maxPlayingSlots = record.maxPlayingSlots();
+        state = record.state();
+        properties.clear();
+        record.properties().forEach((k, v) -> properties.put(k, new ControllerStateProperty(v.id(), v.value(), v.extraData())));
     }
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", ControllerGame.class.getSimpleName() + "[", "]").add("gameId=" + gameId).add("instanceId='" + instanceId + "'").add("name='" + name + "'").add("state=" + state).toString();
+        return new StringJoiner(", ", ControllerGame.class.getSimpleName() + "[", "]")
+                .add("gameId=" + gameId)
+                .add("instanceId='" + instanceId + "'")
+                .add("gameType='" + gameType + "'")
+                .add("gameMode='" + gameMode + "'")
+                .add("gameMap='" + gameMap + "'")
+                .add("reserved=" + reserved)
+                .add("online=" + online)
+                .add("players=" + players)
+                .add("playing=" + playing)
+                .add("onlineJoinable=" + onlineJoinable)
+                .add("playersJoinable=" + playersJoinable)
+                .add("playingJoinable=" + playingJoinable)
+                .add("maxOnlineSlots=" + maxOnlineSlots)
+                .add("maxPlayersSlots=" + maxPlayersSlots)
+                .add("maxPlayingSlots=" + maxPlayingSlots)
+                .add("state='" + state + "'")
+                .add("properties=" + properties)
+                .toString();
     }
+
 }

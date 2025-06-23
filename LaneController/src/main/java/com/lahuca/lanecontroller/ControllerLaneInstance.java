@@ -15,36 +15,34 @@
  */
 package com.lahuca.lanecontroller;
 
+import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
 
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.StringJoiner;
+import java.util.UUID;
 
-public class ControllerLaneInstance implements RecordConverterApplier<InstanceRecord> {
+public final class ControllerLaneInstance implements RecordConverterApplier<InstanceRecord>, Slottable {
 
-    private String id;
+    private final String id;
     private String type;
-    private boolean joinable;
-    private boolean nonPlayable; // Tells whether the instance is also non playable: e.g. lobby
-    private int currentPlayers;
-    private int maxPlayers; // Maximum number of players on the instance, negative = unlimited
-    // TODO Add: boolean isMaintanance (only for on the controller)
 
-    public ControllerLaneInstance(String id, String type) {
-        this.id = id;
-        this.type = type;
-        joinable = true;
-        nonPlayable = false;
-    }
+    private final HashSet<UUID> reserved = new HashSet<>();
+    private final HashSet<UUID> online = new HashSet<>();
+    private final HashSet<UUID> players = new HashSet<>();
+    private final HashSet<UUID> playing = new HashSet<>();
+    private boolean onlineJoinable;
+    private boolean playersJoinable;
+    private boolean playingJoinable;
+    private int maxOnlineSlots;
+    private int maxPlayersSlots;
+    private int maxPlayingSlots;
 
-    public ControllerLaneInstance(String id, String type, boolean joinable, boolean nonPlayable, int currentPlayers, int maxPlayers) {
-        this.id = id;
-        this.type = type;
-        this.joinable = joinable;
-        this.nonPlayable = nonPlayable;
-        this.currentPlayers = currentPlayers;
-        this.maxPlayers = maxPlayers;
+    ControllerLaneInstance(InstanceRecord record) {
+        this.id = record.id();
+        applyRecord(record);
     }
 
     public String getId() {
@@ -55,38 +53,98 @@ public class ControllerLaneInstance implements RecordConverterApplier<InstanceRe
         return Optional.ofNullable(type);
     }
 
-    public boolean isJoinable() {
-        return joinable;
-    }
-
-    public boolean isNonPlayable() {
-        return nonPlayable;
-    }
-
-    public int getCurrentPlayers() {
-        return currentPlayers;
-    }
-
-    public int getMaxPlayers() {
-        return maxPlayers;
+    @Override
+    public HashSet<UUID> getReserved() {
+        return reserved; // TODO Immutable?
     }
 
     @Override
+    public HashSet<UUID> getOnline() {
+        return online; // TODO Immutable
+    }
+
+    @Override
+    public HashSet<UUID> getPlayers() {
+        return players; // TODO Immutable?
+    }
+
+    @Override
+    public HashSet<UUID> getPlaying() {
+        return playing; // TODO Immutable?
+    }
+
+    @Override
+    public boolean isOnlineJoinable() {
+        return onlineJoinable;
+    }
+
+    @Override
+    public boolean isPlayersJoinable() {
+        return playersJoinable;
+    }
+
+    @Override
+    public boolean isPlayingJoinable() {
+        return playingJoinable;
+    }
+
+    @Override
+    public int getMaxOnlineSlots() {
+        return maxOnlineSlots;
+    }
+
+    @Override
+    public int getMaxPlayersSlots() {
+        return maxPlayersSlots;
+    }
+
+    @Override
+    public int getMaxPlayingSlots() {
+        return maxPlayingSlots;
+    }
+
+
+    @Override
     public InstanceRecord convertRecord() {
-        return new InstanceRecord(id, type, joinable, nonPlayable, currentPlayers, maxPlayers);
+        return new InstanceRecord(id, type, reserved, online, players, playing, onlineJoinable, playersJoinable,
+                playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
     }
 
     @Override
     public void applyRecord(InstanceRecord record) {
         type = record.type();
-        joinable = record.joinable();
-        nonPlayable = record.nonPlayable();
-        currentPlayers = record.currentPlayers();
-        maxPlayers = record.maxPlayers();
+        reserved.clear();
+        reserved.addAll(record.reserved());
+        online.clear();
+        online.addAll(record.online());
+        players.clear();
+        players.addAll(record.players());
+        playing.clear();
+        playing.addAll(record.playing());
+        onlineJoinable = record.onlineJoinable();
+        playersJoinable = record.playersJoinable();
+        playingJoinable = record.playingJoinable();
+        maxOnlineSlots = record.maxOnlineSlots();
+        maxPlayersSlots = record.maxPlayersSlots();
+        maxPlayingSlots = record.maxPlayingSlots();
     }
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", ControllerLaneInstance.class.getSimpleName() + "[", "]").add("id='" + id + "'").add("type='" + type + "'").add("joinable=" + joinable).add("nonPlayable=" + nonPlayable).add("currentPlayers=" + currentPlayers).add("maxPlayers=" + maxPlayers).toString();
+        return new StringJoiner(", ", ControllerLaneInstance.class.getSimpleName() + "[", "]")
+                .add("id='" + id + "'")
+                .add("type='" + type + "'")
+                .add("reserved=" + reserved)
+                .add("online=" + online)
+                .add("players=" + players)
+                .add("playing=" + playing)
+                .add("onlineJoinable=" + onlineJoinable)
+                .add("playersJoinable=" + playersJoinable)
+                .add("playingJoinable=" + playingJoinable)
+                .add("maxOnlineSlots=" + maxOnlineSlots)
+                .add("maxPlayersSlots=" + maxPlayersSlots)
+                .add("maxPlayingSlots=" + maxPlayingSlots)
+                .toString();
     }
+
 }

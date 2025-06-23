@@ -24,7 +24,7 @@ import java.util.*;
 public class InstancePlayerState implements LanePlayerState {
 
     private String name;
-    private final HashMap<String, StateProperty> properties;
+    private final HashMap<String, InstanceStateProperty> properties;
 
     public InstancePlayerState() {
         this(UNDEFINED);
@@ -35,12 +35,12 @@ public class InstancePlayerState implements LanePlayerState {
         properties = new HashMap<>();
     }
 
-    public InstancePlayerState(String name, HashMap<String, StateProperty> properties) {
+    public InstancePlayerState(String name, HashMap<String, InstanceStateProperty> properties) {
         this.name = name;
         this.properties = properties;
     }
 
-    public InstancePlayerState(String name, Collection<StateProperty> properties) {
+    public InstancePlayerState(String name, Collection<InstanceStateProperty> properties) {
         this(name);
         properties.forEach(property -> this.properties.put(property.getId(), property));
     }
@@ -56,7 +56,7 @@ public class InstancePlayerState implements LanePlayerState {
     }
 
     @Override
-    public HashMap<String, StateProperty> getProperties() {
+    public HashMap<String, InstanceStateProperty> getProperties() {
         return properties;
     }
 
@@ -76,7 +76,7 @@ public class InstancePlayerState implements LanePlayerState {
                 properties.get(k).applyRecord(v);
                 keys.remove(k);
             } else {
-                properties.put(k, new StateProperty(v.id(), v.value(), v.extraData()));
+                properties.put(k, new InstanceStateProperty(v.id(), v.value(), v.extraData()));
             }
         });
         keys.forEach(properties::remove);

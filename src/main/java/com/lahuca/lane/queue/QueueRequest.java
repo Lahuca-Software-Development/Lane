@@ -15,13 +15,23 @@
  */
 package com.lahuca.lane.queue;
 
+import net.kyori.adventure.text.Component;
+
 import java.util.ArrayList;
 import java.util.Optional;
 
-public record QueueRequest(QueueRequestReason reason, QueueRequestParameters parameters, ArrayList<QueueStage> stages) {
+public record QueueRequest(QueueRequestReason reason, Component reasonMessage, QueueRequestParameters parameters, ArrayList<QueueStage> stages) {
 
     public QueueRequest(QueueRequestReason reason, QueueRequestParameters parameters) {
-        this(reason, parameters, new ArrayList<>());
+        this(reason, null, parameters, new ArrayList<>());
+    }
+
+    public QueueRequest(QueueRequestReason reason, Component reasonMessage, QueueRequestParameters parameters) {
+        this(reason, reasonMessage, parameters, new ArrayList<>());
+    }
+
+    public Optional<Component> getReasonMessage() {
+        return Optional.ofNullable(reasonMessage);
     }
 
     public Optional<QueueStage> getFirstStage() {

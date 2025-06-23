@@ -17,9 +17,9 @@ package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.RequestPacket;
-import com.lahuca.lane.records.GameStateRecord;
+import com.lahuca.lane.records.GameRecord;
 
-public record GameStatusUpdatePacket(long requestId, long gameId, String name, GameStateRecord state) implements RequestPacket {
+public record GameStatusUpdatePacket(long requestId, GameRecord state) implements RequestPacket {
 
 	public static final String packetId = "gameStatusUpdate";
 

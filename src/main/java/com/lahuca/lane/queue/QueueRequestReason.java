@@ -21,6 +21,14 @@ package com.lahuca.lane.queue;
 public enum QueueRequestReason {
 
     /**
+     * A plugin attached to the controller is starting a new queue request.
+     */
+    PLUGIN_CONTROLLER,
+    /**
+     * A plugin attached to an instance is starting a new queue request.
+     */
+    PLUGIN_INSTANCE,
+    /**
      * The player has joined the network and is looking for its first server.
      * By default contains the lobby parameters {@link QueueRequestParameters#lobbyParameters}.
      */
@@ -34,14 +42,7 @@ public enum QueueRequestReason {
      * The player is being kicked from the server and is therefore requesting a new one.
      * By default contains the lobby parameters {@link QueueRequestParameters#lobbyParameters}.
      */
-    SERVER_KICKED,
-    /**
-     * A plugin attached to the controller is starting a new queue request.
-     */
-    PLUGIN_CONTROLLER,
-    /**
-     * A plugin attached to an instance is starting a new queue request.
-     */
-    PLUGIN_INSTANCE;
+    SERVER_KICKED;
+
 
 }

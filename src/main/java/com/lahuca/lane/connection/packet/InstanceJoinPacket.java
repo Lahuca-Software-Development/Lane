@@ -17,6 +17,7 @@ package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 
 /**
@@ -24,10 +25,10 @@ import com.lahuca.lane.records.PlayerRecord;
  * If the game ID is not null, the player is meant to join the given game. Otherwise, a global lobby.
  * If the game has the possibility, the player should be grouped together if applicable.
  * @param player the player to join the instance
- * @param overrideSlots when there are no slots left for players, should we still allow to join
+ * @param queueType the queue type it has used to join
  * @param gameId the game id to join, null if only joining the instance
  */
-public record InstanceJoinPacket(long requestId, PlayerRecord player, boolean overrideSlots, Long gameId) implements RequestPacket {
+public record InstanceJoinPacket(long requestId, PlayerRecord player, QueueType queueType, Long gameId) implements RequestPacket {
 
 	public static final String packetId = "instanceJoin";
 

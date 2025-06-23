@@ -17,43 +17,50 @@ package com.lahuca.lanecontroller.events;
 
 import com.lahuca.lane.queue.QueueStage;
 import com.lahuca.lane.queue.QueueStageResult;
+import com.lahuca.lane.queue.QueueType;
 import net.kyori.adventure.text.Component;
 
 import java.util.HashSet;
-import java.util.StringJoiner;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Defines the base class for the result for the queue stage failed event.
  */
-public sealed class QueueStageEventResult permits QueueStageEventResult.None, QueueStageEventResult.Disconnect,
+public sealed interface QueueStageEventResult permits QueueStageEventResult.None, QueueStageEventResult.Disconnect,
         QueueStageEventResult.JoinInstance, QueueStageEventResult.JoinGame {
 
     /**
      * Result that tells the queue system that this is not the final stage of the event.
      */
-    public sealed interface QueueStageEventMessageableResult permits None, Disconnect {
+    sealed interface QueueStageEventMessageableResult permits None, Disconnect {
 
-        Component getMessage();
+        Optional<Component> getMessage();
 
     }
 
     /**
      * Result that tells the queue system that this is not the final stage of the event.
      */
-    public sealed interface QueueStageEventStageableResult permits JoinInstance, JoinGame {
+    sealed interface QueueStageEventStageableResult permits JoinInstance, JoinGame {
 
-        QueueStage constructStage(QueueStageResult reason);
+        QueueStage constructStage(QueueStageResult reason, QueueType queueType);
 
     }
 
-    public sealed interface QueueStageEventJoinableResult permits JoinInstance, JoinGame {
+    sealed interface QueueStageEventJoinableResult permits JoinInstance, JoinGame {
 
         /**
          * The players (in UUID form) that should also try to join the given instance ID.
          * @return A set of UUIDs of the players that should also join the given instance ID.
          */
         HashSet<UUID> getJoinTogetherPlayers();
+
+        /**
+         * The type of queue it has been joined
+         * @return The queue type
+         */
+        QueueType getQueueType();
 
     }
 
@@ -62,87 +69,49 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
      * This should be set when the player should stay at its server and the queue should be closed.
      * An additional message can be provided to be sent to the player is possible, useful when trying to join a different instance/game which fails.
      */
-    public final static class None extends QueueStageEventResult implements QueueStageEventResult.QueueStageEventMessageableResult {
-
-        private final Component message;
+    record None(Component message) implements QueueStageEventResult, QueueStageEventResult.QueueStageEventMessageableResult {
 
         public None() {
             this(null);
         }
 
-        public None(Component message) {
-            this.message = message;
+        @Override
+        public Optional<Component> getMessage() {
+            return Optional.ofNullable(message);
         }
 
-        @Override
-        public Component getMessage() {
-            return message;
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(", ", None.class.getSimpleName() + "[", "]")
-                    .add("message=" + message)
-                    .toString();
-        }
     }
 
     /**
      * The class consisting of the data for a disconnect result.
      * The queue request will be closed.
      */
-    public final static class Disconnect extends QueueStageEventResult implements QueueStageEventResult.QueueStageEventMessageableResult {
-
-        private final Component message;
+    record Disconnect(Component message) implements QueueStageEventResult, QueueStageEventResult.QueueStageEventMessageableResult {
 
         public Disconnect() {
             this(null);
         }
 
-        public Disconnect(Component message) {
-            this.message = message;
+        @Override
+        public Optional<Component> getMessage() {
+            return Optional.ofNullable(message);
         }
 
-        @Override
-        public Component getMessage() {
-            return message;
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(", ", Disconnect.class.getSimpleName() + "[", "]")
-                    .add("message=" + message)
-                    .toString();
-        }
     }
 
     /**
      * The class consisting of the data for an instance join result.
      * It also holds any other players (in UUID form) that should also do the same interaction.
      */
-    public final static class JoinInstance extends QueueStageEventResult implements QueueStageEventStageableResult, QueueStageEventJoinableResult {
-
-        private final String instanceId;
-        private final HashSet<UUID> joinTogetherPlayers;
+    record JoinInstance(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
         public JoinInstance(String instanceId) {
-            this(instanceId, null);
+            this(instanceId, null, QueueType.PLAYING);
         }
-
-        public JoinInstance(String instanceId, HashSet<UUID> joinTogetherPlayers) {
-            this.instanceId = instanceId;
-            this.joinTogetherPlayers = joinTogetherPlayers;
-        }
-
-        public String getInstanceId() {
-            return instanceId;
-        }
-
-
 
         @Override
-        public QueueStage constructStage(QueueStageResult reason) {
-            return new QueueStage(reason, instanceId, null);
+        public QueueStage constructStage(QueueStageResult reason, QueueType queueType) {
+            return new QueueStage(reason, queueType, instanceId, null);
         }
 
         @Override
@@ -151,39 +120,25 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
         }
 
         @Override
-        public String toString() {
-            return new StringJoiner(", ", JoinInstance.class.getSimpleName() + "[", "]")
-                    .add("instanceId='" + instanceId + "'")
-                    .add("joinTogetherPlayers=" + joinTogetherPlayers)
-                    .toString();
+        public QueueType getQueueType() {
+            return queueType;
         }
+
     }
 
     /**
      * The class consisting of the data for a game join result.
      * It also holds any other players (in UUID form) that should also do the same interaction.
      */
-    public final static class JoinGame extends QueueStageEventResult implements QueueStageEventStageableResult, QueueStageEventJoinableResult {
-
-        private final long gameId;
-        private final HashSet<UUID> joinTogetherPlayers;
+    record JoinGame(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
         public JoinGame(long gameId) {
-            this(gameId, null);
-        }
-
-        public JoinGame(long gameId, HashSet<UUID> joinTogetherPlayers) {
-            this.gameId = gameId;
-            this.joinTogetherPlayers = joinTogetherPlayers;
-        }
-
-        public long getGameId() {
-            return gameId;
+            this(gameId, null, QueueType.PLAYING);
         }
 
         @Override
-        public QueueStage constructStage(QueueStageResult reason) {
-            return new QueueStage(reason, null, gameId);
+        public QueueStage constructStage(QueueStageResult reason, QueueType queueType) {
+            return new QueueStage(reason, queueType, null, gameId);
         }
 
         /**
@@ -196,12 +151,10 @@ public sealed class QueueStageEventResult permits QueueStageEventResult.None, Qu
         }
 
         @Override
-        public String toString() {
-            return new StringJoiner(", ", JoinGame.class.getSimpleName() + "[", "]")
-                    .add("gameId=" + gameId)
-                    .add("joinTogetherPlayers=" + joinTogetherPlayers)
-                    .toString();
+        public QueueType getQueueType() {
+            return queueType;
         }
+
     }
 
 }

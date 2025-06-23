@@ -57,14 +57,12 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     private final String id;
     private final ReconnectConnection connection;
     private String type;
-    private boolean joinable;
-    private boolean nonPlayable; // Tells whether the instance is also non-playable: e.g. lobby
 
     private final InstancePlayerManager playerManager;
 
-    private final HashMap<Long, LaneGame> games = new HashMap<>();
+    private final HashMap<Long, InstanceGame> games = new HashMap<>();
 
-    public LaneInstance(String id, ReconnectConnection connection, String type, boolean joinable, boolean nonPlayable) throws IOException, InstanceInstantiationException {
+    public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(connection, "connection cannot be null");
@@ -76,41 +74,31 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         Packet.registerPackets();
 
         this.connection = connection;
-        this.joinable = joinable;
-        this.nonPlayable = nonPlayable;
 
-        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus);
+        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
 
         connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
             switch (input.packet()) {
                 case InstanceJoinPacket packet -> {
-                    if (!isJoinable()) {
-                        sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
-                        return;
-                    }
-                    // TODO Find if slot, also when the max players which has been RESERVED is met
-                    // TODO Added later at 15 June, it looks like this already accounts for reserved positions.
-                    if (!packet.overrideSlots() && getCurrentPlayers() >= getMaxPlayers()) {
+                    if(!getPlayerManager().isQueueJoinable(packet.queueType(), 1)) { // TODO We do not neccassirily make a reservation for the whole party. Hmmm.
                         sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                         return;
                     }
                     if (packet.gameId() != null) {
-                        Optional<LaneGame> instanceGame = getInstanceGame(packet.gameId());
+                        Optional<InstanceGame> instanceGame = getInstanceGame(packet.gameId());
                         if (instanceGame.isEmpty()) {
                             sendSimpleResult(packet, ResponsePacket.INVALID_ID);
                             return;
                         }
-                        LaneGame game = instanceGame.get();
-                        GameState state = game.getGameState();
-                        if (!state.isJoinable()) {
-                            sendSimpleResult(packet, ResponsePacket.NOT_JOINABLE);
+                        InstanceGame game = instanceGame.get();
+                        if(!game.isQueueJoinable(packet.queueType(), 1)) { // TODO Same as for the instance, make reservation for whole party.
+                            sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                             return;
                         }
-                        // TODO What about max players in a game?
                     }
                     // We are here, so we can apply it.
-                    getPlayerManager().registerPlayer(packet.player());
+                    getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType()));
                     sendSimpleResult(packet, ResponsePacket.OK);
                 }
                 case InstanceUpdatePlayerPacket packet -> {
@@ -147,33 +135,18 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         sendInstanceStatus();
     }
 
-    public boolean isJoinable() {
-        return joinable;
-    }
-
-    public void setJoinable(boolean joinable) {
-        this.joinable = joinable;
-        sendInstanceStatus();
-    }
-
-    public boolean isNonPlayable() {
-        return nonPlayable;
-    }
-
-    public void setNonPlayable(boolean nonPlayable) {
-        this.nonPlayable = nonPlayable;
-        sendInstanceStatus();
-    }
-
-    public abstract int getCurrentPlayers();
-
-    public abstract int getMaxPlayers();
-
     public InstancePlayerManager getPlayerManager() {
         return playerManager;
     }
 
     public abstract void disconnectPlayer(UUID player, Component message);
+
+    /**
+     * This method is called when a player is joining the instance, but not a game.
+     * This is also called when a player has left a game, but remains on the instance.
+     * @param player the player
+     */
+    public abstract void onInstanceJoin(InstancePlayer player);
 
     public void sendController(Packet packet) {
         connection.sendPacket(packet, null);
@@ -217,16 +190,16 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @param gameConstructor the id to game parser. Preferably a lambda with LaneGame::new is given, whose constructor consists of only the ID.
      * @return the request of the registering, it completes successfully with the game when it is successfully registered.
      */
-    public Request<LaneGame> registerGame(Function<Long, LaneGame> gameConstructor) {
+    public Request<InstanceGame> registerGame(Function<Long, InstanceGame> gameConstructor) {
         if (gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
         try {
             Long gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
-            LaneGame game = gameConstructor.apply(gameId);
-            if (game.getGameId() != gameId || games.containsKey(game.getGameId()))
+            InstanceGame game = gameConstructor.apply(gameId);
+            if (game.getGameId() != gameId || games.containsKey(game.getGameId())) {
                 return simpleRequest(ResponsePacket.INVALID_ID);
+            }
             games.put(game.getGameId(), game);
-            Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.getGameId(), game.getName(),
-                    game.getGameState().convertRecord()), null);
+            Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.convertRecord()), null);
             return request.thenApplyConstruct(ex -> {
                 // Failed, remove the game
                 games.remove(game.getGameId());
@@ -287,7 +260,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @param gameId the game ID of the game
      * @return an optional of the LaneGame object.
      */
-    public Optional<LaneGame> getInstanceGame(long gameId) {
+    public Optional<InstanceGame> getInstanceGame(long gameId) {
         return Optional.ofNullable(games.get(gameId));
     }
 
@@ -296,7 +269,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      *
      * @return the collection
      */
-    public Collection<LaneGame> getInstanceGames() {
+    public Collection<InstanceGame> getInstanceGames() {
         return games.values();
     }
 
@@ -341,7 +314,10 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     @Override
     public InstanceRecord convertRecord() {
-        return new InstanceRecord(id, type, joinable, nonPlayable, getCurrentPlayers(), getMaxPlayers());
+        InstancePlayerManager pm = getPlayerManager();
+        return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(),
+                pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(), pm.getMaxOnlineSlots(),
+                pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots());
     }
 
     /**

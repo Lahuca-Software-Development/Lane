@@ -9,7 +9,6 @@ public interface ResponsePacket<T> extends RequestPacket {
 
     String OK = "ok";
     String UNKNOWN = "unknown";
-    String NOT_JOINABLE = "notJoinable";
     String NO_FREE_SLOTS = "noFreeSlots";
     String INVALID_PARAMETERS = "invalidParameters";
     String INVALID_ID = "invalidId";

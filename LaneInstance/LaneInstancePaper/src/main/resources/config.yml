@@ -1,7 +1,11 @@
 id: "Test"
 type: "Test"
-joinable: true
-nonPlayable: true
+onlineJoinable: true
+playersJoinable: true
+playingJoinable: true
+maxOnlineSlots: -1
+maxPlayersSlots: -1
+maxPlayingSlots: -1
 
 connection:
   port: 7766

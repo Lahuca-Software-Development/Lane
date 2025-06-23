@@ -2,14 +2,15 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.connection.packet.SendMessagePacket;
 import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.queue.QueueRequest;
+import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
-import java.util.Locale;
-import java.util.Optional;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @author _Neko1
@@ -17,7 +18,7 @@ import java.util.UUID;
  **/
 public class InstancePlayer implements LanePlayer {
 
-
+    // Below are shared with controller
     private final UUID uuid;
     private final String username;
     private String displayName;
@@ -27,11 +28,19 @@ public class InstancePlayer implements LanePlayer {
     private InstancePlayerState state = null;
     private Long partyId = null;
 
-    InstancePlayer(PlayerRecord record) {
+    // Below are instance only
+    private RegisterData registerData;
+
+    InstancePlayer(PlayerRecord record, RegisterData registerData) {
+        Objects.requireNonNull(record, "record must not be null");
+        Objects.requireNonNull(registerData, "registerData must not be null");
         this.uuid = record.uuid();
         this.username = record.username();
         applyRecord(record);
+        this.registerData = registerData;
     }
+
+    public record RegisterData(QueueType queueType) { }
 
     /**
      * Retrieves the saved locale associated with this player.
@@ -51,6 +60,20 @@ public class InstancePlayer implements LanePlayer {
      */
     public Request<Void> setSavedLocale(Locale locale) {
         return LaneInstance.getInstance().getPlayerManager().setSavedLocale(uuid, locale);
+    }
+
+    public void sendMessage(Component component) {
+        Objects.requireNonNull(component, "component must not be null");
+        LaneInstance.getInstance().getConnection().sendPacket(new SendMessagePacket(getUuid(), GsonComponentSerializer.gson().serialize(component)), null);
+    }
+
+    public RegisterData getRegisterData() {
+        return registerData;
+    }
+
+    public void setRegisterData(RegisterData registerData) {
+        Objects.requireNonNull(registerData, "registerData must not be null");
+        this.registerData = registerData;
     }
 
     @Override

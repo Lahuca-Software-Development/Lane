@@ -9,23 +9,23 @@ import java.util.StringJoiner;
  * @author _Neko1
  * @date 14.03.2024
  **/
-public class StateProperty implements LaneStateProperty {
+public class InstanceStateProperty implements LaneStateProperty {
 
     private String id;
     private Object value;
     private Object extraData;
 
-    public StateProperty(String id, Object value) {
+    public InstanceStateProperty(String id, Object value) {
         this(id, value, null);
     }
 
-    public StateProperty(String id, Object value, Object extraData) {
+    public InstanceStateProperty(String id, Object value, Object extraData) {
         this.id = id;
         this.value = value;
         this.extraData = extraData;
     }
 
-    public StateProperty(StatePropertyRecord record) {
+    public InstanceStateProperty(StatePropertyRecord record) {
         applyRecord(record);
     }
 
@@ -58,7 +58,7 @@ public class StateProperty implements LaneStateProperty {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", StateProperty.class.getSimpleName() + "[", "]").add("id='" + id + "'").add("value=" + value).add("extraData=" + extraData).toString();
+        return new StringJoiner(", ", InstanceStateProperty.class.getSimpleName() + "[", "]").add("id='" + id + "'").add("value=" + value).add("extraData=" + extraData).toString();
     }
 
 }

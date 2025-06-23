@@ -123,151 +123,159 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * This immediately retrieves the queue request instead of the request parameters.
      * This method is therefore intended to only be used internally,
      * as the request reason should be set by the system.
+     * Please use {@link #queue(QueueRequestParameters)} if not used internally.
      *
      * @param request The queue request
      * @return The result of the queuing the request, this does not return the result of the queue
-     * @throws IllegalArgumentException when the provided argument is null
      */
-    private CompletableFuture<Void> queue(QueueRequest request) {
-        if(request == null) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("request must not be null"));
-        }
+    public CompletableFuture<Void> queue(QueueRequest request) { // TODO Probs not public!
+        Objects.requireNonNull(request, "request must not be null");
         setQueueRequest(request); // TODO This could override an existing queue, do we want this?. Also check if this happens everywehere.
         QueueStageEvent stageEvent = new QueueStageEvent(this, request);
-        handleQueueStage(stageEvent);
+        handleQueueStage(stageEvent, true);
         return CompletableFuture.completedFuture(null);
     }
 
     /**
-     * Handles a single state of queueing the player which has been initialized by a plugin.
+     * Handles a single state of queueing the player: it computes the result and makes sure that the result is valid.
+     * For joins, it will register a slot; and if set, it will send the message/forward the player.
      * This assumes that the new state has already been added to the request.
+     * This method runs several methods asynchronous, the completable future is completed when it has finished.
+     * If the result is not to be handled, it will not send the party members over if needed.
      *
-     * @param stageEvent The event tied to this queue request
-     * @throws IllegalArgumentException when the provided argument is null
+     * @param stageEvent the event tied to this queue request, where the result is modified of
+     * @param handleResult whether this method should send the message or forward the player.
+     * @return the completable future that completes when it is finished
      */
-    private void handleQueueStage(QueueStageEvent stageEvent) {
-        if(stageEvent == null) {
-            throw new IllegalArgumentException("stageEvent must not be null");
-        }
-        // TODO Fix controller.sendMessage, controller.disconnectPlayer, etc.
+    public CompletableFuture<Void> handleQueueStage(QueueStageEvent stageEvent, boolean handleResult) { // TODO Definitely not public!
+        // TODO Also do state checks: does the player already have the queue set; etc.
+        Objects.requireNonNull(stageEvent, "stageEvent must not be null");
+
+        // Loop over new stages to not use recursiveness
         QueueRequest request = stageEvent.getQueueRequest();
+        Controller controller = Controller.getInstance();
+
+        // We are now in the next stage, as we did not find a good one before, set the result to none and call the controller.
         stageEvent.setNoneResult();
-        Controller controller = Controller.getInstance(); // TODO Weird?
         controller.handleQueueStageEvent(stageEvent);
         QueueStageEventResult result = stageEvent.getResult();
-        if (result instanceof QueueStageEventResult.None none) {
-            // Queue is being cancelled
-            if (none.getMessage() != null) {
-                controller.sendMessage(getUuid(), none.getMessage());
-            }
-            setQueueRequest(null);
-            return;
-        } else if (result instanceof QueueStageEventResult.Disconnect disconnect) {
-            if (disconnect.getMessage() != null) {
-                controller.disconnectPlayer(getUuid(), disconnect.getMessage());
-            } else {
-                controller.disconnectPlayer(getUuid(), null);
-            }
-            setQueueRequest(null);
-            return;
-        } else if (result instanceof QueueStageEventResult.QueueStageEventJoinableResult joinable) {
-            ControllerLaneInstance instance;
-            String resultInstanceId;
-            Long resultGameId;
-            // TODO playTogetherPlayers!
-            if (joinable instanceof QueueStageEventResult.JoinGame joinGame) {
-                resultInstanceId = null;
-                resultGameId = joinGame.getGameId();
-                Optional<ControllerGame> gameOptional = controller.getGame(joinGame.getGameId());
-                if (gameOptional.isEmpty()) {
-                    request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID));
-                    handleQueueStage(stageEvent);
-                    return;
+        // We have got a new result, check whether we can run on it
+        return switch (result) {
+            case QueueStageEventResult.None none -> {
+                // We got a simple none
+                if(handleResult && none.getMessage().isPresent()) {
+                    controller.sendMessage(getUuid(), none.getMessage().get());
                 }
-                ControllerGame game = gameOptional.get();
-                Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
-                if (instanceOptional.isEmpty()) {
-                    // Run the stage event again to determine a new ID.
-                    request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID));
-                    handleQueueStage(stageEvent);
-                    return;
+                setQueueRequest(null);
+                yield CompletableFuture.completedFuture(null);
+            }
+            case QueueStageEventResult.Disconnect disconnect -> {
+                // We got a disconnect
+                if (handleResult) {
+                    controller.disconnectPlayer(getUuid(), disconnect.getMessage().orElse(null));
                 }
-                instance = instanceOptional.get();
-            } else {
-                resultGameId = null;
-                QueueStageEventResult.JoinInstance joinInstance = (QueueStageEventResult.JoinInstance) result;
-                resultInstanceId = joinInstance.getInstanceId();
-                Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(joinInstance.getInstanceId());
-                if (instanceOptional.isEmpty()) {
-                    // Run the stage event again to determine a new ID.
-                    request.stages().add(joinInstance.constructStage(QueueStageResult.UNKNOWN_ID));
-                    handleQueueStage(stageEvent);
-                    return;
+                setQueueRequest(null);
+                yield CompletableFuture.completedFuture(null);
+            }
+            case QueueStageEventResult.QueueStageEventJoinableResult joinable -> {
+                // Fetch the instance and potential game; immediately check available as well; if correct, set the state
+                ControllerLaneInstance resultInstance;
+                Long resultGameId;
+                HashSet<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
+                int needSlots = playTogetherPlayers == null ? 1 : playTogetherPlayers.size() + 1;
+                if(joinable instanceof QueueStageEventResult.JoinInstance joinInstance) {
+                    // Set the IDs, and try to fetch
+                    resultGameId = null;
+                    Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(joinInstance.instanceId());
+                    if (instanceOptional.isEmpty()) {
+                        // Run the stage event again to determine a new ID.
+                        request.stages().add(joinInstance.constructStage(QueueStageResult.UNKNOWN_ID, joinable.getQueueType()));
+                        yield handleQueueStage(stageEvent, handleResult);
+                    }
+                    resultInstance = instanceOptional.get();
+                    // Do availability check
+                    if(!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots)) {
+                        // Run the stage event again to find a joinable instance.
+                        request.stages().add(joinInstance.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
+                        yield handleQueueStage(stageEvent, handleResult);
+                    }
+                    setState(new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
+                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, resultInstance.getId()),
+                                    new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())))); // TODO Better state handling, probs not even cleared, etc.
+                } else if(joinable instanceof QueueStageEventResult.JoinGame joinGame) {
+                    // Set the IDs, and try to fetch
+                    resultGameId = joinGame.gameId();
+                    Optional<ControllerGame> gameOptional = controller.getGame(joinGame.gameId());
+                    if (gameOptional.isEmpty()) {
+                        request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID, joinable.getQueueType()));
+                        yield handleQueueStage(stageEvent, handleResult);
+                    }
+                    ControllerGame game = gameOptional.get();
+                    Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
+                    if (instanceOptional.isEmpty()) {
+                        // Run the stage event again to determine a new ID.
+                        request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID, joinable.getQueueType()));
+                        yield handleQueueStage(stageEvent, handleResult);
+                    }
+                    resultInstance = instanceOptional.get();
+                    // Do availability check
+                    if(!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots) || !game.isQueueJoinable(joinable.getQueueType(), needSlots)) {
+                        // Run the stage event again to find a joinable game.
+                        request.stages().add(joinGame.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
+                        yield handleQueueStage(stageEvent, handleResult);
+                    }
+                    setState(new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
+                            Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, resultInstance.getId()),
+                                    new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId),
+                                    new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
+                } else {
+                    request.stages().add(new QueueStage(QueueStageResult.INVALID_STATE, joinable.getQueueType(), null, null));
+                    yield handleQueueStage(stageEvent, handleResult);
                 }
-                instance = instanceOptional.get();
-            }
-            HashSet<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
-            int numberPlayTogetherPlayers = playTogetherPlayers == null ? 0 : playTogetherPlayers.size();
-            if (instance.isJoinable() && instance.isNonPlayable() && instance.getCurrentPlayers() + numberPlayTogetherPlayers + 1 <= instance.getMaxPlayers()) {
-                // Run the stage event again to find a joinable instance.
-                request.stages().add(new QueueStage(QueueStageResult.NOT_JOINABLE, resultInstanceId, resultGameId));
-                handleQueueStage(stageEvent);
-                return;
-            }
-            // TODO Check whether the game actually has a place left (for 1 + playTogetherPlayers). ONLY WHEN result is JoinGame
-            // We found a hopefully free instance, try do send the packet.
-            ControllerPlayerState state;
-            if (joinable instanceof QueueStageEventResult.JoinGame) {
-                state = new ControllerPlayerState(LanePlayerState.GAME_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
-            } else {
-                state = new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, instance.getId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
-            }
-            setState(state); // TODO Better state handling!
-            setQueueRequest(request);
-            CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), false, null), instance.getId()).getFutureResult();
-            future.whenComplete((joinPacketResult, exception) -> {
-                if (exception != null) {
+
+                // Make the reservation
+                setQueueRequest(request);
+                CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), joinable.getQueueType(), resultGameId), resultInstance.getId()).getFutureResult();
+                future.exceptionallyCompose(exception -> {
                     if (exception instanceof ResultUnsuccessfulException ex) {
                         // We are not allowing to join at this instance.
-                        request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, resultInstanceId, resultGameId));
-                        handleQueueStage(stageEvent);
-                        return;
+                        request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, joinable.getQueueType(), resultInstance.getId(), resultGameId));
+                        return handleQueueStage(stageEvent, handleResult);
                     }
-                    request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
-                    handleQueueStage(stageEvent);
-                    return;
-                }
-                CompletableFuture<Void> joinFuture = controller.joinServer(getUuid(), instance.getId());
-                joinFuture.whenComplete((joinResult, joinException) -> {
-                    if (joinException != null) {
-                        if(joinException instanceof ResultUnsuccessfulException ex) {
-                            // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
-                            request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, resultInstanceId, resultGameId));
-                            handleQueueStage(stageEvent);
-                            return;
-                        }
-                        request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, resultInstanceId, resultGameId));
-                        handleQueueStage(stageEvent);
-                        return;
+                    request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
+                    return handleQueueStage(stageEvent, handleResult);
+                }).thenCompose(aVoid -> {
+                    // We have successfully registered a slot on the server
+                    if(!handleResult) return CompletableFuture.completedFuture(null);
+                    return controller.joinServer(getUuid(), resultInstance.getId());
+                }).exceptionallyCompose(exception -> {
+                    // If handleResult is true, then we got an error
+                    if (exception instanceof ResultUnsuccessfulException ex) {
+                        // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
+                        request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
+                        return handleQueueStage(stageEvent, handleResult);
                     }
-                    // WOOO, we have joined!, we are done for THIS player
-
+                    request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
+                    return handleQueueStage(stageEvent, handleResult);
+                }).thenAccept(aVoid -> {
+                    // If handleResult is true: we have joined, send over any party members
                     if (playTogetherPlayers != null && !playTogetherPlayers.isEmpty()) {
                         QueueRequestParameter partyJoinParameter;
                         if (resultGameId != null) {
-                            partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(instance.getId()).build();
+                            partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(resultInstance.getId()).build();
                         } else {
-                            partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstanceId).build();
+                            partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstance.getId()).build();
                         }
                         QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
                         playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest)));
                     }
                 });
-            });
-        }
+                yield future;
+            }
+        };
     }
 
-    public void setQueueRequest(QueueRequest queueRequest) { // TODO Do we really want to do this?
+    public void setQueueRequest(QueueRequest queueRequest) { // TODO Definitely not public!
         this.queueRequest = queueRequest; // TODO This should be cleared when the request is succesfully done!
         // TODO The instance should reset this. Or we interact when we receive the updated player state.
         updateInstancePlayer();
@@ -279,7 +287,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * @param state the state
      */
     public void setState(ControllerPlayerState state) {
-        this.state = state;
+        this.state = state; // TODO This cannot be done this easily!
         updateInstancePlayer();
     }
 
@@ -325,12 +333,12 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     }
 
     public void setInstanceId(String instanceId) {
-        this.instanceId = instanceId;
+        this.instanceId = instanceId; // TODO Why this easily, this should not be this easy
         updateInstancePlayer();
     }
 
     public void setGameId(Long gameId) {
-        this.gameId = gameId;
+        this.gameId = gameId; // TODO Why this easily, this should not be this easy
         updateInstancePlayer();
     }
 
