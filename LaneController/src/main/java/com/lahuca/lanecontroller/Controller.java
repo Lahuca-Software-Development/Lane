@@ -39,7 +39,7 @@ import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
-import com.lahuca.lanecontroller.events.QueueStageEvent;
+import com.lahuca.lanecontroller.events.ControllerEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
@@ -530,12 +530,14 @@ public abstract class Controller {
     public abstract CompletableFuture<Void> joinServer(UUID uuid, String destination);
 
     /**
-     * Lets the implemented controller handle the {@link QueueStageEvent}.
-     * Do not do blocking actions while handling the event, as often a "direct" response is needed.
-     *
-     * @param event The event to handle.
+     * Lets the implemented controller handle the Lane Controller event.
+     * Some events have results tied to them, which are to be expected to return in the CompletableFuture.
+     * Some events might not have the possibility to wait for the result asynchronously, so that the CompletableFuture is waited for.
+     * @param event the event to handle
+     * @return the CompletableFuture with the modified event
+     * @param <E> the Lane controller event type
      */
-    public abstract void handleQueueStageEvent(QueueStageEvent event);
+    public abstract <E extends ControllerEvent> CompletableFuture<E> handleControllerEvent(E event);
 
 
     // TODO These implementation dependent functions could technically also use ControllerPlayer instead of UUID?

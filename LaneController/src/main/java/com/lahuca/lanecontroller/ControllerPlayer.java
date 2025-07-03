@@ -28,6 +28,7 @@ import com.lahuca.lanecontroller.events.QueueStageEventResult;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic: ControllerPlayer<T> where T stands for the implemented object in Velocity: Player
 
@@ -155,11 +156,17 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         QueueRequest request = stageEvent.getQueueRequest();
         Controller controller = Controller.getInstance();
 
-        // We are now in the next stage, as we did not find a good one before, set the result to none and call the controller.
+        // We are now in the next stage, as we did not find a good one before.
+        // First set the result to none, then set a default result, then call an event to handle it.
         stageEvent.setNoneResult();
-        controller.handleQueueStageEvent(stageEvent);
+        ControllerDefaultQueue.handleDefaultQueueStageEvent(stageEvent);
+        try {
+            stageEvent = controller.handleControllerEvent(stageEvent).get();
+        } catch (InterruptedException | ExecutionException ignored) {}
+
         QueueStageEventResult result = stageEvent.getResult();
         // We have got a new result, check whether we can run on it
+        QueueStageEvent finalStageEvent = stageEvent;
         return switch (result) {
             case QueueStageEventResult.None none -> {
                 // We got a simple none
@@ -240,10 +247,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     if (exception instanceof ResultUnsuccessfulException ex) {
                         // We are not allowing to join at this instance.
                         request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                        return handleQueueStage(stageEvent, handleResult);
+                        return handleQueueStage(finalStageEvent, handleResult);
                     }
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                    return handleQueueStage(stageEvent, handleResult);
+                    return handleQueueStage(finalStageEvent, handleResult);
                 }).thenCompose(aVoid -> {
                     // We have successfully registered a slot on the server
                     if(!handleResult) return CompletableFuture.completedFuture(null);
@@ -253,10 +260,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     if (exception instanceof ResultUnsuccessfulException ex) {
                         // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                         request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                        return handleQueueStage(stageEvent, handleResult);
+                        return handleQueueStage(finalStageEvent, handleResult);
                     }
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                    return handleQueueStage(stageEvent, handleResult);
+                    return handleQueueStage(finalStageEvent, handleResult);
                 }).thenAccept(aVoid -> {
                     // If handleResult is true: we have joined, send over any party members
                     if (playTogetherPlayers != null && !playTogetherPlayers.isEmpty()) {

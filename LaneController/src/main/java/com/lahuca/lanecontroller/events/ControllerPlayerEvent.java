@@ -17,7 +17,7 @@ package com.lahuca.lanecontroller.events;
 
 import com.lahuca.lanecontroller.ControllerPlayer;
 
-public interface ControllerPlayerEvent {
+public interface ControllerPlayerEvent extends ControllerEvent {
 
     ControllerPlayer getPlayer();
 
