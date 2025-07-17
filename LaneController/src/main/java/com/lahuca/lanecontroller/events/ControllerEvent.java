@@ -1,4 +1,6 @@
 package com.lahuca.lanecontroller.events;
 
-public interface ControllerEvent {
+import com.lahuca.lane.LaneEvent;
+
+public interface ControllerEvent extends LaneEvent {
 }

@@ -23,8 +23,11 @@ import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lanecontroller.events.PlayerNetworkProcessEvent;
+import com.lahuca.lanecontroller.events.PlayerNetworkProcessedEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
+import net.kyori.adventure.text.Component;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +43,9 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
+
+    // The following are only available on the controller
+    private boolean networkProcessed = false; // This determines whether the player is fully processed by all plugins upon network join.
 
     ControllerPlayer(UUID uuid, String username, String displayName) {
         this.uuid = uuid;
@@ -393,6 +399,49 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      */
     public CompletableFuture<Void> setSavedLocale(Locale locale) {
         return Controller.getInstance().getPlayerManager().setSavedLocale(uuid, locale);
+    }
+
+    /**
+     * Retrieves the status of whether the player is processed by all plugins upon network join.
+     * When it is not recommended to do any registering of the player to the data system when it is still being processed.
+     * @return {@code true} if the player is processed, otherwise {@code false}
+     */
+    public boolean isNetworkProcessed() {
+        return networkProcessed;
+    }
+
+    /**
+     * This marks whether the player is processed by a plugin.
+     * When the player is not processed successfully, the player is disconnected alongside the potential failed message.
+     * Otherwise, this will call a {@link PlayerNetworkProcessEvent}, so that other plugins can still mark their process state.
+     * Only when no other plugins mark such that they need to do additional processing, then the player is processed.
+     * When it is processed, a {@link PlayerNetworkProcessedEvent} event is called.
+     * @throws IllegalStateException if this is called when the player is already processed
+     */
+    public void process(boolean successful, Component failedMessage) {
+        if(networkProcessed) {
+            // Already processed
+            throw new IllegalStateException("Player is already processed!");
+        }
+        if(!successful) {
+            // Need to kick, could not process
+            if(failedMessage == null) {
+                failedMessage = Component.translatable("lane.controller.error.login.failedProcessing");
+            }
+            Controller.getInstance().disconnectPlayer(uuid, failedMessage);
+            return;
+        }
+        // This plugin marked it as successful, rerun event
+        Controller.getInstance().handleControllerEvent(new PlayerNetworkProcessEvent(this)).whenComplete((event, ex) -> {
+            if(ex != null || event == null) {
+                Controller.getInstance().disconnectPlayer(uuid, Component.translatable("lane.controller.error.login.failedProcessing"));
+                return;
+            }
+            if(!event.needsProcessing()) {
+                networkProcessed = true;
+                Controller.getInstance().handleControllerEvent(new PlayerNetworkProcessedEvent(this));
+            }
+        });
     }
 
     @Override

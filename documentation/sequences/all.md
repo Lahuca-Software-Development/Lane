@@ -35,13 +35,15 @@ This packet contains information about the player and makes the reservation on t
 When it cannot make the reservation, another QueueStageEvent is called and everything happens again.
 2. So the instance/game is found, the player is forwarded to the MC server.
 If the player is switching instances/games then a InstanceQuitEvent/InstanceQuitGameEvent is called on the old instance/game.
+This is only called when they are moved by a regular queue, so the moment they actually leave it.
+A InstanceQuitEvent is not called, when the player stays on the same instance.
 3. When it connects to the server, the reserved slot of the player is checked.
 If it cannot join, it is disconnected, and the QueueStageEvent is called again.
 If it can join, a QueueFinishedPacket is sent to the Controller, marking the end of the queue.
 This will call a QueueFinishedEvent as well, so that other plugins can monitor on it.
 4. After it is checked the Instance/Game can handle the player.
 If the player was joining an instance a InstanceJoinEvent is called.
-If the player was joining a game, the game gets the player within its methods, and then an InstanceGameJoinEvent is called.
+If the player was joining a game; the game gets the player within its methods, and then an InstanceJoinEvent (if not yet on the server) followed by an InstanceGameJoinEvent is called.
 
 If the player is already online on the given MC server, the player does not need to be forwarded.
 The rest behaves the same.
@@ -52,6 +54,7 @@ The Controller will once again call the queuing system, which using the QueueSta
 
 ## Player server kicked
 Whenever a player fails connection, or when the MC server closes down unexpectedly this sequence becomes active.
+1. The instance will retrieve the **InstanceQuitEvent** or **InstanceQuitGameEvent**.
 1. When the player is not currently queuing to somewhere, start a new queue with the data of the server kick.
 2. Forward the current/new queue stage to the queue system, which will compute a default result.
 3. Then a QueueStageEvent is called with this default result to any plugins.
@@ -108,7 +111,7 @@ This makes it so that there is no additional data writing, whenever the player f
 
 ### Player instance/game join
 There is not really anything related the instance/game joining, 
-only when a player is successfully connected it retrieves the QueueFinishedPacket, on which the QueueFinishedEvent is called.
+only when a player is successfully connected it retrieves the QueueFinishedPacket, on which the **QueueFinishedEvent** is called.
 
 ### Player server kicked
 
@@ -148,17 +151,21 @@ A server should have enough slots so that the internal Lane systems can handle t
 5. PlayerJoinEvent, this is called when the connection and profile is fully complete.
 The instance will use this to make sure the player is actually allowed to join.
 If it is, it sends a QueueFinishedPacket back to the controller.
-6. **InstanceJoinEvent**/**InstanceGameJoinEvent**,
-the first is called when the player is supposed to join the instance only.
-The other is called when the player is joining a game, and the game has already handled it.
+6. **InstanceJoinEvent**, fires when the player has now joined the instance
+7. **InstanceGameJoinEvent**, when the player is joining a game, and the game has already handled it.
 
 ### Player server kicked
 The proxy already catches kicks by the instance.
 
-## New queue
+### New queue
 This works on the controller, as the queue request is sent to the controller.
+If the player starts to be moved, a **InstanceQuitEvent** and respectively **InstanceQuitGameEvent** is called.
+This is either called because the player is disconnected, or when the player switches to the same server.
+Be aware, when a player remains on the instance, the **InstanceQuitEvent** is not called.
+Of course, it is followed by a **InstanceJoinEvent**/**InstanceJoinGameEvent**.
 
-## Disconnect
+### Disconnect
 1. PlayerQuitEvent, this is ran when the player disconnects, this will flag it to the Controller.
    It is undefined what happens when doing any more work than needed on the InstancePlayer object itself.
    Data object identified by their IDs work as usual.
+2. During the PlayerQuitEvent, the **InstanceQuitEvent** and respectively **InstanceQuitGameEvent** is also called.

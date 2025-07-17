@@ -40,6 +40,7 @@ import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.ControllerEvent;
+import com.lahuca.lanecontroller.events.QueueFinishedEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
@@ -213,7 +214,7 @@ public abstract class Controller {
                     getPlayer(packet.player()).ifPresentOrElse(player -> {
                         System.out.println("Retrieved finish queue 0");
                         // Player should have finished its queue, check whether it is allowed.
-                        player.getQueueRequest().ifPresentOrElse(queue -> {
+                        player.getQueueRequest().ifPresentOrElse(queue -> { // TODO Whut, we are not even using queue?
                             System.out.println("Retrieved finish queue 1");
                             // There is a queue, check if the state of the player was to transfer to the retrieved instance/game.
                             ControllerPlayerState state = player.getState();
@@ -228,6 +229,7 @@ public abstract class Controller {
                                     player.setQueueRequest(null);
                                     player.setInstanceId(input.from());
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                                    Controller.getInstance().handleControllerEvent(new QueueFinishedEvent(player, queue, input.from(), null));
                                 } else if (packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID) && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId()) && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
                                     System.out.println("Retrieved finish queue 4");
                                     // We joined a game.
@@ -237,6 +239,7 @@ public abstract class Controller {
                                     player.setGameId(packet.gameId());
                                     player.setInstanceId(input.from());
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                                    Controller.getInstance().handleControllerEvent(new QueueFinishedEvent(player, queue, input.from(), packet.gameId()));
                                 } else {
                                     System.out.println("Retrieved finish queue 5");
                                     // We cannot accept this queue finalization.
@@ -398,7 +401,6 @@ public abstract class Controller {
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + iPacket);
             }
-            ;
         });
     }
 

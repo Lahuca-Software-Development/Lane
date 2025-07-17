@@ -1,16 +1,21 @@
 package com.lahuca.lanecontroller;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
+import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 public class ControllerPlayerManager {
 
@@ -18,19 +23,16 @@ public class ControllerPlayerManager {
     private final DataManager dataManager;
 
     private final ConcurrentHashMap<UUID, ControllerPlayer> players = new ConcurrentHashMap<>();
+    private final Cache<UUID, Long> networkProcessing = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES) // TODO Change the time
+            .removalListener((UUID uuid, Long addedTime, RemovalCause cause) -> getPlayer(uuid).ifPresent(player -> {
+                if(!player.isNetworkProcessed()) {
+                    player.process(false, Component.translatable("lane.controller.error.login.processingTimeout"));
+                }
+            })).build();
 
     public ControllerPlayerManager(Controller controller, DataManager dataManager) {
         this.controller = controller;
         this.dataManager = dataManager;
-    }
-
-    void put(UUID uuid, ControllerPlayer player) {
-        players.put(uuid, player); // TODO ????
-    }
-
-    // TODO Redo
-    public void leavePlayer(ControllerPlayer controllerPlayer, ControllerGame controllerGame) {
-        players.remove(controllerPlayer.getUuid());
     }
 
     /**
@@ -63,6 +65,20 @@ public class ControllerPlayerManager {
         } catch (InterruptedException | ExecutionException e) {
             return defaultLocale;
         }
+    }
+
+    /**
+     * Requests plugins to mark whether they still need to do additional processing after a player has joined.
+     * @param player the player to do the network processing of
+     * @throws IllegalArgumentException when the given player is null
+     * @throws IllegalStateException when the player is already processed
+     */
+    public void doNetworkProcessing(ControllerPlayer player) {
+        if(player == null) throw new IllegalArgumentException("player cannot be null");
+        if(player.isNetworkProcessed()) throw new IllegalStateException("player is already processed");
+        // Add to timeout cache and then run the processor with a succesful state
+        networkProcessing.put(player.getUuid(), System.currentTimeMillis());
+        player.process(true, null);
     }
 
     /**

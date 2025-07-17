@@ -34,12 +34,14 @@ import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RecordConverter;
+import com.lahuca.laneinstance.events.InstanceEvent;
 import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -329,5 +331,15 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     public Request<InstancePartyRetrieval> getParty(long partyId) {
         return connection.sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null);
     }
+
+    /**
+     * Lets the implemented instance handle the Lane Instance event.
+     * Some events have results tied to them, which are to be expected to return in the CompletableFuture.
+     * Some events might not have the possibility to wait for the result asynchronously, so that the CompletableFuture is waited for.
+     * @param event the event to handle
+     * @return the CompletableFuture with the modified event
+     * @param <E> the Lane instance event type
+     */
+    public abstract <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event);
 
 }

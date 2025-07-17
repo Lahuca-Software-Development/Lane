@@ -425,10 +425,12 @@ public class VelocityController {
                                 nextStage = true;
                                 continue;
                             }
-                            // We can join
+                            // We can join, set the initial server and call network processor
                             event.setInitialServer(instanceServer.get());
+                            controller.getPlayerManager().doNetworkProcessing(player);
 
                             // Let party members also join
+                            // TODO This below, should we do that really? OR AFTER PROCESSING?!?!?!?
                             if (joinable.getJoinTogetherPlayers() != null && !joinable.getJoinTogetherPlayers().isEmpty()) {
                                 QueueRequestParameter partyJoinParameter;
                                 if (gameId != null) {
