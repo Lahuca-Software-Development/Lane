@@ -7,7 +7,9 @@ import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
 import com.lahuca.lane.game.Slottable;
+import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.laneinstance.events.*;
 import net.kyori.adventure.text.Component;
 
 import java.util.*;
@@ -94,7 +96,7 @@ public class InstancePlayerManager implements Slottable {
      * If the player does not exist, a new player instance is created and added to the instance.
      * This method is only to be used by entities actually retrieving login information.
      *
-     * @param record the player record containing the details of the player to be registered
+     * @param record       the player record containing the details of the player to be registered
      * @param registerData additional data that is to be used upon the first join of the player
      */
     public void registerPlayer(PlayerRecord record, InstancePlayer.RegisterData registerData) {
@@ -112,75 +114,127 @@ public class InstancePlayerManager implements Slottable {
     }
 
     /**
+     * Add the player to the lists of the given queue type.
+     * Also removes them from the lists that it does not belong to.
+     * This does it on both the instance and the game.
+     *
+     * @param uuid      the player
+     * @param game      the potential game to add the player to
+     * @param queueType the queue type
+     */
+    private void applyQueueType(UUID uuid, InstanceGame game, QueueType queueType) {
+        Objects.requireNonNull(uuid, "uuid must not be null");
+        Objects.requireNonNull(queueType, "queueType must not be null");
+        switch (queueType) {
+            case ONLINE -> {
+                online.add(uuid);
+                players.remove(uuid);
+                playing.remove(uuid);
+            }
+            case PLAYERS -> {
+                online.add(uuid);
+                players.add(uuid);
+                playing.remove(uuid);
+            }
+            case PLAYING -> {
+                online.add(uuid);
+                players.add(uuid);
+                playing.add(uuid);
+            }
+        }
+        if (game != null) game.applyQueueType(uuid, queueType);
+        sendInstanceStatus.run();
+    }
+
+    /**
      * This method is to be called when a player joins the instance.
      * This will transfer the player to the correct game, if applicable.
      *
      * @param uuid the player's uuid
      */
     public void joinInstance(UUID uuid) {
-        // TODO When we disconnect, maybe not always display message? Where would it be put? Chat?
         getInstancePlayer(uuid).ifPresentOrElse(player -> {
             // Okay, we should allow the join, as it has been reserved
-            player.getGameId().ifPresentOrElse(gameId -> {
-                // Player tries to join game
-                instance.getInstanceGame(gameId).ifPresentOrElse(game -> {
-                    // Player tries to join this instance, as it got a reservation, we assume it has a spot
-                    // Send queue finished to controller
-                    try {
-                        instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, gameId), null).getFutureResult().get();
-                        switch (player.getRegisterData().queueType()) {
-                            case ONLINE -> {
-                                online.add(player.getUuid());
-                                game.addOnline(player.getUuid());
-                            }
-                            case PLAYER -> {
-                                online.add(player.getUuid());
-                                players.add(player.getUuid());
-                                game.addPlayer(player.getUuid());
-                            }
-                            case PLAYING -> {
-                                online.add(player.getUuid());
-                                players.add(player.getUuid());
-                                playing.add(player.getUuid());
-                                game.addPlaying(player.getUuid());
-                            }
+            Optional<InstanceGame> game = player.getRegisterData().getGameId().flatMap(instance::getInstanceGame);
+            // When game is present, then the player tries to join a game, otherwise this instance.
+            // First check whether if it has a reservation
+            if (!containsReserved(uuid) || (game.isPresent() && !game.get().containsReserved(uuid))) {
+                disconnectPlayer(uuid, Component.text("Got no reservation")); // TODO Translate
+                return;
+            }
+            // We have a reservation, so we can proceed, first get the current queue types and then send the queue finished packet
+            QueueType queueType = player.getRegisterData().queueType();
+            boolean instanceSwitched = player.getInstanceId().map(id -> !id.equals(instance.getId())).orElse(true);
+            boolean gameSwitched = player.getGame().map(obj -> obj.getGameId() != player.getRegisterData().gameId()).orElse(true);
+            Optional<InstanceGame> oldGame = player.getGame();
+            InstancePlayerListType oldInstanceListType = getInstancePlayerListType(player.getUuid());
+            InstancePlayerListType oldGameListType = player.getGame().map(obj -> obj.getGamePlayerListType(player.getUuid())).orElse(InstancePlayerListType.NONE);
+            InstancePlayerListType newListType = InstancePlayerListType.fromQueueType(queueType);
+            try {
+                instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, game.map(InstanceGame::getGameId).orElse(null)), null).getFutureResult().get();
+                // Now apply the queue type
+                applyQueueType(uuid, game.orElse(null), queueType);
+                // First check if we are joining a game or not
+                if(game.isPresent()) {
+                    // We try to join a game
+                    if(!instanceSwitched) {
+                        // We were already on this instance
+                        if(oldGame.isPresent() && gameSwitched) {
+                            // We switched game, but we were already playing on one. Quit first
+                            oldGame.get().onQuit(player);
+                            oldGame.get().removeReserved(uuid);
+                            instance.handleInstanceEvent(new InstanceQuitGameEvent(player, oldGame.get()));
                         }
-                        sendInstanceStatus.run();
-                        game.onJoin(player, player.getRegisterData().queueType());
-                    } catch (ResultUnsuccessfulException e) {
-                        disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-                    } catch (InterruptedException | ExecutionException | CancellationException e) {
-                        disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
+                        if(oldInstanceListType != newListType) {
+                            // Okay so we switched queue type of the instance
+                            instance.handleInstanceEvent(new InstanceSwitchQueueTypeEvent(player, oldInstanceListType, queueType));
+                        }
+                        if(!gameSwitched) {
+                            // We were already on the same game
+                            if(oldGameListType != newListType) {
+                                // Okay so we switched queue type of the game
+                                game.get().onSwitchQueueType(player, oldGameListType, queueType);
+                                instance.handleInstanceEvent(new InstanceSwitchGameQueueTypeEvent(player, game.get(), oldGameListType, queueType));
+                                return;
+                            }
+                            // Same game, same queue type, we are done
+                            return;
+                        }
+                        // We join a different game
+                        game.get().onJoin(player, queueType);
+                        instance.handleInstanceEvent(new InstanceJoinGameEvent(player, game.get(), queueType));
+                    } else {
+                        // We were not yet on this instance
+                        instance.handleInstanceEvent(new InstanceJoinEvent(player, queueType));
+                        game.get().onJoin(player, queueType);
+                        instance.handleInstanceEvent(new InstanceJoinGameEvent(player, game.get(), queueType));
                     }
-                }, () -> {
-                    // The given game ID does not exist on this instance. Disconnect
-                    disconnectPlayer(uuid, Component.text("Invalid game ID on instance.")); // TODO Translateable
-                });
-            }, () -> {
-                // Player tries to join this instance, as it got a reservation, we assume it has a spot
-                // Join allowed, finalize
-                try {
-                    instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, null), null).getFutureResult().get();
-                    switch (player.getRegisterData().queueType()) {
-                        case ONLINE -> online.add(player.getUuid());
-                        case PLAYER -> {
-                            online.add(player.getUuid());
-                            players.add(player.getUuid());
+                } else {
+                    // We try to join the instance only, check whether we just joined new
+                    if(!instanceSwitched) {
+                        // Ahh, so we were already on here
+                        // If we were in a game, go out of it
+                        if(oldGame.isPresent()) {
+                            oldGame.get().onQuit(player);
+                            oldGame.get().removeReserved(uuid);
+                            instance.handleInstanceEvent(new InstanceQuitGameEvent(player, oldGame.get()));
                         }
-                        case PLAYING -> {
-                            online.add(player.getUuid());
-                            players.add(player.getUuid());
-                            playing.add(player.getUuid());
+                        if(oldInstanceListType != newListType) {
+                            // Different queue type
+                            instance.handleInstanceEvent(new InstanceSwitchQueueTypeEvent(player, oldInstanceListType, queueType));
+                            return;
                         }
+                        // Same instance, same queue type, we are done
+                        return;
                     }
-                    sendInstanceStatus.run();
-                    instance.onInstanceJoin(player);
-                } catch (ResultUnsuccessfulException e) {
-                    disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-                } catch (InterruptedException | ExecutionException | CancellationException e) {
-                    disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
+                    // We switched, normal join
+                    instance.handleInstanceEvent(new InstanceJoinEvent(player, queueType));
                 }
-            });
+            } catch (ResultUnsuccessfulException e) {
+                disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
+            } catch (InterruptedException | ExecutionException | CancellationException e) {
+                disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
+            }
         }, () -> {
             // We do not have the details about this player. Controller did not send it.
             // Disconnect player, as we are unaware if this is correct.
@@ -195,7 +249,10 @@ public class InstancePlayerManager implements Slottable {
      * @param uuid
      */
     public void quitInstance(UUID uuid) {
-        getInstancePlayer(uuid).ifPresent(player -> quitGame(uuid));
+        getInstancePlayer(uuid).ifPresent(player -> {
+            quitGame(uuid);
+            instance.handleInstanceEvent(new InstanceQuitEvent(player));
+        });
         reserved.remove(uuid);
         online.remove(uuid);
         players.remove(uuid);
@@ -212,6 +269,7 @@ public class InstancePlayerManager implements Slottable {
         getInstancePlayer(uuid).ifPresent(player -> player.getGameId().flatMap(instance::getInstanceGame).ifPresent(game -> {
             game.onQuit(player);
             game.removeReserved(uuid);
+            instance.handleInstanceEvent(new InstanceQuitGameEvent(player, game));
         }));
     }
 
@@ -322,6 +380,26 @@ public class InstancePlayerManager implements Slottable {
         sendInstanceStatus.run();
     }
 
+    @Override
+    public boolean containsReserved(UUID uuid) {
+        return reserved.containsKey(uuid);
+    }
+
+    @Override
+    public boolean containsOnline(UUID uuid) {
+        return online.contains(uuid);
+    }
+
+    @Override
+    public boolean containsPlayers(UUID uuid) {
+        return players.contains(uuid);
+    }
+
+    @Override
+    public boolean containsPlaying(UUID uuid) {
+        return playing.contains(uuid);
+    }
+
     public void updateJoinableSlots(boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots) {
         this.onlineJoinable = onlineJoinable;
         this.playersJoinable = playersJoinable;
@@ -330,6 +408,20 @@ public class InstancePlayerManager implements Slottable {
         this.maxPlayersSlots = maxPlayersSlots;
         this.maxPlayingSlots = maxPlayingSlots;
         sendInstanceStatus.run();
+    }
+
+    /**
+     * Retrieves the player list type of the player with the given UUID on the instance.
+     *
+     * @param player the player
+     * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list
+     */
+    public InstancePlayerListType getInstancePlayerListType(UUID player) {
+        if (playing.contains(player)) return InstancePlayerListType.PLAYING;
+        if (players.contains(player)) return InstancePlayerListType.PLAYERS;
+        if (online.contains(player)) return InstancePlayerListType.ONLINE;
+        if (reserved.contains(player)) return InstancePlayerListType.RESERVED;
+        return InstancePlayerListType.NONE;
     }
 
     // TODO Set locale in Paper.

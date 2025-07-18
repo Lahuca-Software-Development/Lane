@@ -36,12 +36,28 @@ public interface Slottable {
     default boolean isQueueJoinable(QueueType queueType, int spots) {
         return switch (queueType) {
             case ONLINE -> isOnlineJoinable() && (getMaxOnlineSlots() <= 0 || getAvailableOnlineSlots() >= spots);
-            case PLAYER -> isOnlineJoinable() && (getMaxOnlineSlots() <= 0 || getAvailableOnlineSlots() >= spots)
+            case PLAYERS -> isOnlineJoinable() && (getMaxOnlineSlots() <= 0 || getAvailableOnlineSlots() >= spots)
                     && isPlayersJoinable() && (getMaxPlayersSlots() <= 0 || getAvailablePlayersSlots() >= spots);
             case PLAYING -> isOnlineJoinable() && (getMaxOnlineSlots() <= 0 || getAvailableOnlineSlots() >= spots)
                     && isPlayersJoinable() && (getMaxPlayersSlots() <= 0 || getAvailablePlayersSlots() >= spots)
                     && isPlayingJoinable() && (getMaxPlayingSlots() <= 0 || getAvailablePlayingSlots() >= spots);
         };
+    }
+
+    default boolean containsReserved(UUID uuid) {
+        return getReserved().contains(uuid);
+    }
+
+    default boolean containsOnline(UUID uuid) {
+        return getOnline().contains(uuid);
+    }
+
+    default boolean containsPlayers(UUID uuid) {
+        return getPlayers().contains(uuid);
+    }
+
+    default boolean containsPlaying(UUID uuid) {
+        return getPlaying().contains(uuid);
     }
 
 }

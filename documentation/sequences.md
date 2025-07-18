@@ -164,6 +164,12 @@ This is either called because the player is disconnected, or when the player swi
 Be aware, when a player remains on the instance, the **InstanceQuitEvent** is not called.
 Of course, it is followed by a **InstanceJoinEvent**/**InstanceJoinGameEvent**.
 
+There is a crucial aspect about queueing on the same instance/game.
+It can happen that a player stays on the same instance/game, but changes the queue type.
+In that case, **InstanceSwitchQueueTypeEvent** is called. If the player is also in a game, then the game
+first receives the switch in the onSwitchQueueType method; after which the **InstanceSwitchGameQueueTypeEvent** is called.
+
+
 ### Disconnect
 1. PlayerQuitEvent, this is ran when the player disconnects, this will flag it to the Controller.
    It is undefined what happens when doing any more work than needed on the InstancePlayer object itself.

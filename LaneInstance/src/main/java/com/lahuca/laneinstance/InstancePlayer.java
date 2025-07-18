@@ -40,7 +40,13 @@ public class InstancePlayer implements LanePlayer {
         this.registerData = registerData;
     }
 
-    public record RegisterData(QueueType queueType) { }
+    public record RegisterData(QueueType queueType, Long gameId) {
+
+        public Optional<Long> getGameId() {
+            return Optional.ofNullable(gameId);
+        }
+
+    }
 
     /**
      * Retrieves the saved locale associated with this player.
@@ -76,6 +82,26 @@ public class InstancePlayer implements LanePlayer {
         this.registerData = registerData;
     }
 
+    /**
+     * Retrieves the player list type of the current player on the instance.
+     * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list
+     */
+    public InstancePlayerListType getInstancePlayerListType() {
+        return LaneInstance.getInstance().getPlayerManager().getInstancePlayerListType(uuid);
+    }
+
+    /**
+     * Retrieves the player list type of the current player on the game it is playing on.
+     * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list or not playing a game
+     */
+
+    public InstancePlayerListType getGamePlayerListType() {
+        Optional<InstanceGame> game = getGame();
+        if (game.isEmpty()) return InstancePlayerListType.NONE;
+        return game.get().getGamePlayerListType(uuid);
+    }
+
+
     @Override
     public Optional<QueueRequest> getQueueRequest() {
         return Optional.ofNullable(queueRequest);
@@ -89,6 +115,18 @@ public class InstancePlayer implements LanePlayer {
     @Override
     public Optional<Long> getGameId() {
         return Optional.ofNullable(gameId);
+    }
+
+    /**
+     * Returns the game of the player, if it is on this instance.
+     * If the player is not in a game, the optional will be empty.
+     * Even if this player has a game ID, this will only return the game if it actually exists only on this instance
+     *
+     * @return the game
+     */
+
+    public Optional<InstanceGame> getGame() {
+        return getGameId().flatMap(gameId -> LaneInstance.getInstance().getInstanceGame(gameId));
     }
 
     @Override

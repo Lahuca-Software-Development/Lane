@@ -55,6 +55,7 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 	public abstract void onShutdown();
 	public abstract void onJoin(InstancePlayer instancePlayer, QueueType queueType);
 	public abstract void onQuit(InstancePlayer instancePlayer);
+	public abstract void onSwitchQueueType(InstancePlayer instancePlayer, InstancePlayerListType oldPlayerListType, QueueType queueType);
 
 	@Override
 	public long getGameId() {
@@ -84,6 +85,55 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 	@Override
 	public HashSet<UUID> getReserved() {
 		return new HashSet<>(Set.copyOf(reserved));
+	}
+
+	@Override
+	public boolean containsReserved(UUID uuid) {
+		return reserved.contains(uuid);
+	}
+
+	@Override
+	public boolean containsOnline(UUID uuid) {
+		return online.contains(uuid);
+	}
+
+	@Override
+	public boolean containsPlayers(UUID uuid) {
+		return players.contains(uuid);
+	}
+
+	@Override
+	public boolean containsPlaying(UUID uuid) {
+		return playing.contains(uuid);
+	}
+
+	/**
+	 * Add the player to the lists of the given queue type.
+	 * Also removes them from the lists that it does not belong to.
+	 * @param uuid the player
+	 * @param queueType the queue type
+	 */
+	protected void applyQueueType(UUID uuid, QueueType queueType) {
+		Objects.requireNonNull(uuid);
+		Objects.requireNonNull(queueType);
+		switch (queueType) {
+			case ONLINE -> {
+				online.add(uuid);
+				players.remove(uuid);
+				playing.remove(uuid);
+			}
+			case PLAYERS -> {
+				online.add(uuid);
+				players.add(uuid);
+				playing.remove(uuid);
+			}
+			case PLAYING -> {
+				online.remove(uuid);
+				players.remove(uuid);
+				playing.add(uuid);
+			}
+		}
+		sendGameStatus();
 	}
 
 	void addReserved(UUID uuid) {
@@ -151,6 +201,19 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 	public void removePlaying(UUID uuid) {
 		playing.remove(uuid);
 		sendGameStatus();
+	}
+
+	/**
+	 * Retrieves the player list type of the player with the given UUID of this game.
+	 * @param player the player
+	 * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list
+	 */
+	public InstancePlayerListType getGamePlayerListType(UUID player) {
+		if(playing.contains(player)) return InstancePlayerListType.PLAYING;
+		if(players.contains(player)) return InstancePlayerListType.PLAYERS;
+		if(online.contains(player)) return InstancePlayerListType.ONLINE;
+		if(reserved.contains(player)) return InstancePlayerListType.RESERVED;
+		return InstancePlayerListType.NONE;
 	}
 
 	@Override

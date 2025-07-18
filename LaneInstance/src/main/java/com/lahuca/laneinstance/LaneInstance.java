@@ -100,7 +100,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                         }
                     }
                     // We are here, so we can apply it.
-                    getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType()));
+                    getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType(), packet.gameId()));
                     sendSimpleResult(packet, ResponsePacket.OK);
                 }
                 case InstanceUpdatePlayerPacket packet -> {
@@ -116,6 +116,10 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
             }
         });
         sendInstanceStatus();
+    }
+
+    public String getId() {
+        return id;
     }
 
     public void shutdown() {
@@ -142,13 +146,6 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     public abstract void disconnectPlayer(UUID player, Component message);
-
-    /**
-     * This method is called when a player is joining the instance, but not a game.
-     * This is also called when a player has left a game, but remains on the instance.
-     * @param player the player
-     */
-    public abstract void onInstanceJoin(InstancePlayer player);
 
     public void sendController(Packet packet) {
         connection.sendPacket(packet, null);
