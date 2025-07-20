@@ -20,8 +20,9 @@ import com.google.gson.GsonBuilder;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
-import com.lahuca.laneinstance.InstancePlayer;
 import com.lahuca.laneinstance.LaneInstance;
+import com.lahuca.laneinstance.events.*;
+import com.lahuca.laneinstancepaper.events.*;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
@@ -37,6 +38,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Base point for Lane Instances running on Paper.
@@ -159,8 +161,20 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         }
 
         @Override
-        public void onInstanceJoin(InstancePlayer player) {
-            // TODO Event??
+        public <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event) {
+            // Construct the paper event
+            PaperInstanceEvent<?> paperEvent = switch (event) {
+                case InstanceJoinEvent obj -> new PaperInstanceJoinEvent(obj);
+                case InstanceJoinGameEvent obj -> new PaperInstanceJoinGameEvent(obj);
+                case InstanceQuitEvent obj -> new PaperInstanceQuitEvent(obj);
+                case InstanceQuitGameEvent obj -> new PaperInstanceQuitGameEvent(obj);
+                case InstanceSwitchGameQueueTypeEvent obj -> new PaperInstanceSwitchGameQueueTypeEvent(obj);
+                case InstanceSwitchQueueTypeEvent obj -> new PaperInstanceSwitchQueueTypeEvent(obj);
+                default -> new PaperInstanceGenericEvent(event);
+            };
+            // Call the event, this will also update our parameter here
+            paperEvent.callEvent();
+            return CompletableFuture.completedFuture(event);
         }
 
     }
