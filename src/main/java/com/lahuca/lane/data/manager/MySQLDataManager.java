@@ -10,7 +10,9 @@ import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -349,4 +351,35 @@ public class MySQLDataManager implements DataManager {
             return CompletableFuture.failedFuture(e);
         }
     }
+
+    @Override
+    public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
+        Objects.requireNonNull(prefix, "prefix cannot be null");
+        String tableName = getTableName(prefix);
+        if(tableName == null) return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
+        try(Connection connection = dataSource.getConnection()) {
+            // Build select query
+            PreparedStatement statement;
+            if(prefix.isRelational()) {
+                statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
+                statement.setString(1, prefix.relationalId().id());
+                statement.setString(2, prefix.id() + "%");
+            } else {
+                statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
+                statement.setString(1, prefix.id() + "%");
+            }
+            // Get result of query
+            try(ResultSet resultSet = statement.executeQuery()) {
+                ArrayList<DataObjectId> ids = new ArrayList<>();
+                while (resultSet.next()) {
+                    String id = resultSet.getString("id");
+                    ids.add(new DataObjectId(prefix.relationalId(), id));
+                }
+                return CompletableFuture.completedFuture(ids);
+            }
+        } catch (SQLException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
 }

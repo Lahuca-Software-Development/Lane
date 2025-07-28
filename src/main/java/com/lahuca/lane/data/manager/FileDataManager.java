@@ -8,7 +8,9 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -152,4 +154,27 @@ public class FileDataManager implements DataManager {
         }
     }
 
+    @Override
+    public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
+        Objects.requireNonNull(prefix, "prefix cannot be null");
+        File folder;
+        if(prefix.isRelational()) folder = new File(dataFolder, "relational" + File.separator + prefix.relationalId().type() + File.separator + prefix.relationalId().id());
+        else folder = new File(dataFolder, "singular");
+        String keyPrefix = prefix.id();
+        if(keyPrefix == null) keyPrefix = "";
+        ArrayList<DataObjectId> ids = new ArrayList<>();
+        File[] files = folder.listFiles();
+        if(files == null) return CompletableFuture.completedFuture(new ArrayList<>());
+        for (File file : files) {
+            String nameExtension = file.getName();
+            String name = nameExtension;
+            if(nameExtension.contains(".")) {
+                name = name.substring(0, nameExtension.lastIndexOf("."));
+            }
+            if(name.startsWith(keyPrefix)) {
+                ids.add(new DataObjectId(prefix.relationalId(), name));
+            }
+        }
+        return CompletableFuture.completedFuture(ids);
+    }
 }

@@ -4,6 +4,7 @@ import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -74,6 +75,19 @@ public interface DataManager {
             return write ? writeDataObject(permissionKey, dataObject).thenApply(v -> true) : CompletableFuture.completedFuture(true);
         });
     }
+
+    /**
+     * Retrieves a list of data object IDs whose key has the same prefix from the provided ID (case sensitive).
+     * Example for the input with id = "myPrefix" with relationalId = ("players", "Laurenshup"), it will return:
+     * <ul>
+     *     <li>players.Laurenshup.myPrefix.value1</li>
+     *     <li>players.Laurenshup.myPrefix.value2.subKey</li>
+     *     <li>players.Laurenshup.myPrefixSuffix</li>
+     * </ul>
+     * @param prefix the prefix ID. This cannot be null, its values can be null.
+     * @return a {@link CompletableFuture} with the array of IDs with matching prefix
+     */
+    CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix);
 
 
 }
