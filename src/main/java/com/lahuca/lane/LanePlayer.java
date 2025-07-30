@@ -15,6 +15,8 @@
  */
 package com.lahuca.lane;
 
+import com.lahuca.lane.data.DataObjectId;
+import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
@@ -27,6 +29,9 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
 	UUID getUuid();
 	String getUsername();
 	UUID getNetworkProfileUuid();
+	default DataObjectId getNetworkProfileDataObjectId(String id) {
+		return new DataObjectId(RelationalId.Profiles(getNetworkProfileUuid()), id);
+	}
 	String getDisplayName();
 	Optional<QueueRequest> getQueueRequest();
 	Optional<String> getInstanceId();

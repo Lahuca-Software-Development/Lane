@@ -198,4 +198,27 @@ public abstract class ProfileData { // TODO Could this also be an interface?!? L
      */
     public abstract CompletableFuture<Void> copyProfile(ProfileData from);
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ProfileData.class.getSimpleName() + "[", "]")
+                .add("id=" + id)
+                .add("type=" + type)
+                .add("superProfiles=" + superProfiles)
+                .add("subProfiles=" + subProfiles)
+                .toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ProfileData that = (ProfileData) o;
+        return id.equals(that.id) && type == that.type && superProfiles.equals(that.superProfiles) && subProfiles.equals(that.subProfiles);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, type, superProfiles, subProfiles);
+    }
+
 }
