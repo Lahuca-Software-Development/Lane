@@ -16,15 +16,13 @@
 package com.lahuca.lane.connection.request;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * A request is defined by a packet that is expected for which a response is needed.
  * A request and its response are combined using request IDs.
  * When a request is sent over a connection, its response is to be expected to be cast to the expected type.
- * This is only the case when the returned result is {@link ResponsePacket#OK}, otherwise a {@link ResultUnsuccessfulException} is thrown with the error.
+ * This is only the case when the returned result is {@link ResponsePacket#OK}, otherwise a {@link UnsuccessfulResultException} is thrown with the error.
  * The {@link CompletableFuture} handles the asynchronous response.
  * This {@link CompletableFuture} is canceled when no response is received within a set timeframe: the timeout.
  * As results are frequent of the generic unknown type ?, the result parser is to be used to properly parse the result before sending the future.
@@ -58,7 +56,7 @@ public class Request<T> {
      * The CompletableFuture is immediately failed.
      * @param result the result of the request
      */
-    public Request(ResultUnsuccessfulException result) {
+    public Request(UnsuccessfulResultException result) {
         this(-1, System.currentTimeMillis(), CompletableFuture.failedFuture(result));
     }
 
@@ -124,78 +122,6 @@ public class Request<T> {
     }
 
     /**
-     * Applies the given function on the result, this is stored.
-     *
-     * @param fn the function to apply to the result.
-     * @return this request.
-     */
-    public Request<T> thenApply(Function<? super T, ? extends T> fn) {
-        futureResult = futureResult.thenApply(fn);
-        return this;
-    }
-
-    /**
-     * Creates a new request object with the same request data: request ID, schedule timestamp and timeout seconds.
-     * The newly created request object has the expected output after applying the provided function on the original request.
-     * Whenever the request has failed, it can be listened using the failed function. Modification can be done via {@link #thenApplyConstruct(Function, Function)}.
-     * When manually providing the new object with a result, the original stays intact.
-     * The original object always influences the new object.
-     *
-     * @param failed the function that is run when the original function fails, a new result can be provided
-     * @param apply the function to run on the result
-     * @return the newly created request object
-     * @param <U> the type of the newly expected output
-     */
-    public <U> Request<U> thenApplyConstruct(Consumer<ResultUnsuccessfulException> failed, Function<? super T, ? extends U> apply) {
-        return new Request<>(requestId, scheduledAt, null, futureResult.whenComplete((data, ex) -> {
-            if(ex != null) {
-                if(ex instanceof ResultUnsuccessfulException resultEx) {
-                    failed.accept(resultEx);
-                }
-            }
-        }).thenApply(apply), timeoutSeconds);
-    }
-
-    /**
-     * Creates a new request object with the same request data: request ID, schedule timestamp and timeout seconds.
-     * The newly created request object has the expected output after applying the provided function on the original request.
-     * Whenever the request has failed, it can be listened and modified using the failed function.
-     * When manually providing the new object with a result, the original stays intact.
-     * The original object always influences the new object.
-     *
-     * @param failed the function that is run when the original function fails, a new result can be provided
-     * @param apply the function to run on the result
-     * @return the newly created request object
-     * @param <U> the type of the newly expected output
-     */
-    public <U> Request<U> thenApplyConstruct(Function<ResultUnsuccessfulException, ? extends U> failed, Function<? super T, ? extends U> apply) {
-        return new Request<>(requestId, scheduledAt, null, futureResult.handle((data, ex) -> {
-            if(ex != null) {
-                if(ex instanceof ResultUnsuccessfulException resultEx) {
-                    return failed.apply(resultEx);
-                }
-                throw new CompletionException(ex);
-            }
-            return apply.apply(data);
-        }), timeoutSeconds);
-    }
-
-    /**
-     * Creates a new request object with the same request data: request ID, schedule timestamp and timeout seconds.
-     * The newly created request object has the expected output after applying the provided function on the original request.
-     * Whenever the request has failed, it is passed onto the newly created request.
-     * When manually providing the new object with a result, the original stays intact.
-     * The original object always influences the new object.
-     *
-     * @param apply the function to run on the result
-     * @return the newly created request object
-     * @param <U> the type of the newly expected output
-     */
-    public <U> Request<U> thenApplyConstruct(Function<? super T, ? extends U> apply) {
-        return new Request<>(requestId, scheduledAt, null, futureResult.thenApply(apply), timeoutSeconds);
-    }
-
-    /**
      * Returns the result parser, that is to be used to properly parse the result before sending the future.
      *
      * @return The result parser.
@@ -239,7 +165,7 @@ public class Request<T> {
                 return futureResult.completeExceptionally(e);
             }
         }
-        return futureResult.completeExceptionally(new ResultUnsuccessfulException(response.getResult()));
+        return futureResult.completeExceptionally(new UnsuccessfulResultException(response.getResult()));
     }
 
     /**

@@ -21,28 +21,25 @@ import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
-import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
+import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.profile.ProfileData;
+import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.queue.QueueRequestParameters;
-import com.lahuca.lane.records.GameRecord;
-import com.lahuca.lane.records.InstanceRecord;
-import com.lahuca.lane.records.PlayerRecord;
-import com.lahuca.lane.records.RecordConverter;
+import com.lahuca.lane.records.*;
 import com.lahuca.laneinstance.events.InstanceEvent;
 import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 /**
@@ -83,7 +80,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         connection.initialise(input -> {
             switch (input.packet()) {
                 case InstanceJoinPacket packet -> {
-                    if(!getPlayerManager().isQueueJoinable(packet.queueType(), 1)) { // TODO We do not neccassirily make a reservation for the whole party. Hmmm.
+                    if (!getPlayerManager().isQueueJoinable(packet.queueType(), 1)) { // TODO We do not neccassirily make a reservation for the whole party. Hmmm.
                         sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                         return;
                     }
@@ -94,7 +91,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                             return;
                         }
                         InstanceGame game = instanceGame.get();
-                        if(!game.isQueueJoinable(packet.queueType(), 1)) { // TODO Same as for the instance, make reservation for whole party.
+                        if (!game.isQueueJoinable(packet.queueType(), 1)) { // TODO Same as for the instance, make reservation for whole party.
                             sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                             return;
                         }
@@ -159,8 +156,8 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         sendSimpleResult(request.getRequestId(), result);
     }
 
-    private static <T> Request<T> simpleRequest(String result) { // TODO Move
-        return new Request<>(new ResultUnsuccessfulException(result));
+    private static <T> CompletableFuture<T> simpleException(String result) { // TODO Move
+        return CompletableFuture.failedFuture(new UnsuccessfulResultException(result));
     }
 
     private void sendInstanceStatus() {
@@ -172,42 +169,44 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      *
      * @param playerId          the player's uuid
      * @param requestParameters the queue request parameters
-     * @return The request
+     * @return a {@link CompletableFuture} with a void to signify success: the player has been queued
      */
-    public Request<Void> queue(UUID playerId, QueueRequestParameters requestParameters) {
-        return connection.sendRequestPacket(id -> new QueueRequestPacket(id, playerId, requestParameters), null);
+    public CompletableFuture<Void> queue(UUID playerId, QueueRequestParameters requestParameters) {
+        return connection.<Void>sendRequestPacket(id -> new QueueRequestPacket(id, playerId, requestParameters), null).getResult();
     }
 
-    private Request<Long> requestId(RequestIdPacket.Type idType) {
-        if (idType == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        return connection.sendRequestPacket(id -> new RequestIdPacket(id, idType), null);
+    private CompletableFuture<Long> requestId(RequestIdPacket.Type idType) {
+        if (idType == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        return connection.<Long>sendRequestPacket(id -> new RequestIdPacket(id, idType), null).getResult();
     }
 
     /**
      * Registers a new game upon the function that gives a new game ID.
      *
      * @param gameConstructor the id to game parser. Preferably a lambda with LaneGame::new is given, whose constructor consists of only the ID.
-     * @return the request of the registering, it completes successfully with the game when it is successfully registered.
+     * @return a {@link CompletableFuture} of the registering, it completes successfully with the game when it is successfully registered.
      */
-    public Request<InstanceGame> registerGame(Function<Long, InstanceGame> gameConstructor) {
-        if (gameConstructor == null) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        try {
-            Long gameId = requestId(RequestIdPacket.Type.GAME).getFutureResult().get();
+    public CompletableFuture<InstanceGame> registerGame(Function<Long, InstanceGame> gameConstructor) {
+        if (gameConstructor == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        // First request new ID
+        return requestId(RequestIdPacket.Type.GAME).thenCompose(gameId -> {
+            // We got a new ID, construct game
             InstanceGame game = gameConstructor.apply(gameId);
             if (game.getGameId() != gameId || games.containsKey(game.getGameId())) {
-                return simpleRequest(ResponsePacket.INVALID_ID);
+                throw new UnsuccessfulResultException(ResponsePacket.INVALID_ID);
             }
+            // Include the game and send the update packet
             games.put(game.getGameId(), game);
-            Request<Void> request = connection.sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.convertRecord()), null);
-            return request.thenApplyConstruct(ex -> {
-                // Failed, remove the game
-                games.remove(game.getGameId());
-            }, data -> game);
-        } catch (ResultUnsuccessfulException e) {
-            return simpleRequest(ResponsePacket.ILLEGAL_STATE);
-        } catch (InterruptedException | ExecutionException | CancellationException e) {
-            return simpleRequest(ResponsePacket.INTERRUPTED); // TODO Forward to Request?
-        }
+            return connection.<Void>sendRequestPacket(id -> new GameStatusUpdatePacket(id, game.convertRecord()), null).getResult().handle((data, ex) -> {
+                if (ex != null) {
+                    // Oh, the update isn't sent, remove the game
+                    games.remove(game.getGameId());
+                    throw new CompletionException(ex);
+                }
+                // Update sent, we are done, return the new game
+                return game;
+            });
+        });
     }
 
     /**
@@ -215,12 +214,12 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      *
      * @param id            the id of the data object
      * @param permissionKey the permission key that wants to retrieve the data object, this must be an individual key
-     * @return the request with the data object; the data object is null when there is no data object at the id.
+     * @return a {@link CompletableFuture} with a {@link Optional} with the data object as value if present
      */
-    public Request<DataObject> readDataObject(DataObjectId id, PermissionKey permissionKey) {
+    public CompletableFuture<Optional<DataObject>> readDataObject(DataObjectId id, PermissionKey permissionKey) {
         if (id == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
-            return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        return connection.sendRequestPacket(requestId -> new DataObjectReadPacket(requestId, id, permissionKey), null);
+            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        return connection.<DataObject>sendRequestPacket(requestId -> new DataObjectReadPacket(requestId, id, permissionKey), null).getResult().thenApply(Optional::ofNullable);
     }
 
     /**
@@ -229,12 +228,12 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      *
      * @param object        the id of the data object
      * @param permissionKey the permission key that wants to write the data object, this must be an individual key
-     * @return the request with the status
+     * @return a {@link CompletableFuture} with a void to signify success: the data object has been written
      */
-    public Request<Void> writeDataObject(DataObject object, PermissionKey permissionKey) {
+    public CompletableFuture<Void> writeDataObject(DataObject object, PermissionKey permissionKey) {
         if (object == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
-            return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        return connection.sendRequestPacket(requestId -> new DataObjectWritePacket(requestId, object, permissionKey), null);
+            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        return connection.<Void>sendRequestPacket(requestId -> new DataObjectWritePacket(requestId, object, permissionKey), null).getResult();
     }
 
     /**
@@ -242,12 +241,12 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      *
      * @param id            the id of the data object
      * @param permissionKey the permission key that wants to remove the data object, this must be an individual key
-     * @return the request with the status
+     * @return a {@link CompletableFuture} with a void to signify success: the data object has been removed
      */
-    public Request<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {
+    public CompletableFuture<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {
         if (id == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
-            return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        return connection.sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null);
+            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        return connection.<Void>sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null).getResult();
     }
 
     // TODO updateDataObject
@@ -273,70 +272,201 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     /**
-     * Retrieves a request of the game record of the game with the given ID on the controller.
+     * Retrieves a game record of the game with the given ID on the controller.
      * The value is null when no game with the given ID is present.
+     *
      * @param gameId the ID of the game
-     * @return the request
+     * @return a {@link CompletableFuture} with a {@link Optional} whose value will be the {@link GameRecord} if present
      */
-    public Request<PlayerRecord> getGameRecord(long gameId) {
-        return connection.sendRequestPacket(id -> new RequestInformationPacket.Game(id, gameId), null);
+    public CompletableFuture<Optional<GameRecord>> getGameRecord(long gameId) {
+        return connection.<Optional<GameRecord>>sendRequestPacket(id -> new RequestInformationPacket.Game(id, gameId), null).getResult();
     }
 
     /**
-     * Retrieves a request of a collection of immutable records of all games on the controller.
+     * Retrieves a collection of immutable records of all games on the controller.
      *
-     * @return the request
+     * @return a {@link CompletableFuture} with the game records
      */
-    public Request<ArrayList<GameRecord>> getAllGameRecords() {
-        return connection.sendRequestPacket(RequestInformationPacket.Games::new, null);
+    public CompletableFuture<ArrayList<GameRecord>> getAllGameRecords() {
+        return connection.<ArrayList<GameRecord>>sendRequestPacket(RequestInformationPacket.Games::new, null).getResult();
     }
 
     /**
-     * Retrieves a request of the instance record of the instance with the given ID on the controller.
+     * Retrieves the instance record of the instance with the given ID on the controller.
      * The value is null when no instance with the given ID is present.
+     *
      * @param id the ID of the instance
-     * @return the request
+     * @return a {@link CompletableFuture} with a {@link Optional} whose value is the {@link InstanceRecord} if present
      */
-    public Request<InstanceRecord> getInstanceRecord(String id) {
-        if(id == null || id.isEmpty()) return simpleRequest(ResponsePacket.INVALID_PARAMETERS);
-        return connection.sendRequestPacket(requestId -> new RequestInformationPacket.Instance(requestId, id), null);
+    public CompletableFuture<Optional<InstanceRecord>> getInstanceRecord(String id) {
+        Objects.requireNonNull(id, "id cannot be null");
+        return connection.<InstanceRecord>sendRequestPacket(requestId -> new RequestInformationPacket.Instance(requestId, id), null).getResult().thenApply(Optional::ofNullable);
     }
 
     /**
-     * Retrieves a request of a collection of immutable records of all instances on the controller.
+     * Retrieves a collection of immutable records of all instances on the controller.
      *
-     * @return the request
+     * @return a {@link CompletableFuture} with the instance records
      */
-    public Request<ArrayList<InstanceRecord>> getAllInstanceRecords() {
-        return connection.sendRequestPacket(RequestInformationPacket.Instances::new, null);
+    public CompletableFuture<ArrayList<InstanceRecord>> getAllInstanceRecords() {
+        return connection.<ArrayList<InstanceRecord>>sendRequestPacket(RequestInformationPacket.Instances::new, null).getResult();
     }
 
     @Override
     public InstanceRecord convertRecord() {
         InstancePlayerManager pm = getPlayerManager();
-        return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(),
-                pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(), pm.getMaxOnlineSlots(),
-                pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots());
+        return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(), pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(), pm.getMaxOnlineSlots(), pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots());
     }
 
     /**
      * Retrieves a party from the instance, identified by the given party ID.
      * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
+     *
      * @param partyId the party ID
-     * @return a request that completes with the retrieval of the party
+     * @return a {@link CompletableFuture} that completes with the retrieval of the party
      */
-    public Request<InstancePartyRetrieval> getParty(long partyId) {
-        return connection.sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null);
+    public CompletableFuture<InstancePartyRetrieval> getParty(long partyId) {
+        return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null).getResult()
+                .thenApply(InstancePartyRetrieval::new);
+    }
+
+    /**
+     * Retrieves the profile data of the profile identified by the given UUID.
+     * @param uuid the profile's UUID
+     * @return a {@link CompletableFuture} with a {@link Optional} whose value will be the profile data if present
+     */
+    public CompletableFuture<Optional<InstanceProfileData>> getProfileData(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid cannot be null");
+        return connection.<ProfileData>sendRequestPacket(id -> new ProfilePacket.GetProfileData(id, uuid), null).getResult()
+                .thenApply(Optional::ofNullable).thenApply(opt -> opt.map(InstanceProfileData::new));
+    }
+
+    /**
+     * Creates a new profile given the profile type.
+     * This stores the profile information at a new profile UUID.
+     * @param type the profile type
+     * @return a {@link CompletableFuture} with a {@link UUID}, which is the UUID of the new profile
+     */
+    public CompletableFuture<UUID> createNewProfile(ProfileType type) {
+        Objects.requireNonNull(type, "type cannot be null");
+        return connection.<UUID>sendRequestPacket(id -> new ProfilePacket.CreateNew(id, type), null).getResult();
+    }
+
+    /**
+     * Adds a sub profile to another "super profile", the current profile at the given name.
+     * This returns a {@link CompletableFuture} with the result whether the sub profile has been added or not.
+     * These changes are reflected in the respective parameters' values as well; due to the implementation, this might not be the most up-to-date data.
+     * The sub profile cannot be of type {@link ProfileType#NETWORK}.
+     * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.
+     *
+     * @param current    the current profile, where to add the sub profile to
+     * @param subProfile the sub profile to add
+     * @param name       the name to add the sub profile to
+     * @return a {@link CompletableFuture} with a boolean: {@code true} if the sub profile has been added, {@code false} otherwise
+     */
+    public CompletableFuture<Boolean> addSubProfile(InstanceProfileData current, InstanceProfileData subProfile, String name) {
+        Objects.requireNonNull(current, "current cannot be null");
+        Objects.requireNonNull(subProfile, "subProfile cannot be null");
+        Objects.requireNonNull(name, "name cannot be null");
+        if (subProfile.getType() == ProfileType.NETWORK) return CompletableFuture.completedFuture(false); // TODO Throw instead?
+        if (subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
+            return CompletableFuture.completedFuture(false); // TODO Throw instead?
+        }
+        return connection.<Boolean>sendRequestPacket(id -> new ProfilePacket.AddSubProfile(id, current.getId(), subProfile.getId(), name), null).getResult()
+                .thenApply(status -> {
+                    if(status) {
+                        subProfile.addSuperProfile(current.getId());
+                        current.addSubProfile(subProfile.getId(), name);
+                    }
+                    return status;
+                });
+    }
+
+    /**
+     * Removes a sub profile from another "super profile", the current profile at the given name.
+     * If the name is null, the sub profile is removed at all positions in the super profile.
+     * This returns a {@link CompletableFuture} with the result whether the sub profile has been removed or not.
+     * These changes are reflected in the respective parameters' values as well; due to the implementation, this might not be the most up-to-date data.
+     *
+     * @param current    the current profile, where to remove the sub profile from
+     * @param subProfile the sub profile to remove
+     * @param name       the name to remove the sub profile from, or null to completely remove it
+     * @return a {@link CompletableFuture} with a boolean: {@code true} if the sub profile has been removed, {@code false} otherwise
+     */
+    public CompletableFuture<Boolean> removeSubProfile(InstanceProfileData current, InstanceProfileData subProfile, String name) {
+        Objects.requireNonNull(current, "current cannot be null");
+        Objects.requireNonNull(subProfile, "subProfile cannot be null");
+        return connection.<Boolean>sendRequestPacket(id -> new ProfilePacket.RemoveSubProfile(id, current.getId(), subProfile.getId(), name), null).getResult()
+                .thenApply(status -> {
+                    if(status) {
+                        current.removeSubProfile(subProfile.getId(), name);
+                        subProfile.removeSuperProfile(current.getId());
+                    }
+                    return status;
+                });
+    }
+
+    /**
+     * Resets or deletes the profile, see {@link ProfileData#resetProfile()} and {@link ProfileData#deleteProfile()}.
+     * This removes all data objects for the specified profile, when only resetting, this leaves the profile data intact.
+     * If the profile type is {@link ProfileType#NETWORK}, this can only be done when the profile has no super profile.
+     *
+     * @param current the profile
+     * @param delete  whether to also remove the profile data info
+     * @return a {@link CompletableFuture} with a void to signify success: it has been reset/deleted completely
+     */
+    public CompletableFuture<Void> resetDeleteProfile(InstanceProfileData current, boolean delete) {
+        Objects.requireNonNull(current, "current cannot be null");
+        if(delete && current.getType() == ProfileType.NETWORK && !current.getSuperProfiles().isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete network profile with super profile"));
+        }
+        return connection.<Void>sendRequestPacket(id -> new ProfilePacket.ResetDelete(id, current.getId(), delete), null).getResult();
+    }
+
+    /**
+     * Copies one profile to another, see {@link ProfileData#copyProfile(ProfileData)}, this does not copy the profile data information object.
+     *
+     * @param current the profile to copy to
+     * @param from the profile to copy from
+     * @return a {@link CompletableFuture} with a void to signify success: it has been copied completely
+     */
+    public CompletableFuture<Void> copyProfile(InstanceProfileData current, ProfileData from) {
+        Objects.requireNonNull(current, "current cannot be null");
+        Objects.requireNonNull(from, "from cannot be null");
+        return connection.<Void>sendRequestPacket(id -> new ProfilePacket.Copy(id, current.getId(), from.getId()), null).getResult();
+    }
+
+    /**
+     * Sets the network profile of the given player to the provided profile.
+     * The profile must be of type {@link ProfileType#NETWORK}.
+     *
+     * @param player the player
+     * @param profile the profile
+     * @return a {@link CompletableFuture} to signify success: the profile has been set
+     */
+    public CompletableFuture<Void> setNetworkProfile(InstancePlayer player, InstanceProfileData profile) {
+        Objects.requireNonNull(player, "player cannot be null");
+        Objects.requireNonNull(profile, "profile cannot be null");
+        // Check if already set
+        if(player.getNetworkProfileUuid().equals(profile.getId())) return CompletableFuture.completedFuture(null);
+        // Check whether the profile can be set
+        if(profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Can only set a network profile with no super profiles"));
+        }
+        return connection.<Void>sendRequestPacket(id -> new ProfilePacket.SetNetworkProfile(id, player.getUuid(), profile.getId()), null).getResult();
     }
 
     /**
      * Lets the implemented instance handle the Lane Instance event.
      * Some events have results tied to them, which are to be expected to return in the CompletableFuture.
      * Some events might not have the possibility to wait for the result asynchronously, so that the CompletableFuture is waited for.
+     *
      * @param event the event to handle
+     * @param <E>   the Lane instance event type
      * @return the CompletableFuture with the modified event
-     * @param <E> the Lane instance event type
      */
     public abstract <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event);
+
+
 
 }

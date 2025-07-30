@@ -24,10 +24,7 @@ import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
 import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
 import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
-import com.lahuca.lane.connection.request.result.DataObjectResultPacket;
-import com.lahuca.lane.connection.request.result.LongResultPacket;
-import com.lahuca.lane.connection.request.result.SimpleResultPacket;
-import com.lahuca.lane.connection.request.result.VoidResultPacket;
+import com.lahuca.lane.connection.request.result.*;
 
 import java.util.HashMap;
 import java.util.Optional;
@@ -73,6 +70,7 @@ public interface Packet {
 		Packet.registerPacket(VoidResultPacket.packetId, VoidResultPacket.class);
 		Packet.registerPacket(LongResultPacket.packetId, LongResultPacket.class);
 		Packet.registerPacket(DataObjectResultPacket.packetId, DataObjectResultPacket.class);
+		Packet.registerPacket(ProfileDataResultPacket.packetId, ProfileDataResultPacket.class);
 
 		Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
 		Packet.registerPacket(ConnectionClosePacket.packetId, ConnectionClosePacket.class);
@@ -100,6 +98,14 @@ public interface Packet {
 		Packet.registerPacket(RequestInformationPacket.InstancesResponse.packetId, RequestInformationPacket.InstancesResponse.class);
 
 		Packet.registerPacket(SendMessagePacket.packetId, SendMessagePacket.class);
+
+		Packet.registerPacket(ProfilePacket.GetProfileData.packetId, ProfilePacket.GetProfileData.class);
+		Packet.registerPacket(ProfilePacket.CreateNew.packetId, ProfilePacket.CreateNew.class);
+		Packet.registerPacket(ProfilePacket.AddSubProfile.packetId, ProfilePacket.AddSubProfile.class);
+		Packet.registerPacket(ProfilePacket.RemoveSubProfile.packetId, ProfilePacket.RemoveSubProfile.class);
+		Packet.registerPacket(ProfilePacket.ResetDelete.packetId, ProfilePacket.ResetDelete.class);
+		Packet.registerPacket(ProfilePacket.Copy.packetId, ProfilePacket.Copy.class);
+		Packet.registerPacket(ProfilePacket.SetNetworkProfile.packetId, ProfilePacket.SetNetworkProfile.class);
 	}
 
 	String getPacketId();

@@ -89,5 +89,21 @@ public interface DataManager {
      */
     CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix);
 
+    /**
+     * Copies a data object from one place to another.
+     * This completely copies the data object, but replaces the ID.
+     * @param permissionKey the permission key to use while reading and writing
+     * @param sourceId the source data object ID
+     * @param targetId the target data object ID
+     * @return a {@link CompletableFuture} with the void type to signify success: it has been copied
+     */
+    default CompletableFuture<Void> copyDataObject(PermissionKey permissionKey, DataObjectId sourceId, DataObjectId targetId) {
+        return readDataObject(permissionKey, sourceId).thenCompose(sourceOptional -> {
+            if (sourceOptional.isEmpty()) return CompletableFuture.completedFuture(null);
+            DataObject source = sourceOptional.get();
+            return writeDataObject(permissionKey, source.shallowCopy(targetId, true, true));
+        });
+    }
+
 
 }

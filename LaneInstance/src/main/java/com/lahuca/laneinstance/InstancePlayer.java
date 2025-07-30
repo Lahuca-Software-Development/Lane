@@ -3,7 +3,6 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.connection.packet.SendMessagePacket;
-import com.lahuca.lane.connection.request.Request;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
@@ -11,6 +10,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author _Neko1
@@ -21,6 +21,7 @@ public class InstancePlayer implements LanePlayer {
     // Below are shared with controller
     private final UUID uuid;
     private final String username;
+    private UUID networkProfileUuid;
     private String displayName;
     private QueueRequest queueRequest;
     private String instanceId = null;
@@ -49,23 +50,25 @@ public class InstancePlayer implements LanePlayer {
     }
 
     /**
-     * Retrieves the saved locale associated with this player.
+     * Retrieves the saved {@link Locale} associated with this player asynchronously.
+     * This is done by retrieving the saved {@link Locale} at the network profile of this player.
      *
-     * @return a {@code Request} containing an {@code Optional} of {@code Locale} representing the saved locale,
-     *         or an empty {@code Optional} if no locale is saved.
+     * @return a {@link CompletableFuture} that resolves to an {@link Optional} containing the saved {@link Locale}.
+     * If no locale was saved, the {@link Optional} will be empty.
      */
-    public Request<Optional<Locale>> getSavedLocale() {
-        return LaneInstance.getInstance().getPlayerManager().getSavedLocale(uuid);
+    public CompletableFuture<Optional<Locale>> getSavedLocale() {
+        return getNetworkProfile().thenCompose(LaneInstance.getInstance().getPlayerManager()::getSavedLocale);
     }
 
     /**
-     * Sets the saved locale for this player.
+     * Sets the saved locale for this player asynchronously.
+     * This is done by setting the saved {@link Locale} at the network profile of this player.
      *
-     * @param locale the {@code Locale} to be set as the saved locale for this player.
-     * @return a {@code Request<Void>} representing the asynchronous operation for setting the saved locale.
+     * @param locale The {@link Locale} to be saved for the player.
+     * @return A {@link CompletableFuture} that completes when the operation finishes.
      */
-    public Request<Void> setSavedLocale(Locale locale) {
-        return LaneInstance.getInstance().getPlayerManager().setSavedLocale(uuid, locale);
+    public CompletableFuture<Void> setSavedLocale(Locale locale) {
+        return getNetworkProfile().thenCompose(profile -> LaneInstance.getInstance().getPlayerManager().setSavedLocale(profile, locale));
     }
 
     public void sendMessage(Component component) {
@@ -140,6 +143,15 @@ public class InstancePlayer implements LanePlayer {
     }
 
     @Override
+    public UUID getNetworkProfileUuid() {
+        return networkProfileUuid;
+    }
+
+    public CompletableFuture<InstanceProfileData> getNetworkProfile() {
+        return LaneInstance.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
+    }
+
+    @Override
     public String getDisplayName() {
         return displayName;
     }
@@ -156,12 +168,13 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
 
     @Override
     public void applyRecord(PlayerRecord record) {
         // TODO Maybe better recode?
+        networkProfileUuid = record.networkProfileUuid();
         displayName = record.displayName();
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
@@ -173,7 +186,18 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
+        return new StringJoiner(", ", InstancePlayer.class.getSimpleName() + "[", "]")
+                .add("uuid=" + uuid)
+                .add("username='" + username + "'")
+                .add("networkProfileUuid=" + networkProfileUuid)
+                .add("displayName='" + displayName + "'")
+                .add("queueRequest=" + queueRequest)
+                .add("instanceId='" + instanceId + "'")
+                .add("gameId=" + gameId)
+                .add("state=" + state)
+                .add("partyId=" + partyId)
+                .add("registerData=" + registerData)
+                .toString();
     }
 
 }

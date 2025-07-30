@@ -205,7 +205,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     }
 
     private static <T> Request<T> disconnectedRequest() {
-        return new Request<>(new ResultUnsuccessfulException(ResponsePacket.CONTROLLER_DISCONNECTED));
+        return new Request<>(new UnsuccessfulResultException(ResponsePacket.CONTROLLER_DISCONNECTED));
     }
 
     /**

@@ -120,7 +120,7 @@ public class MySQLDataManager implements DataManager {
                         }
                         boolean readAccess = object.hasReadAccess(permissionKey, true);
                         boolean writeAccess = object.hasWriteAccess(permissionKey, false);
-                        object = object.shallowCopy(readAccess, writeAccess);
+                        object = object.shallowCopy(null, readAccess, writeAccess);
                         return CompletableFuture.completedFuture(Optional.of(object));
                     } catch (IllegalArgumentException e) {
                         return CompletableFuture.failedFuture(e);

@@ -3,9 +3,8 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.connection.packet.QueueFinishedPacket;
 import com.lahuca.lane.connection.packet.RequestInformationPacket;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
-import com.lahuca.lane.connection.request.Request;
-import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
+import com.lahuca.lane.connection.request.UnsuccessfulResultException;
+import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
@@ -14,9 +13,9 @@ import net.kyori.adventure.text.Component;
 
 import java.util.*;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 
 public class InstancePlayerManager implements Slottable {
 
@@ -66,24 +65,50 @@ public class InstancePlayerManager implements Slottable {
     }
 
     /**
-     * Retrieves a request of the player record of the player with the given UUID on the controller.
-     * The value is null when no player with the given UUID is present.
+     * Retrieves the player record of the player with the given UUID on the controller.
      *
      * @param uuid the UUID of the player
-     * @return the request
+     * @return a {@link CompletableFuture} with the optional of the player record
      */
-    public Request<PlayerRecord> getPlayerRecord(UUID uuid) {
-        if (uuid == null) return new Request<>(new ResultUnsuccessfulException(ResponsePacket.INVALID_PARAMETERS));
-        return instance.getConnection().sendRequestPacket(id -> new RequestInformationPacket.Player(id, uuid), null);
+    public CompletableFuture<Optional<PlayerRecord>> getPlayerRecord(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid must not be null");
+        return instance.getConnection().<PlayerRecord>sendRequestPacket(id -> new RequestInformationPacket.Player(id, uuid), null).getResult()
+                .thenApply(Optional::ofNullable);
     }
 
     /**
-     * Retrieves a request of a collection of immutable records of all players on the controller.
+     * Retrieves a collection of immutable records of all players on the controller.
      *
-     * @return the request
+     * @return a {@link CompletableFuture} with the player records
      */
-    public Request<ArrayList<PlayerRecord>> getAllPlayerRecords() {
-        return instance.getConnection().sendRequestPacket(RequestInformationPacket.Players::new, null);
+    public CompletableFuture<ArrayList<PlayerRecord>> getAllPlayerRecords() {
+        return instance.getConnection().<ArrayList<PlayerRecord>>sendRequestPacket(RequestInformationPacket.Players::new, null).getResult();
+    }
+
+    /**
+     * Gets the last known username of the player with the given UUID.
+     * It is taken either immediately if the player is online from the controller, otherwise the value that is present in the data manager.
+     *
+     * @param uuid the player's UUID.
+     * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found the optional is populated with the username; otherwise it is empty.
+     */
+    public CompletableFuture<Optional<String>> getPlayerUsername(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid cannot be null");
+        return instance.getConnection().<String>sendRequestPacket(id -> new RequestInformationPacket.PlayerUsername(id, uuid), null)
+                .getResult().thenApply(Optional::ofNullable);
+    }
+
+    /**
+     * Gets the last known UUID of the player with the given username.
+     * It is taken either immediately if the player is online from the controller, otherwise the value that is present in the data manager.
+     *
+     * @param username the player's username
+     * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found, the optional is populated with the UUID; otherwise it is empty
+     */
+    public CompletableFuture<Optional<UUID>> getPlayerUuid(String username) {
+        Objects.requireNonNull(username, "username cannot be null");
+        return instance.getConnection().<UUID>sendRequestPacket(id -> new RequestInformationPacket.PlayerUuid(id, username), null)
+                .getResult().thenApply(Optional::ofNullable);
     }
 
     private void disconnectPlayer(UUID uuid, Component message) {
@@ -175,23 +200,23 @@ public class InstancePlayerManager implements Slottable {
                 // Now apply the queue type
                 applyQueueType(uuid, game.orElse(null), queueType);
                 // First check if we are joining a game or not
-                if(game.isPresent()) {
+                if (game.isPresent()) {
                     // We try to join a game
-                    if(!instanceSwitched) {
+                    if (!instanceSwitched) {
                         // We were already on this instance
-                        if(oldGame.isPresent() && gameSwitched) {
+                        if (oldGame.isPresent() && gameSwitched) {
                             // We switched game, but we were already playing on one. Quit first
                             oldGame.get().onQuit(player);
                             oldGame.get().removeReserved(uuid);
                             instance.handleInstanceEvent(new InstanceQuitGameEvent(player, oldGame.get()));
                         }
-                        if(oldInstanceListType != newListType) {
+                        if (oldInstanceListType != newListType) {
                             // Okay so we switched queue type of the instance
                             instance.handleInstanceEvent(new InstanceSwitchQueueTypeEvent(player, oldInstanceListType, queueType));
                         }
-                        if(!gameSwitched) {
+                        if (!gameSwitched) {
                             // We were already on the same game
-                            if(oldGameListType != newListType) {
+                            if (oldGameListType != newListType) {
                                 // Okay so we switched queue type of the game
                                 game.get().onSwitchQueueType(player, oldGameListType, queueType);
                                 instance.handleInstanceEvent(new InstanceSwitchGameQueueTypeEvent(player, game.get(), oldGameListType, queueType));
@@ -211,15 +236,15 @@ public class InstancePlayerManager implements Slottable {
                     }
                 } else {
                     // We try to join the instance only, check whether we just joined new
-                    if(!instanceSwitched) {
+                    if (!instanceSwitched) {
                         // Ahh, so we were already on here
                         // If we were in a game, go out of it
-                        if(oldGame.isPresent()) {
+                        if (oldGame.isPresent()) {
                             oldGame.get().onQuit(player);
                             oldGame.get().removeReserved(uuid);
                             instance.handleInstanceEvent(new InstanceQuitGameEvent(player, oldGame.get()));
                         }
-                        if(oldInstanceListType != newListType) {
+                        if (oldInstanceListType != newListType) {
                             // Different queue type
                             instance.handleInstanceEvent(new InstanceSwitchQueueTypeEvent(player, oldInstanceListType, queueType));
                             return;
@@ -230,7 +255,7 @@ public class InstancePlayerManager implements Slottable {
                     // We switched, normal join
                     instance.handleInstanceEvent(new InstanceJoinEvent(player, queueType));
                 }
-            } catch (ResultUnsuccessfulException e) {
+            } catch (UnsuccessfulResultException e) {
                 disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
             } catch (InterruptedException | ExecutionException | CancellationException e) {
                 disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
@@ -274,30 +299,34 @@ public class InstancePlayerManager implements Slottable {
     }
 
     /**
-     * Retrieves the saved locale for a player with the given UUID.
+     * Retrieves the saved locale associated with a network profile.
+     * If no locale is found, the optional in the returned CompletableFuture will be empty.
      *
-     * @param uuid the UUID of the player whose saved locale is being requested
-     * @return a request object containing an optional Locale if successful, or empty if no locale is found or an error occurs
+     * @param networkProfile the network profile for whom the saved locale is to be fetched; must not be null.
+     * @return a {@link CompletableFuture} containing an optional with the profile's saved locale if available, otherwise an empty optional.
      */
-    public Request<Optional<Locale>> getSavedLocale(UUID uuid) {
-        if (uuid == null) return new Request<>(new ResultUnsuccessfulException(ResponsePacket.ILLEGAL_ARGUMENT));
-        return instance.getConnection().<String>sendRequestPacket(id -> new SavedLocalePacket.Get(id, uuid), null).thenApplyConstruct((Function<ResultUnsuccessfulException, Optional<Locale>>) failed -> Optional.empty(), data -> data == null ? Optional.empty() : Optional.of(Locale.of(data)));
+    public CompletableFuture<Optional<Locale>> getSavedLocale(InstanceProfileData networkProfile) {
+        Objects.requireNonNull(networkProfile, "networkProfile cannot be null");
+        if(networkProfile.getType() != ProfileType.NETWORK) throw new IllegalArgumentException("networkProfile must be a network profile");
+        return instance.getConnection().<String>sendRequestPacket(id -> new SavedLocalePacket.Get(id, networkProfile.getId()), null)
+                .getResult().handle((data, ex) -> {
+                   if(ex != null) return Optional.empty(); // TODO This is not really good to do!
+                   return Optional.ofNullable(data).map(Locale::forLanguageTag);
+                });
     }
 
     /**
-     * Sets the saved locale for a player with the specified UUID.
-     * This method sends a request to update the player's saved locale to the provided language.
-     * If the UUID or Locale is null, an error response is returned.
+     * Updates the saved locale for a given network profile in the data system with the provided locale.
      *
-     * @param uuid   the UUID of the player whose saved locale is being set
-     * @param locale the Locale to be saved for the player
-     * @return a Request object representing the result of the operation;
-     * contains an error if the arguments are invalid
+     * @param networkProfile the network profile. Must not be null.
+     * @param locale the new locale to be saved for the network profile. Must not be null.
+     * @return a {@link CompletableFuture} that completes once the locale is successfully saved, or completes exceptionally if an error occurs.
      */
-    public Request<Void> setSavedLocale(UUID uuid, Locale locale) {
-        if (uuid == null || locale == null)
-            return new Request<>(new ResultUnsuccessfulException(ResponsePacket.ILLEGAL_ARGUMENT));
-        return instance.getConnection().sendRequestPacket(id -> new SavedLocalePacket.Set(id, uuid, locale.toLanguageTag()), null);
+    public CompletableFuture<Void> setSavedLocale(InstanceProfileData networkProfile, Locale locale) {
+        Objects.requireNonNull(networkProfile, "networkProfile cannot be null");
+        Objects.requireNonNull(locale, "locale cannot be null");
+        if(networkProfile.getType() != ProfileType.NETWORK) throw new IllegalArgumentException("networkProfile must be a network profile");
+        return instance.getConnection().<Void>sendRequestPacket(id -> new SavedLocalePacket.Set(id, networkProfile.getId(), locale.toLanguageTag()), null).getResult();
     }
 
     @Override

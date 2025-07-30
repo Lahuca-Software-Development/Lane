@@ -173,9 +173,14 @@ public class DataObject {
 
     /**
      * Creates a new data object with the information of this object that it has access to.
+     * A new ID can be provided to create a data object with a new ID.
+     * @param newId the new ID, null if it should remain the same
+     * @param hasReadPermission whether the copy should be copied as if it has reading permissions
+     * @param hasWritePermission whether the copy should be copied as if it has writing permissions
      * @return the new data object
      */
-    public DataObject shallowCopy(boolean hasReadPermission, boolean hasWritePermission) {
+    public DataObject shallowCopy(DataObjectId newId, boolean hasReadPermission, boolean hasWritePermission) {
+        DataObjectId id = newId != null ? newId : this.id;
         if(!hasReadPermission && !hasWritePermission) {
             // Nothing, only ID
             return new DataObject(id, null, null, null, null, null, null, null);
@@ -189,8 +194,10 @@ public class DataObject {
             // Only ID and write permission
             return new DataObject(id, null, writePermission, null, null, null, null, null);
         }
-        // Got everything, so this object
-        return this;
+        // Got everything, if ID is the same, return this
+        if(newId == null) return this;
+        // Return all data, but with different ID
+        return new DataObject(id, readPermission, writePermission, lastUpdated, removalTime, version, type, value);
     }
 
     public DataObjectId getId() {

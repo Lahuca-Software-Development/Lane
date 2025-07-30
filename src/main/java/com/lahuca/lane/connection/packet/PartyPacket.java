@@ -25,7 +25,6 @@ public class PartyPacket {
                 Packet.registerPacket(packetId, Request.class);
             }
 
-
             @Override
             public String getPacketId() {
                 return packetId;

@@ -22,7 +22,7 @@ public interface ResponsePacket<T> extends RequestPacket {
     String CONNECTION_DISCONNECTED = "connectionDisconnected";
     String INTERRUPTED = "interrupted";
 
-    String getResult();
+    String getResult(); // TODO Maybe an actual exception that also has the message?
     T getData();
 
     default ResponsePacket<Object> toObjectResponsePacket() {

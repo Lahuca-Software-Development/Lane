@@ -318,4 +318,45 @@ public class RequestInformationPacket {
 
     }
 
+    public record PlayerUsername(long requestId, UUID uuid) implements RequestPacket {
+
+        public static final String packetId = "requestInformationPacket.playerUsername";
+
+        static {
+            Packet.registerPacket(packetId, PlayerUsername.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
+    public record PlayerUuid(long requestId, String username) implements RequestPacket {
+
+        public static final String packetId = "requestInformationPacket.playerUuid";
+
+        static {
+            Packet.registerPacket(packetId, PlayerUuid.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
+
 }

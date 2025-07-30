@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public class SavedLocalePacket {
 
-    public record Get(long requestId, UUID player) implements RequestPacket {
+    public record Get(long requestId, UUID networkProfile) implements RequestPacket {
 
         public static final String packetId = "savedLocaleGet";
 
@@ -28,7 +28,7 @@ public class SavedLocalePacket {
 
     }
 
-    public record Set(long requestId, UUID player, String locale) implements RequestPacket {
+    public record Set(long requestId, UUID networkProfile, String locale) implements RequestPacket {
 
         public static final String packetId = "savedLocaleSet";
 

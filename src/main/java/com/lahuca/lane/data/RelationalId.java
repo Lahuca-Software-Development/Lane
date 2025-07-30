@@ -40,4 +40,14 @@ public record RelationalId(String type, String id) {
         return new RelationalId("friendships", username);
     }
 
+    /**
+     * Constructs a RelationalId where the type is of profiles.
+     * The profiles relational table is to be used to store information about a profile.
+     * @param uuid the profile UUID
+     * @return the RelationalId
+     */
+    public static RelationalId Profiles(UUID uuid) {
+        return new RelationalId("profiles", uuid.toString());
+    }
+
 }

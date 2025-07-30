@@ -20,7 +20,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
-import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
+import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.PlayerNetworkProcessEvent;
@@ -37,6 +37,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     private final UUID uuid;
     private final String username;
+    private UUID networkProfileUuid;
     private String displayName;
     private QueueRequest queueRequest;
     private String instanceId = null;
@@ -47,9 +48,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     // The following are only available on the controller
     private boolean networkProcessed = false; // This determines whether the player is fully processed by all plugins upon network join.
 
-    ControllerPlayer(UUID uuid, String username, String displayName) {
+    ControllerPlayer(UUID uuid, String username, UUID networkProfileUuid, String displayName) {
         this.uuid = uuid;
         this.username = username;
+        this.networkProfileUuid = networkProfileUuid;
         this.displayName = displayName;
     }
 
@@ -61,6 +63,25 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     @Override
     public String getUsername() {
         return username;
+    }
+
+    /**
+     * Internal function to set the network profile UUID.
+     * Use {@link Controller#setNetworkProfile(ControllerPlayer, ControllerProfileData)} to update the network profile.
+     *
+     * @param networkProfileUuid the UUID to set in the object
+     */
+    void setNetworkProfileUuid(UUID networkProfileUuid) {
+        this.networkProfileUuid = networkProfileUuid;
+    }
+
+    @Override
+    public UUID getNetworkProfileUuid() {
+        return networkProfileUuid;
+    }
+
+    public CompletableFuture<ControllerProfileData> getNetworkProfile() {
+        return Controller.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
     }
 
     @Override
@@ -119,7 +140,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * @throws IllegalArgumentException when the provided argument is null
      */
     public CompletableFuture<Void> queue(QueueRequestParameters requestParameters) {
-        if(requestParameters == null) {
+        if (requestParameters == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("requestParameters must not be null"));
         }
         return queue(new QueueRequest(QueueRequestReason.PLUGIN_CONTROLLER, requestParameters));
@@ -150,7 +171,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * This method runs several methods asynchronous, the completable future is completed when it has finished.
      * If the result is not to be handled, it will not send the party members over if needed.
      *
-     * @param stageEvent the event tied to this queue request, where the result is modified of
+     * @param stageEvent   the event tied to this queue request, where the result is modified of
      * @param handleResult whether this method should send the message or forward the player.
      * @return the completable future that completes when it is finished
      */
@@ -168,7 +189,8 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         ControllerDefaultQueue.handleDefaultQueueStageEvent(stageEvent);
         try {
             stageEvent = controller.handleControllerEvent(stageEvent).get();
-        } catch (InterruptedException | ExecutionException ignored) {}
+        } catch (InterruptedException | ExecutionException ignored) {
+        }
 
         QueueStageEventResult result = stageEvent.getResult();
         // We have got a new result, check whether we can run on it
@@ -176,7 +198,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         return switch (result) {
             case QueueStageEventResult.None none -> {
                 // We got a simple none
-                if(handleResult && none.getMessage().isPresent()) {
+                if (handleResult && none.getMessage().isPresent()) {
                     controller.sendMessage(getUuid(), none.getMessage().get());
                 }
                 setQueueRequest(null);
@@ -196,7 +218,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 Long resultGameId;
                 HashSet<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
                 int needSlots = playTogetherPlayers == null ? 1 : playTogetherPlayers.size() + 1;
-                if(joinable instanceof QueueStageEventResult.JoinInstance joinInstance) {
+                if (joinable instanceof QueueStageEventResult.JoinInstance joinInstance) {
                     // Set the IDs, and try to fetch
                     resultGameId = null;
                     Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(joinInstance.instanceId());
@@ -207,7 +229,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
-                    if(!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots)) {
+                    if (!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots)) {
                         // Run the stage event again to find a joinable instance.
                         request.stages().add(joinInstance.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
                         yield handleQueueStage(stageEvent, handleResult);
@@ -215,7 +237,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     setState(new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
                             Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, resultInstance.getId()),
                                     new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())))); // TODO Better state handling, probs not even cleared, etc.
-                } else if(joinable instanceof QueueStageEventResult.JoinGame joinGame) {
+                } else if (joinable instanceof QueueStageEventResult.JoinGame joinGame) {
                     // Set the IDs, and try to fetch
                     resultGameId = joinGame.gameId();
                     Optional<ControllerGame> gameOptional = controller.getGame(joinGame.gameId());
@@ -232,7 +254,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
-                    if(!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots) || !game.isQueueJoinable(joinable.getQueueType(), needSlots)) {
+                    if (!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots) || !game.isQueueJoinable(joinable.getQueueType(), needSlots)) {
                         // Run the stage event again to find a joinable game.
                         request.stages().add(joinGame.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
                         yield handleQueueStage(stageEvent, handleResult);
@@ -250,7 +272,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 setQueueRequest(request);
                 CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), joinable.getQueueType(), resultGameId), resultInstance.getId()).getFutureResult();
                 future.exceptionallyCompose(exception -> {
-                    if (exception instanceof ResultUnsuccessfulException ex) {
+                    if (exception instanceof UnsuccessfulResultException ex) {
                         // We are not allowing to join at this instance.
                         request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, joinable.getQueueType(), resultInstance.getId(), resultGameId));
                         return handleQueueStage(finalStageEvent, handleResult);
@@ -259,11 +281,11 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     return handleQueueStage(finalStageEvent, handleResult);
                 }).thenCompose(aVoid -> {
                     // We have successfully registered a slot on the server
-                    if(!handleResult) return CompletableFuture.completedFuture(null);
+                    if (!handleResult) return CompletableFuture.completedFuture(null);
                     return controller.joinServer(getUuid(), resultInstance.getId());
                 }).exceptionallyCompose(exception -> {
                     // If handleResult is true, then we got an error
-                    if (exception instanceof ResultUnsuccessfulException ex) {
+                    if (exception instanceof UnsuccessfulResultException ex) {
                         // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                         request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
                         return handleQueueStage(finalStageEvent, handleResult);
@@ -312,10 +334,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * @return whether the party ID has been updated with the given value
      */
     public boolean setPartyId(Long partyId) {
-        if(partyId == null) {
+        if (partyId == null) {
             // We want to remove, check if we are removed if we are in a party
             Optional<ControllerParty> current = getParty();
-            if(current.isEmpty() || !current.get().containsPlayer(this)) {
+            if (current.isEmpty() || !current.get().containsPlayer(this)) {
                 // We are not in our current party
                 this.partyId = partyId;
                 updateInstancePlayer();
@@ -325,7 +347,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         }
         // We want to add, check if we are in the party object
         Optional<ControllerParty> newParty = Controller.getInstance().getPartyManager().getParty(partyId);
-        if(newParty.isPresent() && newParty.get().containsPlayer(this)) {
+        if (newParty.isPresent() && newParty.get().containsPlayer(this)) {
             // Party is added
             this.partyId = partyId;
             updateInstancePlayer();
@@ -357,7 +379,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
     }
 
     /**
@@ -368,6 +390,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      */
     @Override
     public void applyRecord(PlayerRecord record) {
+        networkProfileUuid = record.networkProfileUuid();
         displayName = record.displayName();
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
@@ -383,27 +406,30 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     /**
      * Retrieves the saved {@link Locale} associated with this player asynchronously.
+     * This is done by retrieving the saved {@link Locale} at the network profile of this player.
      *
      * @return a {@link CompletableFuture} that resolves to an {@link Optional} containing the saved {@link Locale}.
      * If no locale was saved, the {@link Optional} will be empty.
      */
     public CompletableFuture<Optional<Locale>> getSavedLocale() {
-        return Controller.getInstance().getPlayerManager().getSavedLocale(uuid);
+        return getNetworkProfile().thenCompose(Controller.getInstance().getPlayerManager()::getSavedLocale);
     }
 
     /**
      * Sets the saved locale for this player asynchronously.
+     * This is done by setting the saved {@link Locale} at the network profile of this player.
      *
      * @param locale The {@link Locale} to be saved for the player.
      * @return A {@link CompletableFuture} that completes when the operation finishes.
      */
     public CompletableFuture<Void> setSavedLocale(Locale locale) {
-        return Controller.getInstance().getPlayerManager().setSavedLocale(uuid, locale);
+        return getNetworkProfile().thenCompose(profile -> Controller.getInstance().getPlayerManager().setSavedLocale(profile, locale));
     }
 
     /**
      * Retrieves the status of whether the player is processed by all plugins upon network join.
      * When it is not recommended to do any registering of the player to the data system when it is still being processed.
+     *
      * @return {@code true} if the player is processed, otherwise {@code false}
      */
     public boolean isNetworkProcessed() {
@@ -416,16 +442,17 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * Otherwise, this will call a {@link PlayerNetworkProcessEvent}, so that other plugins can still mark their process state.
      * Only when no other plugins mark such that they need to do additional processing, then the player is processed.
      * When it is processed, a {@link PlayerNetworkProcessedEvent} event is called.
+     *
      * @throws IllegalStateException if this is called when the player is already processed
      */
     public void process(boolean successful, Component failedMessage) {
-        if(networkProcessed) {
+        if (networkProcessed) {
             // Already processed
             throw new IllegalStateException("Player is already processed!");
         }
-        if(!successful) {
+        if (!successful) {
             // Need to kick, could not process
-            if(failedMessage == null) {
+            if (failedMessage == null) {
                 failedMessage = Component.translatable("lane.controller.error.login.failedProcessing");
             }
             Controller.getInstance().disconnectPlayer(uuid, failedMessage);
@@ -433,11 +460,11 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         }
         // This plugin marked it as successful, rerun event
         Controller.getInstance().handleControllerEvent(new PlayerNetworkProcessEvent(this)).whenComplete((event, ex) -> {
-            if(ex != null || event == null) {
+            if (ex != null || event == null) {
                 Controller.getInstance().disconnectPlayer(uuid, Component.translatable("lane.controller.error.login.failedProcessing"));
                 return;
             }
-            if(!event.needsProcessing()) {
+            if (!event.needsProcessing()) {
                 networkProcessed = true;
                 Controller.getInstance().handleControllerEvent(new PlayerNetworkProcessedEvent(this));
             }
@@ -446,7 +473,18 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]").add("uuid=" + uuid).add("username='" + username + "'").add("displayName='" + displayName + "'").add("queueRequest=" + queueRequest).add("instanceId='" + instanceId + "'").add("gameId=" + gameId).add("state=" + state).add("partyId=" + partyId).toString();
+        return new StringJoiner(", ", ControllerPlayer.class.getSimpleName() + "[", "]")
+                .add("uuid=" + uuid)
+                .add("username='" + username + "'")
+                .add("networkProfileUuid=" + networkProfileUuid)
+                .add("displayName='" + displayName + "'")
+                .add("queueRequest=" + queueRequest)
+                .add("instanceId='" + instanceId + "'")
+                .add("gameId=" + gameId)
+                .add("state=" + state)
+                .add("partyId=" + partyId)
+                .add("networkProcessed=" + networkProcessed)
+                .toString();
     }
 
     // TODO Abstract sendMessage? Let VelocityController implement?

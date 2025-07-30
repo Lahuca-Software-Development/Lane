@@ -84,7 +84,7 @@ public class FileDataManager implements DataManager {
             // Object should not be removed, check read access
             boolean readAccess = object.hasReadAccess(permissionKey, true);
             boolean writeAccess = object.hasWriteAccess(permissionKey, false);
-            object = object.shallowCopy(readAccess, writeAccess);
+            object = object.shallowCopy(null, readAccess, writeAccess);
             return CompletableFuture.completedFuture(Optional.of(object));
         } catch (IOException | JsonIOException | JsonSyntaxException e) {
             return CompletableFuture.failedFuture(e);
@@ -146,7 +146,13 @@ public class FileDataManager implements DataManager {
             if(!writeAccess) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow removing saved object"));
             else {
                 // Remove
-                if(file.delete()) return CompletableFuture.completedFuture(null);
+                if(file.delete()) {
+                    // Remove the parent directory for if this is empty
+                    if(Optional.ofNullable(file.getParentFile().listFiles()).map(files -> files.length == 0).orElse(false)) {
+                        file.getParentFile().delete();
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }
                 else return CompletableFuture.failedFuture(new SecurityException("Could not delete file"));
             }
         } catch (IOException | JsonIOException | JsonSyntaxException | SecurityException e) {

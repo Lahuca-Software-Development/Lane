@@ -26,6 +26,7 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
 
 	UUID getUuid();
 	String getUsername();
+	UUID getNetworkProfileUuid();
 	String getDisplayName();
 	Optional<QueueRequest> getQueueRequest();
 	Optional<String> getInstanceId();

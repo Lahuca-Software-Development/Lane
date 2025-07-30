@@ -22,7 +22,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.ResultUnsuccessfulException;
+import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
@@ -352,13 +352,18 @@ public class VelocityController {
         Player player = event.getPlayer();
         getController().ifPresentOrElse(controller -> {
             String name = player.getUsername(); // TODO Load custom display name (maybe nicked name)?
-            Locale effectiveLocale = controller.getPlayerManager().registerPlayer(player.getUniqueId(), name, Locale.of(configuration.getDefaultLocale()));
-            if(effectiveLocale == null) {
-                TranslatableComponent message = Component.translatable("lane.controller.error.login.register"); // TODO This will always use English?
+            try {
+                Locale effectiveLocale = controller.getPlayerManager().registerPlayer(player.getUniqueId(), name, Locale.forLanguageTag(configuration.getDefaultLocale()));
+                if(effectiveLocale == null) {
+                    TranslatableComponent message = Component.translatable("lane.controller.error.login.register"); // TODO This will always use English?
+                    event.setResult(ResultedEvent.ComponentResult.denied(message));
+                } else {
+                    player.setEffectiveLocale(effectiveLocale);
+                    event.setResult(ResultedEvent.ComponentResult.allowed());
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                TranslatableComponent message = Component.translatable("lane.controller.error.login.invalidSetup");
                 event.setResult(ResultedEvent.ComponentResult.denied(message));
-            } else {
-                player.setEffectiveLocale(effectiveLocale);
-                event.setResult(ResultedEvent.ComponentResult.allowed());
             }
         }, () -> {
             TranslatableComponent message = Component.translatable("lane.controller.error.controller.unavailable");
@@ -586,7 +591,7 @@ public class VelocityController {
                 // Use the default locale if the changed one is null.
                 changedLocale = Locale.of(configuration.getDefaultLocale());
             }
-            Controller.getInstance().getPlayerManager().applySavedLocale(event.getPlayer().getUniqueId(), changedLocale);
+            Controller.getInstance().getPlayerManager().applySavedLocalePlayer(event.getPlayer().getUniqueId(), changedLocale);
         }
     }
 
@@ -595,7 +600,7 @@ public class VelocityController {
         private final ProxyServer server;
 
         public Implementation(ProxyServer server, Connection connection, DataManager dataManager) throws IOException {
-            super(connection, dataManager);
+            super(gson, connection, dataManager);
             this.server = server;
         }
 
@@ -616,17 +621,17 @@ public class VelocityController {
                                 || result.getStatus() == ConnectionRequestBuilder.Status.ALREADY_CONNECTED) {
                             future.complete(null);
                         } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_IN_PROGRESS) {
-                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.CONNECTION_IN_PROGRESS));
+                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.CONNECTION_IN_PROGRESS));
                         } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_CANCELLED) {
-                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.CONNECTION_CANCELLED));
+                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.CONNECTION_CANCELLED));
                         } else if(result.getStatus() == ConnectionRequestBuilder.Status.SERVER_DISCONNECTED) {
-                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.CONNECTION_DISCONNECTED));
+                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.CONNECTION_DISCONNECTED));
                         } else {
-                            future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.UNKNOWN));
+                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.UNKNOWN));
                         }
                     });
-                }, () -> future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.INVALID_ID)));
-            }, () -> future.completeExceptionally(new ResultUnsuccessfulException(ResponsePacket.INVALID_PLAYER)));
+                }, () -> future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.INVALID_ID)));
+            }, () -> future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.INVALID_PLAYER)));
             return future;
         }
 
