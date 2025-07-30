@@ -13,9 +13,14 @@ public abstract class ProfileData { // TODO Could this also be an interface?!? L
     private final UUID id;
     private final ProfileType type;
     protected HashSet<UUID> superProfiles;
-    protected HashMap<String, HashSet<UUID>> subProfiles;
+    /**
+     * The key of the top map is the name of the sub profiles.
+     * The sub profiles with that name are the keys of the value.
+     * The value of the value determines whether the profile is active.
+     */
+    protected HashMap<String, HashMap<UUID, Boolean>> subProfiles;
 
-    public ProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashSet<UUID>> subProfiles) {
+    public ProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashMap<UUID, Boolean>> subProfiles) {
         this.id = id;
         this.type = type;
         this.superProfiles = superProfiles;
@@ -59,38 +64,101 @@ public abstract class ProfileData { // TODO Could this also be an interface?!? L
      *
      * @return the map
      */
-    public Map<String, HashSet<UUID>> getSubProfiles() {
+    public Map<String, HashMap<UUID, Boolean>> getSubProfiles() {
         return Map.copyOf(subProfiles);
     }
 
     /**
-     * Retrieves a set of the sub profile names that a given sub profile has.
-     * One single profile ID can be present multiple times, but only at different names.
+     * Returns a map of the sub profiles which are either active or inactive.
      *
-     * @param subProfile the sub profile ID to get the names from
-     * @return the set of the names
+     * @param active whether to look for active sub profiles
+     * @return the map
      */
-    public HashSet<String> getSubProfileNames(UUID subProfile) {
-        HashSet<String> names = new HashSet<>();
-        for (String key : subProfiles.keySet()) {
-            if (subProfiles.get(key).contains(subProfile)) {
-                names.add(key);
-            }
-        }
-        return names;
+    public HashMap<String, HashSet<UUID>> getSubProfiles(boolean active) {
+        HashMap<String, HashSet<UUID>> profiles = new HashMap<>();
+        getSubProfiles().forEach((name, map) -> {
+            HashSet<UUID> set = new HashSet<>();
+            map.forEach((uuid, bool) -> {
+                if (bool == active) set.add(uuid);
+            });
+            profiles.put(name, set);
+        });
+        return profiles;
     }
 
     /**
-     * Adds a sub profile under the given name.
+     * Returns a set of all sub profiles with the given name.
+     *
+     * @param name the name
+     * @return the set
+     */
+    public Set<UUID> getSubProfiles(String name) {
+        return getSubProfiles().getOrDefault(name, new HashMap<>()).keySet();
+    }
+
+    /**
+     * Returns a set of all sub profiles that are active/inactive with the given name
+     *
+     * @param name   the name
+     * @param active whether to look for active sub profiles
+     * @return the set
+     */
+    public HashSet<UUID> getSubProfiles(String name, boolean active) {
+        HashSet<UUID> set = new HashSet<>();
+        getSubProfiles().getOrDefault(name, new HashMap<>()).forEach((uuid, bool) -> {
+            if (bool == active) set.add(uuid);
+        });
+        return set;
+    }
+
+    /**
+     * Retrieves a map of the sub profile names and active states that a given sub profile has.
+     * One single profile ID can be present multiple times, but only at different names.
+     * For every location (name) it has a boolean value to determine whether the sub profile is active in the current profile.
+     *
+     * @param subProfile the sub profile
+     * @return a map with names and their active state
+     */
+    public HashMap<String, Boolean> getSubProfileData(UUID subProfile) {
+        HashMap<String, Boolean> data = new HashMap<>();
+        getSubProfiles().forEach((name, map) -> {
+            Boolean active = map.getOrDefault(subProfile, null);
+            if (active != null) data.put(name, active);
+        });
+        return data;
+    }
+
+    /**
+     * Retrieves a set of the sub profile names that a given sub profile where it is active/inactive has.
+     * One single profile ID can be present multiple times, but only at different names.
+     * For every location (name) it has a boolean value to determine whether the sub profile is active in the current profile.
+     *
+     * @param subProfile the sub profile
+     * @param active     whether to look for active sub profiles
+     * @return a set with names
+     */
+    public HashSet<String> getSubProfileData(UUID subProfile, boolean active) {
+        HashSet<String> data = new HashSet<>();
+        getSubProfiles().forEach((name, map) -> {
+            Boolean state = map.getOrDefault(subProfile, null);
+            if (state != null && state == active) data.add(name);
+        });
+        return data;
+    }
+
+    /**
+     * Adds a sub profile under the given name with the given active state.
      * This automatically also adds the current profile as super profile in the sub profile.
      * The sub profile cannot be of type {@link ProfileType#NETWORK}.
-     * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.4
+     * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.
+     * If the sub profile already exists are the given name, it still updates the active state.
      *
      * @param subProfile the sub profile
      * @param name       the name
+     * @param active     if the sub profile is active
      * @return a {@link CompletableFuture} with a boolean: {@code true} if successful, otherwise {@code false}
      */
-    public abstract CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name);
+    public abstract CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name, boolean active);
 
     /**
      * Removes a sub profiler under the given name.

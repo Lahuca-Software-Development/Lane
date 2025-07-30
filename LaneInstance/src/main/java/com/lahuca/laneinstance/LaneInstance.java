@@ -353,18 +353,20 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     /**
-     * Adds a sub profile to another "super profile", the current profile at the given name.
+     * Adds a sub profile to another "super profile", the current profile at the given name with the given active state.
      * This returns a {@link CompletableFuture} with the result whether the sub profile has been added or not.
      * These changes are reflected in the respective parameters' values as well; due to the implementation, this might not be the most up-to-date data.
      * The sub profile cannot be of type {@link ProfileType#NETWORK}.
      * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.
+     * If the sub profile already exists are the given name, it still updates the active state.
      *
      * @param current    the current profile, where to add the sub profile to
      * @param subProfile the sub profile to add
      * @param name       the name to add the sub profile to
+     * @param active whether the sub profile is active
      * @return a {@link CompletableFuture} with a boolean: {@code true} if the sub profile has been added, {@code false} otherwise
      */
-    public CompletableFuture<Boolean> addSubProfile(InstanceProfileData current, InstanceProfileData subProfile, String name) {
+    public CompletableFuture<Boolean> addSubProfile(InstanceProfileData current, InstanceProfileData subProfile, String name, boolean active) {
         Objects.requireNonNull(current, "current cannot be null");
         Objects.requireNonNull(subProfile, "subProfile cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
@@ -372,11 +374,11 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         if (subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
             return CompletableFuture.completedFuture(false); // TODO Throw instead?
         }
-        return connection.<Boolean>sendRequestPacket(id -> new ProfilePacket.AddSubProfile(id, current.getId(), subProfile.getId(), name), null).getResult()
+        return connection.<Boolean>sendRequestPacket(id -> new ProfilePacket.AddSubProfile(id, current.getId(), subProfile.getId(), name, active), null).getResult()
                 .thenApply(status -> {
                     if(status) {
                         subProfile.addSuperProfile(current.getId());
-                        current.addSubProfile(subProfile.getId(), name);
+                        current.addSubProfile(subProfile.getId(), name, active);
                     }
                     return status;
                 });

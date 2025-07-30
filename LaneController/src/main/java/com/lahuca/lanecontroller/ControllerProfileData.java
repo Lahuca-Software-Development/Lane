@@ -15,7 +15,7 @@ public class ControllerProfileData extends ProfileData {
         this(id, type, new HashSet<>(), new HashMap<>());
     }
 
-    ControllerProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashSet<UUID>> subProfiles) {
+    ControllerProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashMap<UUID, Boolean>> subProfiles) {
         super(id, type, superProfiles, subProfiles);
     }
 
@@ -30,10 +30,10 @@ public class ControllerProfileData extends ProfileData {
         superProfiles.remove(uuid);
     }
 
-    void addSubProfile(UUID uuid, String name) {
+    void addSubProfile(UUID uuid, String name, boolean active) {
         Objects.requireNonNull(uuid, "uuid cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        subProfiles.computeIfAbsent(name, k -> new HashSet<>()).add(uuid);
+        subProfiles.computeIfAbsent(name, k -> new HashMap<>()).put(uuid, active);
     }
 
     void removeSubProfile(UUID uuid, String name) {
@@ -51,11 +51,11 @@ public class ControllerProfileData extends ProfileData {
     }
 
     @Override
-    public CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name) {
+    public CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name, boolean active) {
         if(!(subProfile instanceof ControllerProfileData subProfileController)) {
             throw new IllegalArgumentException("subProfile is not a ControllerProfileData");
         }
-        return Controller.getInstance().addSubProfile(this, subProfileController, name);
+        return Controller.getInstance().addSubProfile(this, subProfileController, name, active);
     }
 
     @Override

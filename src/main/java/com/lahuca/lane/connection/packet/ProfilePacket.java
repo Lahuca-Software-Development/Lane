@@ -49,7 +49,7 @@ public interface ProfilePacket {
     }
 
     record AddSubProfile(long requestId, UUID current, UUID subProfile,
-                         String name) implements RequestPacket, ProfilePacket {
+                         String name, boolean active) implements RequestPacket, ProfilePacket {
 
         public static final String packetId = "profileAddSubProfile";
 

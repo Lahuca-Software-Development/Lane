@@ -26,7 +26,7 @@ public class InstanceProfileData extends ProfileData implements Retrieval {
         this(profileData.getId(), profileData.getType(), new HashSet<>(profileData.getSuperProfiles()), new HashMap<>(profileData.getSubProfiles()));
     }
 
-    InstanceProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashSet<UUID>> subProfiles) {
+    InstanceProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashMap<UUID, Boolean>> subProfiles) {
         super(id, type, superProfiles, subProfiles);
         retrievalTimestamp = System.currentTimeMillis();
     }
@@ -42,10 +42,10 @@ public class InstanceProfileData extends ProfileData implements Retrieval {
         superProfiles.remove(uuid);
     }
 
-    void addSubProfile(UUID uuid, String name) {
+    void addSubProfile(UUID uuid, String name, boolean active) {
         Objects.requireNonNull(uuid, "uuid cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        subProfiles.computeIfAbsent(name, k -> new HashSet<>()).add(uuid);
+        subProfiles.computeIfAbsent(name, k -> new HashMap<>()).put(uuid, active);
     }
 
     void removeSubProfile(UUID uuid, String name) {
@@ -63,11 +63,11 @@ public class InstanceProfileData extends ProfileData implements Retrieval {
     }
 
     @Override
-    public CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name) {
+    public CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name, boolean active) {
         if(!(subProfile instanceof InstanceProfileData subProfileInstance)) {
             throw new IllegalArgumentException("subProfile is not a InstanceProfileData");
         }
-        return LaneInstance.getInstance().addSubProfile(this, subProfileInstance, name);
+        return LaneInstance.getInstance().addSubProfile(this, subProfileInstance, name, active);
     }
 
     @Override

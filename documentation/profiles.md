@@ -16,6 +16,11 @@ One network profile can only have one player UUID attached to it.
 A sub profile is a profile identified by a different UUID than a network profile.
 This can be useful in games where every game creates their own sub profile for one network profile.
 For example, this allows for like resetting a game just by deleting that sub profile.
+A sub profile has a name per super profile.
+
+It also has a value to determine whether it is "active" or not.
+An active profile is a profile that is currently in used/to be used.
+This is purely useful when a player can have multiple profiles for the same concept, while making sure that it can switch between them.
 
 ## Shared profiles
 There are games that allow for sharing profiles.

@@ -427,36 +427,38 @@ public abstract class Controller {
                 }
                 case ProfilePacket profilePacket -> {
                     switch (profilePacket) {
-                        case ProfilePacket.GetProfileData packet -> getProfileData(packet.uuid()).whenComplete((opt, ex) -> {
-                            if (ex != null) {
-                                // TODO Additional instnceof? As read?
-                                if (ex instanceof IllegalArgumentException) {
-                                    connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
-                                    return;
-                                }
-                                connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                                return;
-                            }
-                            connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.OK, opt.orElse(null)), input.from());
-                        });
-                        case ProfilePacket.CreateNew packet -> createNewProfile(packet.type()).whenComplete((uuid, ex) -> {
-                            if (ex != null) {
-                                // TODO Additional instnceof? As read?
-                                if (ex instanceof IllegalArgumentException) {
-                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
-                                    return;
-                                }
-                                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                                return;
-                            }
-                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, uuid), input.from());
-                        });
+                        case ProfilePacket.GetProfileData packet ->
+                                getProfileData(packet.uuid()).whenComplete((opt, ex) -> {
+                                    if (ex != null) {
+                                        // TODO Additional instnceof? As read?
+                                        if (ex instanceof IllegalArgumentException) {
+                                            connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            return;
+                                        }
+                                        connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                        return;
+                                    }
+                                    connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.OK, opt.orElse(null)), input.from());
+                                });
+                        case ProfilePacket.CreateNew packet ->
+                                createNewProfile(packet.type()).whenComplete((uuid, ex) -> {
+                                    if (ex != null) {
+                                        // TODO Additional instnceof? As read?
+                                        if (ex instanceof IllegalArgumentException) {
+                                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            return;
+                                        }
+                                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                        return;
+                                    }
+                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, uuid), input.from());
+                                });
                         case ProfilePacket.AddSubProfile packet -> getProfileData(packet.current())
                                 .thenApply(opt -> opt.orElse(null))
                                 .thenCompose(current ->
                                         getProfileData(packet.subProfile())
                                                 .thenApply(opt2 -> opt2.orElse(null))
-                                                .thenCompose(subProfile -> addSubProfile(current, subProfile, packet.name())))
+                                                .thenCompose(subProfile -> addSubProfile(current, subProfile, packet.name(), packet.active())))
                                 .whenComplete((status, ex) -> {
                                     if (ex != null) {
                                         // TODO Additional instnceof? As read?
@@ -660,6 +662,7 @@ public abstract class Controller {
 
     /**
      * Retrieves the profile data of the profile identified by the given UUID.
+     *
      * @param uuid the profile's UUID
      * @return a {@link CompletableFuture} with a {@link Optional} whose value will be the profile data if present
      */
@@ -672,6 +675,7 @@ public abstract class Controller {
     /**
      * Creates a new profile given the profile type.
      * This stores the profile information at a new profile UUID.
+     *
      * @param type the profile type
      * @return a {@link CompletableFuture} with a {@link UUID}, which is the UUID of the new profile
      */
@@ -695,17 +699,20 @@ public abstract class Controller {
      * These changes are reflected in the respective parameters' values as well.
      * The sub profile cannot be of type {@link ProfileType#NETWORK}.
      * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.
+     * If the sub profile already exists are the given name, it still updates the active state.
      *
      * @param current    the current profile, where to add the sub profile to
      * @param subProfile the sub profile to add
      * @param name       the name to add the sub profile to
+     * @param active     whether the sub profile is active
      * @return a {@link CompletableFuture} with a boolean: {@code true} if the sub profile has been added, {@code false} otherwise
      */
-    public CompletableFuture<Boolean> addSubProfile(ControllerProfileData current, ControllerProfileData subProfile, String name) {
+    public CompletableFuture<Boolean> addSubProfile(ControllerProfileData current, ControllerProfileData subProfile, String name, boolean active) {
         Objects.requireNonNull(current, "current cannot be null");
         Objects.requireNonNull(subProfile, "subProfile cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        if (subProfile.getType() == ProfileType.NETWORK) return CompletableFuture.completedFuture(false); // TODO Throw instead?
+        if (subProfile.getType() == ProfileType.NETWORK)
+            return CompletableFuture.completedFuture(false); // TODO Throw instead?
         if (subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
             return CompletableFuture.completedFuture(false); // TODO Throw instead?
         }
@@ -719,7 +726,7 @@ public abstract class Controller {
             if (!status) return CompletableFuture.completedFuture(false);
             // We know we updated the sub profile, now update the current one.
             return dataManager.updateDataObject(PermissionKey.CONTROLLER, current.getDataObjectId(), obj -> {
-                current.addSubProfile(subProfile.getId(), name);
+                current.addSubProfile(subProfile.getId(), name, active);
                 obj.setValue(gson, current);
                 return true;
             });
@@ -770,11 +777,12 @@ public abstract class Controller {
      */
     public CompletableFuture<Void> resetDeleteProfile(ControllerProfileData current, boolean delete) {
         Objects.requireNonNull(current, "current cannot be null");
-        if(delete && current.getType() == ProfileType.NETWORK && !current.getSuperProfiles().isEmpty()) {
+        if (delete && current.getType() == ProfileType.NETWORK && !current.getSuperProfiles().isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete network profile with super profile"));
         }
         return dataManager.listDataObjectIds(new DataObjectId(RelationalId.Profiles(current.getId()), null)).thenCompose(dataObjectIds -> {
-            if (!delete) dataObjectIds.remove(current.getDataObjectId()); // Remove the data object information if deleting
+            if (!delete)
+                dataObjectIds.remove(current.getDataObjectId()); // Remove the data object information if deleting
             // Create futures that remove every one of them
             CompletableFuture<?>[] futures = new CompletableFuture[dataObjectIds.size()];
             for (int i = 0; i < dataObjectIds.size(); i++) {
@@ -789,7 +797,7 @@ public abstract class Controller {
      * Copies one profile to another, see {@link ProfileData#copyProfile(ProfileData)}, this does not copy the profile data information object.
      *
      * @param current the profile to copy to
-     * @param from the profile to copy from
+     * @param from    the profile to copy from
      * @return a {@link CompletableFuture} with a void to signify success: it has been copied completely
      */
     public CompletableFuture<Void> copyProfile(ControllerProfileData current, ProfileData from) {
@@ -813,7 +821,7 @@ public abstract class Controller {
      * Sets the network profile of the given player to the provided profile.
      * The profile must be of type {@link ProfileType#NETWORK}.
      *
-     * @param player the player
+     * @param player  the player
      * @param profile the profile
      * @return a {@link CompletableFuture} to signify success: the profile has been set
      */
@@ -821,9 +829,9 @@ public abstract class Controller {
         Objects.requireNonNull(player, "player cannot be null");
         Objects.requireNonNull(profile, "profile cannot be null");
         // Check if already set
-        if(player.getNetworkProfileUuid().equals(profile.getId())) return CompletableFuture.completedFuture(null);
+        if (player.getNetworkProfileUuid().equals(profile.getId())) return CompletableFuture.completedFuture(null);
         // Check whether the profile can be set
-        if(profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
+        if (profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Can only set a network profile with no super profiles"));
         }
         // Retrieve old profile
@@ -836,7 +844,7 @@ public abstract class Controller {
                 obj.setValue(gson, profile);
                 return true;
             }).thenCompose(status -> {
-                if(status) {
+                if (status) {
                     // We added the super profile. Now replace the network profile
                     return DefaultDataObjects.setPlayersNetworkProfile(dataManager, player.getUuid(), profile.getId())
                             .thenCompose(data -> {
@@ -860,7 +868,8 @@ public abstract class Controller {
     /**
      * Sets a network profile, as if the player did not have one currently.
      * This is an internal function for the Controller when a player has joined the network newly.
-     * @param player the player's UUID
+     *
+     * @param player  the player's UUID
      * @param profile the profile
      * @return a {@link CompletableFuture} with a void to signify succes: the new profile has been set
      */
