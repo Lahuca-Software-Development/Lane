@@ -37,6 +37,9 @@ import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.data.profile.ProfileData;
 import com.lahuca.lane.data.profile.ProfileType;
+import com.lahuca.lane.queue.QueueRequest;
+import com.lahuca.lane.queue.QueueRequestParameters;
+import com.lahuca.lane.queue.QueueRequestReason;
 import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
@@ -127,6 +130,25 @@ public abstract class Controller {
                         return;
                     }
                     games.get(gameId).applyRecord(record);
+                    connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
+                }
+                case GameShutdownPacket(long requestId, long gameId) -> {
+                    ControllerGame game = games.get(gameId);
+                    if (!input.from().equals(game.getInstanceId())) {
+                        connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                        return;
+                    }
+                    // Remove the game
+                    games.remove(gameId);
+                    // Update queue
+                    game.getOnline().forEach(uuid -> getPlayer(uuid).ifPresent(player -> {
+                        player.setGameId(null);
+                        if(player.getQueueRequest().isEmpty()) {
+                            // We do not have a queue yet, requeue for a new server
+                            // We NEED one, so do not allow none
+                            player.queue(new QueueRequest(QueueRequestReason.GAME_SHUTDOWN, null, QueueRequestParameters.lobbyParameters), false);
+                        }
+                    }));
                     connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                 }
                 case InstanceStatusUpdatePacket(InstanceRecord record) -> {
@@ -896,11 +918,6 @@ public abstract class Controller {
         });
     }
 
-    // TODO Redo
-    public void endGame(long id) { // TODO Check
-        games.remove(id);
-    }
-
     public Collection<ControllerGame> getGames() {
         return games.values();
     } // TODO Redo
@@ -908,6 +925,16 @@ public abstract class Controller {
     public Optional<ControllerGame> getGame(long id) {
         return Optional.ofNullable(games.get(id));
     } // TODO Redo
+
+    /**
+     * Requests the instance to shut down the game.
+     *
+     * @param game the game to shut down
+     * @return a {@link CompletableFuture} with a void to signify success: it has been shut down
+     */
+    public CompletableFuture<Void> shutdownGame(ControllerGame game) {
+        return connection.<Void>sendRequestPacket(id -> new GameShutdownRequestPacket(id, game.getGameId()), game.getInstanceId()).getResult();
+    }
 
     /**
      * Method that will switch the server of the given player to the given server.

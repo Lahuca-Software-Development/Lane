@@ -44,6 +44,8 @@ public interface Packet {
 	static void registerPackets() {
 		// TODO Definitely do this differently!
 		Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
+		Packet.registerPacket(GameShutdownPacket.packetId, GameShutdownPacket.class);
+		Packet.registerPacket(GameShutdownRequestPacket.packetId, GameShutdownRequestPacket.class);
 		Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
 		Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
 		Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);

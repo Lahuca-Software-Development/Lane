@@ -28,11 +28,14 @@ import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.data.profile.ProfileData;
 import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.*;
 import com.lahuca.laneinstance.events.InstanceEvent;
+import com.lahuca.laneinstance.events.InstanceShutdownGameEvent;
+import com.lahuca.laneinstance.events.InstanceStartupGameEvent;
 import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
 
@@ -104,6 +107,21 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     PlayerRecord record = packet.playerRecord();
                     getPlayerManager().getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
                 }
+                case GameShutdownRequestPacket(long requestId, long gameId) -> {
+                    unregisterGame(gameId).whenComplete((data, ex) -> {
+                        if (ex != null) {
+                            // TODO Add more exceptions. To write and remove as well!
+                            String result = switch (ex) {
+                                case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                                case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                                default -> ResponsePacket.UNKNOWN;
+                            };
+                            sendSimpleResult(requestId, result);
+                        } else {
+                            sendSimpleResult(requestId, ResponsePacket.OK);
+                        }
+                    });
+                }
                 case ResponsePacket<?> response -> {
                     if (!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
                         // TODO Handle output: failed response
@@ -120,6 +138,8 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     public void shutdown() {
+        Set<Long> gamesSet = games.keySet();
+        gamesSet.forEach(this::unregisterGame);
         connection.disableReconnect();
         connection.close();
         // TODO Probably other stuff?
@@ -183,16 +203,16 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     /**
      * Registers a new game upon the function that gives a new game ID.
      *
-     * @param gameConstructor the id to game parser. Preferably a lambda with LaneGame::new is given, whose constructor consists of only the ID.
+     * @param gameConstructor the id to game parser. Preferably, a lambda with LaneGame::new is given, whose constructor consists of only the ID.
      * @return a {@link CompletableFuture} of the registering, it completes successfully with the game when it is successfully registered.
      */
-    public CompletableFuture<InstanceGame> registerGame(Function<Long, InstanceGame> gameConstructor) {
+    public <T extends InstanceGame> CompletableFuture<T> registerGame(Function<Long, T> gameConstructor) {
         if (gameConstructor == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
         // First request new ID
         return requestId(RequestIdPacket.Type.GAME).thenCompose(gameId -> {
             // We got a new ID, construct game
-            InstanceGame game = gameConstructor.apply(gameId);
-            if (game.getGameId() != gameId || games.containsKey(game.getGameId())) {
+            T game = gameConstructor.apply(gameId);
+            if (game.getGameId() != gameId || games.containsKey(game.getGameId()) && !game.getInstanceId().equals(id)) {
                 throw new UnsuccessfulResultException(ResponsePacket.INVALID_ID);
             }
             // Include the game and send the update packet
@@ -203,10 +223,29 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     games.remove(game.getGameId());
                     throw new CompletionException(ex);
                 }
-                // Update sent, we are done, return the new game
+                // Update sent, we are done, start up, return the new game
+                game.onStartup();
+                handleInstanceEvent(new InstanceStartupGameEvent(game));
                 return game;
             });
         });
+    }
+
+    /**
+     * Unregisters the given game.
+     * Calls the {@link InstanceGame#onShutdown()} function following by calling a {@link InstanceShutdownGameEvent}.
+     * The controller will queue all players if they are not yet in a queue.
+     * @param gameId the game's ID
+     * @return a {@link CompletableFuture} with a void to signify success: it has been unregistered
+     */
+    public CompletableFuture<Void> unregisterGame(long gameId) {
+        InstanceGame game = games.get(gameId);
+        if(game == null) {
+            throw new IllegalStateException("No game with the given game ID found on this instance");
+        }
+        game.onShutdown();
+        handleInstanceEvent(new InstanceShutdownGameEvent(game));
+        return connection.<Void>sendRequestPacket(id -> new GameShutdownPacket(id, gameId), null).getResult(); // TODO What if failed??
     }
 
     /**

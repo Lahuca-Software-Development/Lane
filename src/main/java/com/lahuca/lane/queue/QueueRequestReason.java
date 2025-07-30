@@ -42,7 +42,12 @@ public enum QueueRequestReason {
      * The player is being kicked from the server and is therefore requesting a new one.
      * By default contains the lobby parameters {@link QueueRequestParameters#lobbyParameters}.
      */
-    SERVER_KICKED;
+    SERVER_KICKED,
+    /**
+     * The player is being kicked from the server and is therefore requesting a new one.
+     * By default contains the lobby parameters {@link QueueRequestParameters#lobbyParameters}.
+     */
+    GAME_SHUTDOWN;
 
 
 }

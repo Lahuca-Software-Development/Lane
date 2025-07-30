@@ -400,7 +400,7 @@ public class VelocityController {
             do {
                 nextStage = false;
                 try {
-                    player.handleQueueStage(stageEvent, false).get();
+                    player.handleQueueStage(stageEvent, false, false).get();
                     switch (stageEvent.getResult()) {
                         case QueueStageEventResult.QueueStageEventMessageableResult messageable -> {
                             // We should disconnect the player.
@@ -444,7 +444,7 @@ public class VelocityController {
                                     partyJoinParameter = QueueRequestParameter.create().instanceId(instanceId).build();
                                 }
                                 QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                                joinable.getJoinTogetherPlayers().forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest)));
+                                joinable.getJoinTogetherPlayers().forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest, true)));
                             }
                         }
                         default -> {
@@ -521,7 +521,7 @@ public class VelocityController {
             do {
                 nextStage = false;
                 try {
-                    player.handleQueueStage(stageEvent, false).get();
+                    player.handleQueueStage(stageEvent, false, false).get();
                     switch (stageEvent.getResult()) {
                         case QueueStageEventResult.None none -> {
                             Component message = none.getMessage().orElse(Component.translatable("lane.controller.error.queue.kicked.none")); // TODO Add more information: kick reason, what server, during join?
@@ -565,7 +565,7 @@ public class VelocityController {
                                     partyJoinParameter = QueueRequestParameter.create().instanceId(instanceId).build();
                                 }
                                 QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                                joinable.getJoinTogetherPlayers().forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest)));
+                                joinable.getJoinTogetherPlayers().forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest, true)));
                             }
                         }
                     }

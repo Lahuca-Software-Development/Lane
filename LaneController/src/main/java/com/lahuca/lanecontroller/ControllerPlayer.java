@@ -143,7 +143,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         if (requestParameters == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("requestParameters must not be null"));
         }
-        return queue(new QueueRequest(QueueRequestReason.PLUGIN_CONTROLLER, requestParameters));
+        return queue(new QueueRequest(QueueRequestReason.PLUGIN_CONTROLLER, requestParameters), true);
     }
 
     /**
@@ -154,13 +154,14 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * Please use {@link #queue(QueueRequestParameters)} if not used internally.
      *
      * @param request The queue request
+     * @param allowNone whether it is allowed to do nothing
      * @return The result of the queuing the request, this does not return the result of the queue
      */
-    public CompletableFuture<Void> queue(QueueRequest request) { // TODO Probs not public!
+    public CompletableFuture<Void> queue(QueueRequest request, boolean allowNone) { // TODO Probs not public!
         Objects.requireNonNull(request, "request must not be null");
         setQueueRequest(request); // TODO This could override an existing queue, do we want this?. Also check if this happens everywehere.
         QueueStageEvent stageEvent = new QueueStageEvent(this, request);
-        handleQueueStage(stageEvent, true);
+        handleQueueStage(stageEvent, true, allowNone);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -173,9 +174,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      *
      * @param stageEvent   the event tied to this queue request, where the result is modified of
      * @param handleResult whether this method should send the message or forward the player.
+     * @param allowNone whether it is allowed to do nothing
      * @return the completable future that completes when it is finished
      */
-    public CompletableFuture<Void> handleQueueStage(QueueStageEvent stageEvent, boolean handleResult) { // TODO Definitely not public!
+    public CompletableFuture<Void> handleQueueStage(QueueStageEvent stageEvent, boolean handleResult, boolean allowNone) { // TODO Definitely not public!
         // TODO Also do state checks: does the player already have the queue set; etc.
         Objects.requireNonNull(stageEvent, "stageEvent must not be null");
 
@@ -199,7 +201,11 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
             case QueueStageEventResult.None none -> {
                 // We got a simple none
                 if (handleResult && none.getMessage().isPresent()) {
-                    controller.sendMessage(getUuid(), none.getMessage().get());
+                    if(allowNone) {
+                        controller.sendMessage(getUuid(), none.getMessage().get());
+                    } else {
+                        controller.disconnectPlayer(getUuid(), none.getMessage().orElse(null));
+                    }
                 }
                 setQueueRequest(null);
                 yield CompletableFuture.completedFuture(null);
@@ -225,14 +231,14 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     if (instanceOptional.isEmpty()) {
                         // Run the stage event again to determine a new ID.
                         request.stages().add(joinInstance.constructStage(QueueStageResult.UNKNOWN_ID, joinable.getQueueType()));
-                        yield handleQueueStage(stageEvent, handleResult);
+                        yield handleQueueStage(stageEvent, handleResult, allowNone);
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
                     if (!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots)) {
                         // Run the stage event again to find a joinable instance.
                         request.stages().add(joinInstance.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
-                        yield handleQueueStage(stageEvent, handleResult);
+                        yield handleQueueStage(stageEvent, handleResult, allowNone);
                     }
                     setState(new ControllerPlayerState(LanePlayerState.INSTANCE_TRANSFER,
                             Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, resultInstance.getId()),
@@ -243,21 +249,21 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     Optional<ControllerGame> gameOptional = controller.getGame(joinGame.gameId());
                     if (gameOptional.isEmpty()) {
                         request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID, joinable.getQueueType()));
-                        yield handleQueueStage(stageEvent, handleResult);
+                        yield handleQueueStage(stageEvent, handleResult, allowNone);
                     }
                     ControllerGame game = gameOptional.get();
                     Optional<ControllerLaneInstance> instanceOptional = controller.getInstance(game.getInstanceId());
                     if (instanceOptional.isEmpty()) {
                         // Run the stage event again to determine a new ID.
                         request.stages().add(joinGame.constructStage(QueueStageResult.UNKNOWN_ID, joinable.getQueueType()));
-                        yield handleQueueStage(stageEvent, handleResult);
+                        yield handleQueueStage(stageEvent, handleResult, allowNone);
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
                     if (!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots) || !game.isQueueJoinable(joinable.getQueueType(), needSlots)) {
                         // Run the stage event again to find a joinable game.
                         request.stages().add(joinGame.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
-                        yield handleQueueStage(stageEvent, handleResult);
+                        yield handleQueueStage(stageEvent, handleResult, allowNone);
                     }
                     setState(new ControllerPlayerState(LanePlayerState.GAME_TRANSFER,
                             Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, resultInstance.getId()),
@@ -265,7 +271,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                                     new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
                 } else {
                     request.stages().add(new QueueStage(QueueStageResult.INVALID_STATE, joinable.getQueueType(), null, null));
-                    yield handleQueueStage(stageEvent, handleResult);
+                    yield handleQueueStage(stageEvent, handleResult, allowNone);
                 }
 
                 // Make the reservation
@@ -275,10 +281,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     if (exception instanceof UnsuccessfulResultException ex) {
                         // We are not allowing to join at this instance.
                         request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                        return handleQueueStage(finalStageEvent, handleResult);
+                        return handleQueueStage(finalStageEvent, handleResult, allowNone);
                     }
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                    return handleQueueStage(finalStageEvent, handleResult);
+                    return handleQueueStage(finalStageEvent, handleResult, allowNone);
                 }).thenCompose(aVoid -> {
                     // We have successfully registered a slot on the server
                     if (!handleResult) return CompletableFuture.completedFuture(null);
@@ -288,10 +294,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     if (exception instanceof UnsuccessfulResultException ex) {
                         // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                         request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                        return handleQueueStage(finalStageEvent, handleResult);
+                        return handleQueueStage(finalStageEvent, handleResult, allowNone);
                     }
                     request.stages().add(new QueueStage(QueueStageResult.NO_RESPONSE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
-                    return handleQueueStage(finalStageEvent, handleResult);
+                    return handleQueueStage(finalStageEvent, handleResult, allowNone);
                 }).thenAccept(aVoid -> {
                     // If handleResult is true: we have joined, send over any party members
                     if (playTogetherPlayers != null && !playTogetherPlayers.isEmpty()) {
@@ -302,7 +308,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                             partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstance.getId()).build();
                         }
                         QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                        playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest)));
+                        playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest, true)));
                     }
                 });
                 yield future;

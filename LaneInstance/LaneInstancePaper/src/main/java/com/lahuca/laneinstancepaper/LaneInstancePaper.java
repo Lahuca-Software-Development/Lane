@@ -170,6 +170,8 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
                 case InstanceQuitGameEvent obj -> new PaperInstanceQuitGameEvent(obj);
                 case InstanceSwitchGameQueueTypeEvent obj -> new PaperInstanceSwitchGameQueueTypeEvent(obj);
                 case InstanceSwitchQueueTypeEvent obj -> new PaperInstanceSwitchQueueTypeEvent(obj);
+                case InstanceStartupGameEvent obj -> new PaperInstanceStartupGameEvent(obj);
+                case InstanceShutdownGameEvent obj -> new PaperInstanceShutdownGameEvent(obj);
                 default -> new PaperInstanceGenericEvent(event);
             };
             // Call the event, this will also update our parameter here
