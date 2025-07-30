@@ -104,7 +104,7 @@ public class ControllerDefaultQueue {
                     }
                 }
                 if(parameter.instanceType().isPresent()) {
-                    Optional<ControllerLaneInstance> value = findByInstanceType(parameter.instanceType(), excludeInstances, queueType, joinTogether.size());
+                    Optional<ControllerLaneInstance> value = findByInstanceType(parameter.instanceType().get(), excludeInstances, queueType, joinTogether.size());
                     if(value.isPresent()) {
                         if(joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
                         else event.setJoinInstanceResult(value.get().getId(), joinTogether, queueType);
@@ -154,8 +154,8 @@ public class ControllerDefaultQueue {
         return Optional.empty();
     }
 
-    private static Optional<ControllerLaneInstance> findByInstanceId(Object instanceIdObject, HashSet<String> excludeInstances, QueueType queueType, int spots) {
-        if(instanceIdObject instanceof String instanceId && !excludeInstances.contains(instanceId)) {
+    private static Optional<ControllerLaneInstance> findByInstanceId(String instanceId, HashSet<String> excludeInstances, QueueType queueType, int spots) {
+        if(!excludeInstances.contains(instanceId)) {
             Optional<ControllerLaneInstance> instance = Controller.getInstance().getInstance(instanceId);
             if(instance.isPresent()) {
                 return Optional.ofNullable(instance.get().isQueueJoinable(queueType, spots) ? instance.get() : null);
@@ -164,14 +164,12 @@ public class ControllerDefaultQueue {
         return Optional.empty();
     }
 
-    private static Optional<ControllerLaneInstance> findByInstanceType(Object instanceTypeObject, HashSet<String> excludeInstances, QueueType queueType, int spots) {
-        if(instanceTypeObject instanceof String instanceType) {
-            for(ControllerLaneInstance instance : Controller.getInstance().getInstances()) {
-                if(excludeInstances.contains(instance.getId())) continue;
-                if(instance.getType().isEmpty()) continue;
-                if(instance.getType().get().equals(instanceType) && instance.isQueueJoinable(queueType, spots)) {
-                    return Optional.of(instance);
-                }
+    private static Optional<ControllerLaneInstance> findByInstanceType(String instanceType, HashSet<String> excludeInstances, QueueType queueType, int spots) {
+        for (ControllerLaneInstance instance : Controller.getInstance().getInstances()) {
+            if (excludeInstances.contains(instance.getId())) continue;
+            if (instance.getType().isEmpty()) continue;
+            if (instance.getType().get().equals(instanceType) && instance.isQueueJoinable(queueType, spots)) {
+                return Optional.of(instance);
             }
         }
         return Optional.empty();
