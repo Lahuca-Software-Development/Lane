@@ -146,10 +146,8 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
     }
 
     private void readInput(String line) {
-        System.out.println("Got: " + line);
         ConnectionTransfer transfer = gson.fromJson(line, ConnectionTransfer.class);
         if(!transfer.to().equals(id)) return; // Odd, not meant for this client. Strange
-
         Packet.getPacket(transfer.typeId()).ifPresentOrElse(packetClass -> {
             // Known packet type received.
             Packet packet = gson.fromJson(transfer.data(), packetClass);
@@ -158,6 +156,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
                 readConnectionPacket(iPacket);
                 return;
             }
+            System.out.println("Got: " + line);
             input.accept(iPacket);
         }, () -> {
             // Unknown packet type received

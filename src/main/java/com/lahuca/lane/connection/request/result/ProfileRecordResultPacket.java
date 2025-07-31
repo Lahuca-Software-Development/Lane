@@ -17,21 +17,21 @@ package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.data.profile.ProfileData;
+import com.lahuca.lane.records.ProfileRecord;
 
 /**
  * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
- * Using this result packet fixes that problem, by explicitly sending the result to be a {@link com.lahuca.lane.data.profile.ProfileData}.
+ * Using this result packet fixes that problem, by explicitly sending the result to be a {@link ProfileRecord}.
  * @param requestId the request id of the original request
  * @param result the result string
  * @param data the data
  */
-public record ProfileDataResultPacket(long requestId, String result, ProfileData data) implements ResponsePacket<ProfileData> {
+public record ProfileRecordResultPacket(long requestId, String result, ProfileRecord data) implements ResponsePacket<ProfileRecord> {
 
-    public static final String packetId = "profileDataResult";
+    public static final String packetId = "profileRecordResult";
 
     static {
-        Packet.registerPacket(packetId, ProfileDataResultPacket.class);
+        Packet.registerPacket(packetId, ProfileRecordResultPacket.class);
     }
 
     /**
@@ -39,7 +39,7 @@ public record ProfileDataResultPacket(long requestId, String result, ProfileData
      * @param requestId the request ID
      * @param data the data
      */
-    public ProfileDataResultPacket(long requestId, ProfileData data) {
+    public ProfileRecordResultPacket(long requestId, ProfileRecord data) {
         this(requestId, ResponsePacket.OK, data);
     }
 
@@ -48,7 +48,7 @@ public record ProfileDataResultPacket(long requestId, String result, ProfileData
      * @param requestId the request ID
      * @param result the error
      */
-    public ProfileDataResultPacket(long requestId, String result) {
+    public ProfileRecordResultPacket(long requestId, String result) {
         this(requestId, result, null);
     }
 
@@ -68,7 +68,7 @@ public record ProfileDataResultPacket(long requestId, String result, ProfileData
     }
 
     @Override
-    public ProfileData getData() {
+    public ProfileRecord getData() {
         return data;
     }
 }

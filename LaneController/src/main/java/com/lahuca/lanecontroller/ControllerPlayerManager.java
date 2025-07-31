@@ -19,7 +19,7 @@ public class ControllerPlayerManager {
     private final ConcurrentHashMap<UUID, ControllerPlayer> players = new ConcurrentHashMap<>();
     private final Cache<UUID, Long> networkProcessing = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES) // TODO Change the time
             .removalListener((UUID uuid, Long addedTime, RemovalCause cause) -> getPlayer(uuid).ifPresent(player -> {
-                if (!player.isNetworkProcessed()) {
+                if (!player.isNetworkProcessed() && cause.wasEvicted()) {
                     player.process(false, Component.translatable("lane.controller.error.login.processingTimeout"));
                 }
             })).build();
@@ -132,6 +132,7 @@ public class ControllerPlayerManager {
 
     public void unregisterPlayer(UUID player) {
         players.remove(player);
+        networkProcessing.invalidate(player);
         // TODO Remove from party, disband party, etc.?
         //  or maybe keep it, but then hmm
     } // TODO Redo

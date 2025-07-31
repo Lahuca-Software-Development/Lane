@@ -454,13 +454,13 @@ public abstract class Controller {
                                     if (ex != null) {
                                         // TODO Additional instnceof? As read?
                                         if (ex instanceof IllegalArgumentException) {
-                                            connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
-                                        connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                        connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                                         return;
                                     }
-                                    connection.sendPacket(new ProfileDataResultPacket(packet.getRequestId(), ResponsePacket.OK, opt.orElse(null)), input.from());
+                                    connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, opt.map(ControllerProfileData::convertRecord).orElse(null)), input.from());
                                 });
                         case ProfilePacket.CreateNew packet ->
                                 createNewProfile(packet.type()).whenComplete((uuid, ex) -> {
@@ -519,6 +519,10 @@ public abstract class Controller {
                                         // TODO Additional instnceof? As write?
                                         if (ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            return;
+                                        }
+                                        if(ex instanceof IllegalStateException){
+                                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from());
                                             return;
                                         }
                                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
@@ -721,7 +725,7 @@ public abstract class Controller {
      * These changes are reflected in the respective parameters' values as well.
      * The sub profile cannot be of type {@link ProfileType#NETWORK}.
      * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.
-     * If the sub profile already exists are the given name, it still updates the active state.
+     * If the sub profile already exists at the given name and profile, it still updates the active state.
      *
      * @param current    the current profile, where to add the sub profile to
      * @param subProfile the sub profile to add
@@ -733,10 +737,14 @@ public abstract class Controller {
         Objects.requireNonNull(current, "current cannot be null");
         Objects.requireNonNull(subProfile, "subProfile cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        if (subProfile.getType() == ProfileType.NETWORK)
-            return CompletableFuture.completedFuture(false); // TODO Throw instead?
+        if (subProfile.getType() == ProfileType.NETWORK) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Cannot add a network profile as sub profile"));
+        }
         if (subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
-            return CompletableFuture.completedFuture(false); // TODO Throw instead?
+            // Check whether we update the inactive/active state
+            if(!current.getSubProfileData(subProfile.getId()).containsKey(name)) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("This sub profile already has a super profile which is not the current profile and current name"));
+            }
         }
 
         // First we update the sub profile so that it holds the super profile.
@@ -745,6 +753,9 @@ public abstract class Controller {
             obj.setValue(gson, subProfile);
             return true;
         }).thenCompose(status -> {
+            if (!status) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Profile data of sub profile did not exist"));
+            }
             if (!status) return CompletableFuture.completedFuture(false);
             // We know we updated the sub profile, now update the current one.
             return dataManager.updateDataObject(PermissionKey.CONTROLLER, current.getDataObjectId(), obj -> {
@@ -780,6 +791,10 @@ public abstract class Controller {
         }).thenCompose(status -> {
             if (!status) return CompletableFuture.completedFuture(false);
             // We know we updated the current profile, now update the sub profile.
+            if(!current.getSubProfileData(subProfile.getId()).isEmpty()) {
+                // We do not need to update, it is still a super profile
+                return CompletableFuture.completedFuture(true);
+            }
             return dataManager.updateDataObject(PermissionKey.CONTROLLER, subProfile.getDataObjectId(), obj -> {
                 subProfile.removeSuperProfile(current.getId());
                 obj.setValue(gson, subProfile);
@@ -799,8 +814,8 @@ public abstract class Controller {
      */
     public CompletableFuture<Void> resetDeleteProfile(ControllerProfileData current, boolean delete) {
         Objects.requireNonNull(current, "current cannot be null");
-        if (delete && current.getType() == ProfileType.NETWORK && !current.getSuperProfiles().isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete network profile with super profile"));
+        if (delete && (!current.getSuperProfiles().isEmpty() || !current.getSubProfiles().isEmpty())) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete profile with sub or super profiles"));
         }
         return dataManager.listDataObjectIds(new DataObjectId(RelationalId.Profiles(current.getId()), null)).thenCompose(dataObjectIds -> {
             if (!delete)
@@ -812,6 +827,9 @@ public abstract class Controller {
             }
             // Combine the futures into one that only accepts if all of them do
             return CompletableFuture.allOf(futures);
+        }).exceptionally(val -> {
+            val.printStackTrace();
+            return null;
         });
     }
 
@@ -826,12 +844,13 @@ public abstract class Controller {
         Objects.requireNonNull(current, "current cannot be null");
         Objects.requireNonNull(from, "from cannot be null");
         return dataManager.listDataObjectIds(new DataObjectId(RelationalId.Profiles(from.getId()), null)).thenCompose(dataObjectIds -> {
-            dataObjectIds.remove(current.getDataObjectId()); // Remove the data object information
+            dataObjectIds.remove(from.getDataObjectId()); // Remove the data object information
             // Create futures that copy every one of them
             CompletableFuture<?>[] futures = new CompletableFuture[dataObjectIds.size()];
             for (int i = 0; i < dataObjectIds.size(); i++) {
                 DataObjectId fromDataObject = dataObjectIds.get(i);
                 DataObjectId toDataObject = new DataObjectId(RelationalId.Profiles(current.getId()), fromDataObject.id());
+                System.out.println("Copying " + fromDataObject + " to " + toDataObject);
                 futures[i] = dataManager.copyDataObject(PermissionKey.CONTROLLER, fromDataObject, toDataObject);
             }
             // Combine the futures into one that only accepts if all of them do
@@ -871,7 +890,7 @@ public abstract class Controller {
                     return DefaultDataObjects.setPlayersNetworkProfile(dataManager, player.getUuid(), profile.getId())
                             .thenCompose(data -> {
                                 // We can remove the super profile from the original one
-                                return updateDataObject(PermissionKey.CONTROLLER, oldProfile.getDataObjectId(), obj -> {
+                                return dataManager.updateDataObject(PermissionKey.CONTROLLER, oldProfile.getDataObjectId(), obj -> {
                                     oldProfile.removeSuperProfile(player.getUuid());
                                     obj.setValue(gson, oldProfile);
                                     return true;

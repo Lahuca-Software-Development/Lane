@@ -376,7 +376,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      */
     public CompletableFuture<Optional<InstanceProfileData>> getProfileData(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid cannot be null");
-        return connection.<ProfileData>sendRequestPacket(id -> new ProfilePacket.GetProfileData(id, uuid), null).getResult()
+        return connection.<ProfileRecord>sendRequestPacket(id -> new ProfilePacket.GetProfileData(id, uuid), null).getResult()
                 .thenApply(Optional::ofNullable).thenApply(opt -> opt.map(InstanceProfileData::new));
     }
 
@@ -388,7 +388,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      */
     public CompletableFuture<UUID> createNewProfile(ProfileType type) {
         Objects.requireNonNull(type, "type cannot be null");
-        return connection.<UUID>sendRequestPacket(id -> new ProfilePacket.CreateNew(id, type), null).getResult();
+        return connection.<String>sendRequestPacket(id -> new ProfilePacket.CreateNew(id, type), null).getResult().thenApply(UUID::fromString);
     }
 
     /**
@@ -397,7 +397,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * These changes are reflected in the respective parameters' values as well; due to the implementation, this might not be the most up-to-date data.
      * The sub profile cannot be of type {@link ProfileType#NETWORK}.
      * If the sub profile is of type {@link ProfileType#SUB}, it cannot have a super profile yet.
-     * If the sub profile already exists are the given name, it still updates the active state.
+     * If the sub profile already exists at the given name and profile, it still updates the active state.
      *
      * @param current    the current profile, where to add the sub profile to
      * @param subProfile the sub profile to add
@@ -409,9 +409,14 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         Objects.requireNonNull(current, "current cannot be null");
         Objects.requireNonNull(subProfile, "subProfile cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        if (subProfile.getType() == ProfileType.NETWORK) return CompletableFuture.completedFuture(false); // TODO Throw instead?
+        if (subProfile.getType() == ProfileType.NETWORK) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Cannot add a network profile as sub profile"));
+        }
         if (subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
-            return CompletableFuture.completedFuture(false); // TODO Throw instead?
+            // Check whether we update the inactive/active state
+            if(!current.getSubProfileData(subProfile.getId()).containsKey(name)) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("This sub profile already has a super profile which is not the current profile and current name"));
+            }
         }
         return connection.<Boolean>sendRequestPacket(id -> new ProfilePacket.AddSubProfile(id, current.getId(), subProfile.getId(), name, active), null).getResult()
                 .thenApply(status -> {
@@ -458,8 +463,8 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      */
     public CompletableFuture<Void> resetDeleteProfile(InstanceProfileData current, boolean delete) {
         Objects.requireNonNull(current, "current cannot be null");
-        if(delete && current.getType() == ProfileType.NETWORK && !current.getSuperProfiles().isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete network profile with super profile"));
+        if (delete && (!current.getSuperProfiles().isEmpty() || !current.getSubProfiles().isEmpty())) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete profile with sub or super profiles"));
         }
         return connection.<Void>sendRequestPacket(id -> new ProfilePacket.ResetDelete(id, current.getId(), delete), null).getResult();
     }

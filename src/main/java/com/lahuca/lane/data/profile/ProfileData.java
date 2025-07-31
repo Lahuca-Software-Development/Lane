@@ -4,11 +4,13 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
+import com.lahuca.lane.records.ProfileRecord;
+import com.lahuca.lane.records.RecordConverter;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-public abstract class ProfileData { // TODO Could this also be an interface?!? Look at LaneParty and Retrieval!
+public abstract class ProfileData implements RecordConverter<ProfileRecord> { // TODO Could this also be an interface?!? Look at LaneParty and Retrieval!
 
     private final UUID id;
     private final ProfileType type;
@@ -19,6 +21,10 @@ public abstract class ProfileData { // TODO Could this also be an interface?!? L
      * The value of the value determines whether the profile is active.
      */
     protected HashMap<String, HashMap<UUID, Boolean>> subProfiles;
+
+    public ProfileData(ProfileRecord record) {
+        this(record.id(), record.type(), record.superProfiles(), record.subProfiles());
+    }
 
     public ProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashMap<UUID, Boolean>> subProfiles) {
         this.id = id;
@@ -219,6 +225,11 @@ public abstract class ProfileData { // TODO Could this also be an interface?!? L
     @Override
     public int hashCode() {
         return Objects.hash(id, type, superProfiles, subProfiles);
+    }
+
+    @Override
+    public ProfileRecord convertRecord() {
+        return new ProfileRecord(id, type, superProfiles, subProfiles);
     }
 
 }

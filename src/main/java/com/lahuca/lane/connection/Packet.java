@@ -72,7 +72,7 @@ public interface Packet {
 		Packet.registerPacket(VoidResultPacket.packetId, VoidResultPacket.class);
 		Packet.registerPacket(LongResultPacket.packetId, LongResultPacket.class);
 		Packet.registerPacket(DataObjectResultPacket.packetId, DataObjectResultPacket.class);
-		Packet.registerPacket(ProfileDataResultPacket.packetId, ProfileDataResultPacket.class);
+		Packet.registerPacket(ProfileRecordResultPacket.packetId, ProfileRecordResultPacket.class);
 
 		Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
 		Packet.registerPacket(ConnectionClosePacket.packetId, ConnectionClosePacket.class);

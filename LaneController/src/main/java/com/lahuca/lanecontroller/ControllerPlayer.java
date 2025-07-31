@@ -73,6 +73,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      */
     void setNetworkProfileUuid(UUID networkProfileUuid) {
         this.networkProfileUuid = networkProfileUuid;
+        updateInstancePlayer();
     }
 
     @Override
@@ -472,6 +473,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
             }
             if (!event.needsProcessing()) {
                 networkProcessed = true;
+                // TODO Remove from cache?
                 Controller.getInstance().handleControllerEvent(new PlayerNetworkProcessedEvent(this));
             }
         });

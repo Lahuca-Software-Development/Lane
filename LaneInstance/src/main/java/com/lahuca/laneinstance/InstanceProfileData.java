@@ -2,7 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.data.profile.ProfileData;
 import com.lahuca.lane.data.profile.ProfileType;
-import com.lahuca.laneinstance.retrieval.Retrieval;
+import com.lahuca.lane.records.ProfileRecord;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,12 +14,15 @@ import java.util.concurrent.CompletableFuture;
  * A profile data implementation for on the instance.
  * It is implementation-dependent if the information within this object is real time on the controller.
  */
-public class InstanceProfileData extends ProfileData implements Retrieval {
+public class InstanceProfileData extends ProfileData {
 
-    private final long retrievalTimestamp;
 
     InstanceProfileData(UUID id, ProfileType type) {
         this(id, type, new HashSet<>(), new HashMap<>());
+    }
+
+    public InstanceProfileData(ProfileRecord record) {
+        super(record);
     }
 
     InstanceProfileData(ProfileData profileData) {
@@ -28,7 +31,6 @@ public class InstanceProfileData extends ProfileData implements Retrieval {
 
     InstanceProfileData(UUID id, ProfileType type, HashSet<UUID> superProfiles, HashMap<String, HashMap<UUID, Boolean>> subProfiles) {
         super(id, type, superProfiles, subProfiles);
-        retrievalTimestamp = System.currentTimeMillis();
     }
 
     // These methods are used internally to update the values
@@ -91,11 +93,6 @@ public class InstanceProfileData extends ProfileData implements Retrieval {
     @Override
     public CompletableFuture<Void> copyProfile(ProfileData from) {
         return LaneInstance.getInstance().copyProfile(this, from);
-    }
-
-    @Override
-    public long getRetrievalTimestamp() {
-        return retrievalTimestamp;
     }
 
 }
