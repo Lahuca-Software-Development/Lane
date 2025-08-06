@@ -46,7 +46,6 @@ import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueFinishedEvent;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
 import java.io.IOException;
 import java.util.*;
@@ -134,6 +133,10 @@ public abstract class Controller {
                 }
                 case GameShutdownPacket(long requestId, long gameId) -> {
                     ControllerGame game = games.get(gameId);
+                    if(game == null) {
+                        connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from());
+                        return;
+                    }
                     if (!input.from().equals(game.getInstanceId())) {
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                         return;
@@ -151,6 +154,22 @@ public abstract class Controller {
                     }));
                     connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                 }
+                case GameQuitPacket(long requestId, UUID uuid) -> playerManager.getPlayer(uuid).ifPresentOrElse(player -> {
+                    player.getGameId().flatMap(this::getGame).ifPresentOrElse(game -> {
+                        if(!input.from().equals(game.getInstanceId())) {
+                            connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                            return;
+                        }
+                        // Okay we can quit the game
+                        player.setGameId(null);
+                        if(player.getQueueRequest().isEmpty()) {
+                            // We do not have a queue yet, requeue for a new server
+                            // We NEED one, so do not allow none
+                            player.queue(new QueueRequest(QueueRequestReason.GAME_QUIT, null, QueueRequestParameters.lobbyParameters), false);
+                        }
+                        connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
+                    }, () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from()));
+                }, () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from()));
                 case InstanceStatusUpdatePacket(InstanceRecord record) -> {
                     if (!input.from().equals(record.id())) {
                         // TODO Report?
@@ -221,18 +240,23 @@ public abstract class Controller {
                                 connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), party.warpParty()), input.from()),
                         () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
 
-                case QueueRequestPacket packet ->
-                        getPlayer(packet.player()).ifPresentOrElse(player -> player.queue(packet.parameters()).whenComplete((result, exception) -> {
-                            String response = ResponsePacket.OK;
-                            if (exception != null) {
-                                if (exception instanceof UnsuccessfulResultException ex) {
-                                    response = ex.getMessage();
-                                } else {
-                                    response = ResponsePacket.UNKNOWN;
-                                }
+                case QueueRequestPacket packet -> {
+                    if (packet.parameters() == null) {
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), "requestParameters must not be null"), input.from());
+                        return;
+                    }
+                    getPlayer(packet.player()).ifPresentOrElse(player -> player.queue(new QueueRequest(QueueRequestReason.PLUGIN_INSTANCE, packet.parameters()), true).whenComplete((result, exception) -> {
+                        String response = ResponsePacket.OK;
+                        if (exception != null) {
+                            if (exception instanceof UnsuccessfulResultException ex) {
+                                response = ex.getMessage();
+                            } else {
+                                response = ResponsePacket.UNKNOWN;
                             }
-                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), response), input.from());
-                        }), () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+                        }
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), response), input.from());
+                    }), () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+                }
                 case QueueFinishedPacket packet -> {
                     System.out.println("Retrieved finish queue");
                     getPlayer(packet.player()).ifPresentOrElse(player -> {
@@ -251,6 +275,7 @@ public abstract class Controller {
                                     ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                                     player.setState(newState);
                                     player.setQueueRequest(null);
+                                    player.setGameId(null);
                                     player.setInstanceId(input.from());
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                                     Controller.getInstance().handleControllerEvent(new QueueFinishedEvent(player, queue, input.from(), null));
@@ -407,7 +432,7 @@ public abstract class Controller {
                             connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, uuid.orElse(null)), input.from());
                         });
                 case SendMessagePacket packet -> {
-                    sendMessage(packet.player(), GsonComponentSerializer.gson().deserialize(packet.message()));
+                    sendMessage(packet.player(), packet.message());
                 }
 
                 case SavedLocalePacket.Get packet -> {

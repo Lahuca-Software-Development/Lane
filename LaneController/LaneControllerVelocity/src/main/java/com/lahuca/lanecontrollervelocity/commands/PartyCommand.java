@@ -473,6 +473,9 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 return Command.SINGLE_SUCCESS;
             }
             executor.sendMessage(Component.translatable("lane.controller.commands.party.leave.left"));
+            Component component = Component.translatable("lane.controller.commands.party.leave.someone",
+                    Component.text(actors.executor.cPlayer().getUsername())); // TODO Displayname?
+            party.getPlayers().forEach(uuid -> velocityController.getServer().getPlayer(uuid).ifPresent(current -> current.sendMessage(component)));
             return Command.SINGLE_SUCCESS;
         };
     }

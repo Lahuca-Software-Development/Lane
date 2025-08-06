@@ -16,7 +16,6 @@
 package com.lahuca.lanecontrollervelocity;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.inject.Inject;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
@@ -28,7 +27,10 @@ import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
 import com.lahuca.lane.data.manager.MySQLDataManager;
 import com.lahuca.lane.queue.*;
-import com.lahuca.lanecontroller.*;
+import com.lahuca.lanecontroller.Controller;
+import com.lahuca.lanecontroller.ControllerGame;
+import com.lahuca.lanecontroller.ControllerPlayer;
+import com.lahuca.lanecontroller.ControllerPlayerState;
 import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
@@ -57,6 +59,8 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.json.JSONOptions;
 import net.kyori.adventure.translation.GlobalTranslator;
 
 import java.io.*;
@@ -86,7 +90,7 @@ public class VelocityController {
     private static VelocityController instance;
 
     public static final int port = 7766;
-    public static final Gson gson = new GsonBuilder().create();
+    public static final Gson gson = GsonComponentSerializer.builder().editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false)).build().serializer();
     public static final boolean useSSL = false;
 
     private final ProxyServer server;

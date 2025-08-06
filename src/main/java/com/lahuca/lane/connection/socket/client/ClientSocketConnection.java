@@ -21,6 +21,7 @@ import com.lahuca.lane.connection.ConnectionTransfer;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.RawPacket;
+import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.connection.packet.connection.*;
 import com.lahuca.lane.connection.request.*;
 
@@ -156,7 +157,9 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
                 readConnectionPacket(iPacket);
                 return;
             }
-            System.out.println("Got: " + line);
+            if(!(packet instanceof InstanceUpdatePlayerPacket)) {
+                System.out.println("Got: " + line);
+            }
             input.accept(iPacket);
         }, () -> {
             // Unknown packet type received
@@ -199,7 +202,7 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         String packetString = gson.toJson(packet);
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        System.out.println("Send to " + destination + ": " + packetString);
+        System.out.println("Send to " + id + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
     }
 
@@ -224,10 +227,10 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
         String packetString = gson.toJson(packet);
-        System.out.println("Send to " + id + ": " + packetString);
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
+        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -250,10 +253,10 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
         String packetString = gson.toJson(packet);
-        System.out.println("Send to " + id + ": " + packetString);
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
+        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -276,10 +279,10 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
         String packetString = gson.toJson(packet);
-        System.out.println("Send to " + id + ": " + packetString);
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
+        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -303,10 +306,10 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         RequestPacket packet = packetConstruction.apply(request.getRequestId());
 
         String packetString = gson.toJson(packet);
-        System.out.println("Send to " + id + ": " + packetString);
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
+        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }

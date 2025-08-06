@@ -189,6 +189,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         // We are now in the next stage, as we did not find a good one before.
         // First set the result to none, then set a default result, then call an event to handle it.
         stageEvent.setNoneResult();
+        System.out.println("DEBUG QUEUE Req: " + request);
         ControllerDefaultQueue.handleDefaultQueueStageEvent(stageEvent);
         try {
             stageEvent = controller.handleControllerEvent(stageEvent).get();
@@ -196,6 +197,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         }
 
         QueueStageEventResult result = stageEvent.getResult();
+        System.out.println("DEBUG QUEUE STAGE: " + result);
         // We have got a new result, check whether we can run on it
         QueueStageEvent finalStageEvent = stageEvent;
         return switch (result) {

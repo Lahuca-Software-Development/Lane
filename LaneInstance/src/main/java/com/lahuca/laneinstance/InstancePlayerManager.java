@@ -1,5 +1,6 @@
 package com.lahuca.laneinstance;
 
+import com.lahuca.lane.connection.packet.GameQuitPacket;
 import com.lahuca.lane.connection.packet.QueueFinishedPacket;
 import com.lahuca.lane.connection.packet.RequestInformationPacket;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
@@ -20,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 public class InstancePlayerManager implements Slottable {
 
     private final LaneInstance instance;
-    private final Runnable sendInstanceStatus;
+    private final Runnable sendInstanceStatus; // TODO Should this not give an CompletableFuture back?
 
     private final ConcurrentHashMap<UUID, InstancePlayer> reserved = new ConcurrentHashMap<>();
     private final ConcurrentHashMap.KeySetView<UUID, Boolean> online = ConcurrentHashMap.newKeySet();
@@ -130,8 +131,8 @@ public class InstancePlayerManager implements Slottable {
         getInstancePlayer(record.uuid()).ifPresentOrElse(player -> {
             player.applyRecord(record);
             player.setRegisterData(registerData);
-            player.getGameId().flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(player.getUuid()));
-            joinInstance(record.uuid());
+            registerData.getGameId().flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(player.getUuid()));
+            instance.runOnMainThread(() -> joinInstance(record.uuid()));
         }, () -> {
             reserved.put(record.uuid(), new InstancePlayer(record, registerData));
             Optional.ofNullable(record.gameId()).flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(record.uuid()));
@@ -190,7 +191,7 @@ public class InstancePlayerManager implements Slottable {
             // We have a reservation, so we can proceed, first get the current queue types and then send the queue finished packet
             QueueType queueType = player.getRegisterData().queueType();
             boolean instanceSwitched = player.getInstanceId().map(id -> !id.equals(instance.getId())).orElse(true);
-            boolean gameSwitched = player.getGame().map(obj -> obj.getGameId() != player.getRegisterData().gameId()).orElse(true);
+            boolean gameSwitched = player.getGame().map(obj -> player.getRegisterData().getGameId().map(id -> obj.getGameId() != id).orElse(true)).orElse(true);
             Optional<InstanceGame> oldGame = player.getGame();
             InstancePlayerListType oldInstanceListType = getInstancePlayerListType(player.getUuid());
             InstancePlayerListType oldGameListType = player.getGame().map(obj -> obj.getGamePlayerListType(player.getUuid())).orElse(InstancePlayerListType.NONE);
@@ -286,16 +287,22 @@ public class InstancePlayerManager implements Slottable {
     }
 
     /**
-     * Sets that the given player is quitting its game, only works for players on this instance.
+     * Sets that the given player should quit its game, only works for players in this instance.
      *
      * @param uuid the player's uuid
+     * @return a {@link CompletableFuture} that completes once the player has been removed from the game, or completes exceptionally if an error occurs.
      */
-    public void quitGame(UUID uuid) {
-        getInstancePlayer(uuid).ifPresent(player -> player.getGameId().flatMap(instance::getInstanceGame).ifPresent(game -> {
-            game.onQuit(player);
-            game.removeReserved(uuid);
-            instance.handleInstanceEvent(new InstanceQuitGameEvent(player, game));
-        }));
+    public CompletableFuture<Void> quitGame(UUID uuid) {
+        Optional<InstancePlayer> playerOpt = getInstancePlayer(uuid);
+        if(playerOpt.isEmpty()) return CompletableFuture.failedFuture(new IllegalArgumentException("Player does not exist"));
+        InstancePlayer player = playerOpt.get();
+        Optional<InstanceGame> gameOpt = player.getGame();
+        if(gameOpt.isEmpty()) return CompletableFuture.failedFuture(new IllegalArgumentException("Player is not in a game"));
+        InstanceGame game = gameOpt.get();
+        game.onQuit(player);
+        game.removeReserved(uuid);
+        instance.handleInstanceEvent(new InstanceQuitGameEvent(player, game));
+        return instance.getConnection().<Void>sendRequestPacket(id -> new GameQuitPacket(id, uuid), null).getResult(); // TODO What if failed??
     }
 
     /**

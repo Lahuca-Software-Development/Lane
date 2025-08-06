@@ -103,13 +103,10 @@ public class ServerSocketConnection extends RequestHandler implements Connection
 	 */
 	@Override
 	public void sendPacket(Packet packet, String destination) {
-		System.out.println("Got: " + destination + ", " + isConnected());
 		if(destination == null || !isConnected()) {
 			return;
 		}
-		System.out.println("DEBUG SEND: " + packet.toString());
 		ClientSocket client = clients.get(destination);
-		System.out.println("Clients: " + clients + ", " + destination + " " + client);
 		if(client != null) client.sendPacket(packet);
 	}
 

@@ -36,12 +36,12 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 	private final HashSet<UUID> online = new HashSet<>();
 	private final HashSet<UUID> players = new HashSet<>();
 	private final HashSet<UUID> playing = new HashSet<>();
-	private boolean onlineJoinable;
-	private boolean playersJoinable;
-	private boolean playingJoinable;
-	private int maxOnlineSlots;
-	private int maxPlayersSlots;
-	private int maxPlayingSlots;
+	private boolean onlineJoinable = true;
+	private boolean playersJoinable = true;
+	private boolean playingJoinable = true;
+	private int maxOnlineSlots = -1;
+	private int maxPlayersSlots = -1;
+	private int maxPlayingSlots = -1;
 
 	private String state;
 	private final HashMap<String, InstanceStateProperty> properties = new HashMap<>();
@@ -128,8 +128,8 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 				playing.remove(uuid);
 			}
 			case PLAYING -> {
-				online.remove(uuid);
-				players.remove(uuid);
+				online.add(uuid);
+				players.add(uuid);
 				playing.add(uuid);
 			}
 		}
@@ -221,9 +221,19 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 		return onlineJoinable;
 	}
 
+	public void setOnlineJoinable(boolean onlineJoinable) {
+		this.onlineJoinable = onlineJoinable;
+		sendGameStatus();
+	}
+
 	@Override
 	public boolean isPlayersJoinable() {
 		return playersJoinable;
+	}
+
+	public void setPlayersJoinable(boolean playersJoinable) {
+		this.playersJoinable = playersJoinable;
+		sendGameStatus();
 	}
 
 	@Override
@@ -231,9 +241,19 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 		return playingJoinable;
 	}
 
+	public void setPlayingJoinable(boolean playingJoinable) {
+		this.playingJoinable = playingJoinable;
+		sendGameStatus();
+	}
+
 	@Override
 	public int getMaxOnlineSlots() {
 		return maxOnlineSlots;
+	}
+
+	public void setMaxOnlineSlots(int maxOnlineSlots) {
+		this.maxOnlineSlots = maxOnlineSlots;
+		sendGameStatus();
 	}
 
 	@Override
@@ -241,9 +261,19 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 		return maxPlayersSlots;
 	}
 
+	public void setMaxPlayersSlots(int maxPlayersSlots) {
+		this.maxPlayersSlots = maxPlayersSlots;
+		sendGameStatus();
+	}
+
 	@Override
 	public int getMaxPlayingSlots() {
 		return maxPlayingSlots;
+	}
+
+	public void setMaxPlayingSlots(int maxPlayingSlots) {
+		this.maxPlayingSlots = maxPlayingSlots;
+		sendGameStatus();
 	}
 
 	@Override

@@ -107,21 +107,20 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     PlayerRecord record = packet.playerRecord();
                     getPlayerManager().getInstancePlayer(record.uuid()).ifPresent(player -> player.applyRecord(record));
                 }
-                case GameShutdownRequestPacket(long requestId, long gameId) -> {
-                    unregisterGame(gameId).whenComplete((data, ex) -> {
-                        if (ex != null) {
-                            // TODO Add more exceptions. To write and remove as well!
-                            String result = switch (ex) {
-                                case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
-                                case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
-                                default -> ResponsePacket.UNKNOWN;
-                            };
-                            sendSimpleResult(requestId, result);
-                        } else {
-                            sendSimpleResult(requestId, ResponsePacket.OK);
-                        }
-                    });
-                }
+                case GameShutdownRequestPacket(long requestId, long gameId) ->
+                        unregisterGame(gameId).whenComplete((data, ex) -> {
+                            if (ex != null) {
+                                // TODO Add more exceptions. To write and remove as well!
+                                String result = switch (ex) {
+                                    case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                                    case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                                    default -> ResponsePacket.UNKNOWN;
+                                };
+                                sendSimpleResult(requestId, result);
+                            } else {
+                                sendSimpleResult(requestId, ResponsePacket.OK);
+                            }
+                        });
                 case ResponsePacket<?> response -> {
                     if (!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
                         // TODO Handle output: failed response
@@ -138,7 +137,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     public void shutdown() {
-        Set<Long> gamesSet = games.keySet();
+        HashSet<Long> gamesSet = new HashSet<>(games.keySet());
         gamesSet.forEach(this::unregisterGame);
         connection.disableReconnect();
         connection.close();
@@ -245,6 +244,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         }
         game.onShutdown();
         handleInstanceEvent(new InstanceShutdownGameEvent(game));
+        games.remove(gameId);
         return connection.<Void>sendRequestPacket(id -> new GameShutdownPacket(id, gameId), null).getResult(); // TODO What if failed??
     }
 
@@ -512,6 +512,12 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @return the CompletableFuture with the modified event
      */
     public abstract <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event);
+
+    /**
+     * Lets the implemented instance run the given runnable on the main thread.
+     * @param runnable the runnable
+     */
+    public abstract void runOnMainThread(Runnable runnable);
 
 
 

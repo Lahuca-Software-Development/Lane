@@ -30,49 +30,60 @@ import java.util.function.Function;
  * <li>Instance ID</li>
  * <li>Instance Type</li></ol>
  */
-public record QueueRequestParameter(HashMap<String, Object> data) {
+public record QueueRequestParameter(HashMap<String, String> data) {
 
     public Optional<String> instanceId() {
-        return Optional.ofNullable(data.get(instanceId)).filter(String.class::isInstance).map(String.class::cast);
+        return Optional.ofNullable(data.get(instanceId));
     }
 
     public Optional<String> instanceType() {
-        return Optional.ofNullable(data.get(instanceType)).filter(String.class::isInstance).map(String.class::cast);
+        return Optional.ofNullable(data.get(instanceType));
     }
 
     public Optional<Long> gameId() {
-        return Optional.ofNullable(data.get(gameId)).filter(Long.class::isInstance).map(Long.class::cast);
+        return Optional.ofNullable(data.get(gameId)).map(val -> {
+            try {
+                return Long.parseLong(val);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        });
     }
 
     public Optional<String> gameType() {
-        return Optional.ofNullable(data.get(gameType)).filter(String.class::isInstance).map(String.class::cast);
+        return Optional.ofNullable(data.get(gameType));
     }
 
     public Optional<String> gameMap() {
-        return Optional.ofNullable(data.get(gameMap)).filter(String.class::isInstance).map(String.class::cast);
+        return Optional.ofNullable(data.get(gameMap));
     }
 
     public Optional<String> gameMode() {
-        return Optional.ofNullable(data.get(gameMode)).filter(String.class::isInstance).map(String.class::cast);
+        return Optional.ofNullable(data.get(gameMode));
     }
 
     public Optional<Boolean> partySkip() {
-        return Optional.ofNullable(data.get(partySkip)).filter(Boolean.class::isInstance).map(Boolean.class::cast);
+        return Optional.ofNullable(data.get(partySkip)).map(val -> {
+            try {
+                return Boolean.parseBoolean(val);
+            } catch (Exception e) {
+                return null;
+            }
+        });
     }
 
     public Optional<QueueType> queueType() {
         return Optional.ofNullable(data.get(queueType))
-                .map(Object::toString)
-                .map(str -> {
+                .map(val -> {
                     try {
-                        return QueueType.valueOf(str);
+                        return QueueType.valueOf(val);
                     } catch (IllegalArgumentException e) {
                         return null;
                     }
                 });
     }
 
-    public Optional<Object> extra(String key) {
+    public Optional<String> extra(String key) {
         return Optional.ofNullable(data.get(key));
     }
 
@@ -104,7 +115,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
             return new Builder();
         }
 
-        private final HashMap<String, Object> data = new HashMap<>();
+        private final HashMap<String, String> data = new HashMap<>();
 
         public Builder() {
         }
@@ -133,7 +144,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          * @return This builder.
          */
         public final Builder gameId(long gameId) {
-            data.put(QueueRequestParameter.gameId, gameId);
+            data.put(QueueRequestParameter.gameId, Long.toString(gameId));
             return this;
         }
 
@@ -193,7 +204,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          * @return This builder.
          */
         public final Builder partySkip(boolean partySkip) {
-            data.put(QueueRequestParameter.partySkip, partySkip); // TODO Maybe add config setting to change default way of doing?
+            data.put(QueueRequestParameter.partySkip, Boolean.toString(partySkip)); // TODO Maybe add config setting to change default way of doing?
             return this;
         }
 
@@ -204,7 +215,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          * @return This builder
          */
         public final Builder queueType(QueueType queueType) {
-            data.put(QueueRequestParameter.queueType, queueType);
+            data.put(QueueRequestParameter.queueType, queueType.toString());
             return this;
         }
 
@@ -215,7 +226,7 @@ public record QueueRequestParameter(HashMap<String, Object> data) {
          * @param data The data.
          * @return This builder.
          */
-        public final Builder extra(String key, Object data) {
+        public final Builder extra(String key, String data) {
             this.data.put(key, data);
             return this;
         }

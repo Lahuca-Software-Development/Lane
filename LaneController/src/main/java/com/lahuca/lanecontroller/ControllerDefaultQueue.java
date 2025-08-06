@@ -18,7 +18,7 @@ public class ControllerDefaultQueue {
      */
     public static void handleDefaultQueueStageEvent(QueueStageEvent event) {
         switch(event.getQueueRequest().reason()) {
-            case NETWORK_JOIN, SERVER_KICKED -> {
+            case NETWORK_JOIN, SERVER_KICKED, GAME_QUIT, GAME_SHUTDOWN -> {
                 if(!handleDefaultQueueStageEventParameters(event, false, true)) {
                     event.setDisconnectResult(); // TODO Maybe add message?
                 }
@@ -44,6 +44,7 @@ public class ControllerDefaultQueue {
             if (party.getOwner().equals(event.getPlayer().getUuid())) {
                 // The owner is trying to join, so we should join other players as well
                 for (UUID partyMemberUuid : party.getPlayers()) {
+                    if(partyMemberUuid.equals(event.getPlayer().getUuid())) continue;
                     Optional<ControllerPlayer> partyMemberOptional = Controller.getPlayer(partyMemberUuid);
                     partyMemberOptional.ifPresent(player -> partyMembers.add(partyMemberUuid));
                 }

@@ -7,7 +7,6 @@ import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -73,7 +72,7 @@ public class InstancePlayer implements LanePlayer {
 
     public void sendMessage(Component component) {
         Objects.requireNonNull(component, "component must not be null");
-        LaneInstance.getInstance().getConnection().sendPacket(new SendMessagePacket(getUuid(), GsonComponentSerializer.gson().serialize(component)), null);
+        LaneInstance.getInstance().getConnection().sendPacket(new SendMessagePacket(getUuid(), component), null);
     }
 
     public RegisterData getRegisterData() {
@@ -112,7 +111,7 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public Optional<String> getInstanceId() {
-        return Optional.empty();
+        return Optional.ofNullable(instanceId);
     }
 
     @Override

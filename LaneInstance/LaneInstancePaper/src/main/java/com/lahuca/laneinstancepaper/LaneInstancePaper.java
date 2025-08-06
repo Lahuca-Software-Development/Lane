@@ -16,7 +16,6 @@
 package com.lahuca.laneinstancepaper;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.laneinstance.InstanceInstantiationException;
@@ -24,6 +23,8 @@ import com.lahuca.laneinstance.LaneInstance;
 import com.lahuca.laneinstance.events.*;
 import com.lahuca.laneinstancepaper.events.*;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.json.JSONOptions;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -51,14 +52,17 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 //    public static final String id = "survival";
 //    public static final String ip = "mc.slux.cz";
 //    public static final int port = 776;
-    public static final Gson gson = new GsonBuilder().create();
+    public static final Gson gson = GsonComponentSerializer.builder().editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false)).build().serializer();
 //    public static final boolean joinable = true;
 //    public static final boolean nonPlayable = false;
 
     // TODO onDisable
 
+    private LaneInstancePaper instance;
+
     @Override
     public void onEnable() {
+        instance = this;
         // TODO Current status: Try rejoining!
         // TODO Maaybe response is not clearing!
         saveDefaultConfig();
@@ -179,5 +183,10 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
             return CompletableFuture.completedFuture(event);
         }
 
+        @Override
+        public void runOnMainThread(Runnable runnable) {
+            getServer().getScheduler().runTask(instance, runnable);
+        }
     }
+
 }

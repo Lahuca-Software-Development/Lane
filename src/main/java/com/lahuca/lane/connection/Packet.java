@@ -46,6 +46,7 @@ public interface Packet {
 		Packet.registerPacket(GameStatusUpdatePacket.packetId, GameStatusUpdatePacket.class);
 		Packet.registerPacket(GameShutdownPacket.packetId, GameShutdownPacket.class);
 		Packet.registerPacket(GameShutdownRequestPacket.packetId, GameShutdownRequestPacket.class);
+		Packet.registerPacket(GameQuitPacket.packetId, GameQuitPacket.class);
 		Packet.registerPacket(InstanceDisconnectPacket.packetId, InstanceDisconnectPacket.class);
 		Packet.registerPacket(InstanceJoinPacket.packetId, InstanceJoinPacket.class);
 		Packet.registerPacket(InstanceStatusUpdatePacket.packetId, InstanceStatusUpdatePacket.class);

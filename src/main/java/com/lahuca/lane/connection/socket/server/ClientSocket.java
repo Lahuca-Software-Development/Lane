@@ -20,6 +20,7 @@ import com.lahuca.lane.connection.ConnectionTransfer;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.RawPacket;
+import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.connection.packet.connection.*;
 
 import java.io.BufferedReader;
@@ -162,7 +163,9 @@ public class ClientSocket {
 	public void sendPacket(Packet packet) {
 		if(id == null || !isConnected()) return; // TODO Wait for id announcement first
 		String packetString = gson.toJson(packet);
-		System.out.println("Send to " + id + ": " + packetString);
+		if(!(packet instanceof ConnectionPacket) && !(packet instanceof InstanceUpdatePlayerPacket)) {
+			System.out.println("Send to " + id + ": " + packetString);
+		}
 		ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
 				id, System.currentTimeMillis());
 		out.println(gson.toJson(outputPacket));
