@@ -19,10 +19,7 @@ import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 
 public final class ControllerLaneInstance implements RecordConverterApplier<InstanceRecord>, Slottable {
 
@@ -55,22 +52,22 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
 
     @Override
     public HashSet<UUID> getReserved() {
-        return reserved; // TODO Immutable?
+        return new HashSet<>(Set.copyOf(reserved));
     }
 
     @Override
     public HashSet<UUID> getOnline() {
-        return online; // TODO Immutable
+        return new HashSet<>(Set.copyOf(online));
     }
 
     @Override
     public HashSet<UUID> getPlayers() {
-        return players; // TODO Immutable?
+        return new HashSet<>(Set.copyOf(players));
     }
 
     @Override
     public HashSet<UUID> getPlaying() {
-        return playing; // TODO Immutable?
+        return new HashSet<>(Set.copyOf(playing));
     }
 
     @Override

@@ -343,7 +343,7 @@ public class VelocityController {
 
 
     @Subscribe
-    public void onProxyInitialization(ProxyShutdownEvent event) {
+    public void onProxyShutdown(ProxyShutdownEvent event) {
         if(controller != null) controller.shutdown();
     }
 

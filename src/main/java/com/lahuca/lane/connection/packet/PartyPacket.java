@@ -71,8 +71,6 @@ public class PartyPacket {
         }
     }
 
-    // TODO New below
-
     public record SetInvitationsOnly(long requestId, long partyId, boolean invitationsOnly) implements RequestPacket {
 
         public static final String packetId = "partySetInvitationsOnly";

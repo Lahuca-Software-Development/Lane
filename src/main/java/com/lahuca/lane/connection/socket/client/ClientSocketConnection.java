@@ -153,8 +153,8 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
             // Known packet type received.
             Packet packet = gson.fromJson(transfer.data(), packetClass);
             InputPacket iPacket = new InputPacket(packet, transfer.from(), System.currentTimeMillis(), transfer.sentAt());
-            if(packet instanceof ConnectionPacket) {
-                readConnectionPacket(iPacket);
+            if(packet instanceof ConnectionPacket cPacket) {
+                readConnectionPacket(cPacket, iPacket);
                 return;
             }
             if(!(packet instanceof InstanceUpdatePlayerPacket)) {
@@ -170,19 +170,15 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
 
     /**
      * Handle connection packets.
+     * @param cPacket the parsed connection packet
      * @param inputPacket The input packet
      */
-    private void readConnectionPacket(InputPacket inputPacket) {
-        Packet iPacket = inputPacket.packet();
-        // TODO Use switch states for this! JAVA 21: 1.20.5 MC and above
-        if(iPacket instanceof ConnectionKeepAlivePacket packet) {
-            // Send packet back immediately.
-            sendPacket(ConnectionKeepAliveResultPacket.ok(packet), inputPacket.from());
-        } else if(iPacket instanceof ConnectionKeepAliveResultPacket packet) {
-            retrieveResponse(packet.getRequestId(), packet.toObjectResponsePacket());
-        } else if(iPacket instanceof ConnectionClosePacket packet) {
-            // We are expecting a close, close immediately.
-            closeAndReconnect();
+    private void readConnectionPacket(ConnectionPacket cPacket, InputPacket inputPacket) {
+        switch (cPacket) {
+            case ConnectionKeepAlivePacket packet -> sendPacket(ConnectionKeepAliveResultPacket.ok(packet), inputPacket.from());
+            case ConnectionKeepAliveResultPacket packet -> retrieveResponse(packet.getRequestId(), packet.toObjectResponsePacket());
+            case ConnectionClosePacket ignored -> closeAndReconnect();
+            default -> {} // Unknown connection packet, probably older version TODO Send message?
         }
     }
 

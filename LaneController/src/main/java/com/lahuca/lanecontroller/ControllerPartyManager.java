@@ -2,9 +2,9 @@ package com.lahuca.lanecontroller;
 
 import com.lahuca.lane.data.manager.DataManager;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.Set;
 
 public class ControllerPartyManager {
 
@@ -63,12 +63,12 @@ public class ControllerPartyManager {
     }
 
 
-    public Collection<ControllerParty> getParties() {
-        return parties.values(); // TODO Probs immutable?
-    } // TODO Redo
+    public Set<ControllerParty> getParties() {
+        return Set.copyOf(parties.values());
+    }
 
-    public Optional<ControllerParty> getParty(Long id) {
+    public Optional<ControllerParty> getParty(long id) {
         return Optional.ofNullable(parties.get(id));
-    } // TODO Redo
+    }
 
 }

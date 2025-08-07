@@ -56,15 +56,11 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 //    public static final boolean joinable = true;
 //    public static final boolean nonPlayable = false;
 
-    // TODO onDisable
-
     private LaneInstancePaper instance;
 
     @Override
     public void onEnable() {
         instance = this;
-        // TODO Current status: Try rejoining!
-        // TODO Maaybe response is not clearing!
         saveDefaultConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
 

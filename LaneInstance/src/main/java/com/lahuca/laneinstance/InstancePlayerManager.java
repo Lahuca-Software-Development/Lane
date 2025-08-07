@@ -338,22 +338,22 @@ public class InstancePlayerManager implements Slottable {
 
     @Override
     public HashSet<UUID> getReserved() {
-        return new HashSet<>(reserved.keySet());
+        return new HashSet<>(Set.copyOf(reserved.keySet()));
     }
 
     @Override
     public HashSet<UUID> getOnline() {
-        return new HashSet<>(online);
+        return new HashSet<>(Set.copyOf(online));
     }
 
     @Override
     public HashSet<UUID> getPlayers() {
-        return new HashSet<>(players);
+        return new HashSet<>(Set.copyOf(players));
     }
 
     @Override
     public HashSet<UUID> getPlaying() {
-        return new HashSet<>(playing);
+        return new HashSet<>(Set.copyOf(playing));
     }
 
     @Override

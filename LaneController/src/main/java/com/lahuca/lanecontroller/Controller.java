@@ -258,20 +258,15 @@ public abstract class Controller {
                     }), () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
                 }
                 case QueueFinishedPacket packet -> {
-                    System.out.println("Retrieved finish queue");
                     getPlayer(packet.player()).ifPresentOrElse(player -> {
-                        System.out.println("Retrieved finish queue 0");
                         // Player should have finished its queue, check whether it is allowed.
-                        player.getQueueRequest().ifPresentOrElse(queue -> { // TODO Whut, we are not even using queue?
-                            System.out.println("Retrieved finish queue 1");
+                        player.getQueueRequest().ifPresentOrElse(queue -> {
                             // There is a queue, check if the state of the player was to transfer to the retrieved instance/game.
                             ControllerPlayerState state = player.getState();
                             if (state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
-                                System.out.println("Retrieved finish queue 2");
                                 // Check if we either joined the correct instance or game.
                                 if (state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
                                     // We joined an instance.
-                                    System.out.println("Retrieved finish queue 3");
                                     ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                                     player.setState(newState);
                                     player.setQueueRequest(null);
@@ -280,7 +275,6 @@ public abstract class Controller {
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                                     Controller.getInstance().handleControllerEvent(new QueueFinishedEvent(player, queue, input.from(), null));
                                 } else if (packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID) && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId()) && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
-                                    System.out.println("Retrieved finish queue 4");
                                     // We joined a game.
                                     ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.GAME_ONLINE, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()), new ControllerStateProperty(LaneStateProperty.GAME_ID, packet.gameId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                                     player.setState(newState);
@@ -290,13 +284,11 @@ public abstract class Controller {
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                                     Controller.getInstance().handleControllerEvent(new QueueFinishedEvent(player, queue, input.from(), packet.gameId()));
                                 } else {
-                                    System.out.println("Retrieved finish queue 5");
                                     // We cannot accept this queue finalization.
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from());
                                 }
                                 return;
                             }
-                            System.out.println("Retrieved finish queue 6");
                             connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from());
                         }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from()));
                     }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
@@ -708,8 +700,6 @@ public abstract class Controller {
         }
         return dataManager.updateDataObject(permissionKey, id, updater);
     }
-
-    // TODO Profiles here
 
     /**
      * Retrieves the profile data of the profile identified by the given UUID.

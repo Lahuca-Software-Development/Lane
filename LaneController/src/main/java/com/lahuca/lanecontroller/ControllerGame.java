@@ -66,22 +66,22 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
 
     @Override
     public HashSet<UUID> getReserved() {
-        return reserved; // TODO Immutable?
+        return new HashSet<>(Set.copyOf(reserved));
     }
 
     @Override
     public HashSet<UUID> getOnline() {
-        return online; // TODO Immutable
+        return new HashSet<>(Set.copyOf(online));
     }
 
     @Override
     public HashSet<UUID> getPlayers() {
-        return players; // TODO Immutable?
+        return new HashSet<>(Set.copyOf(players));
     }
 
     @Override
     public HashSet<UUID> getPlaying() {
-        return playing; // TODO Immutable?
+        return new HashSet<>(Set.copyOf(playing));
     }
 
     @Override

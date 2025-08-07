@@ -55,7 +55,7 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
 
     @Override
     public HashSet<UUID> getPlayers() {
-        return players; // TODO Maybe immutable?
+        return new HashSet<>(Set.copyOf(players));
     }
 
     /**
@@ -118,8 +118,6 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
     public Cache<UUID, String> getInvitations() {
         return invitations;
     }
-
-    // TODO Invite first, then do accept, deny, etc.. Remove addPlayer(ControllerPlayer);...
 
     /**
      * Returns whether the given player is invited to this party.
