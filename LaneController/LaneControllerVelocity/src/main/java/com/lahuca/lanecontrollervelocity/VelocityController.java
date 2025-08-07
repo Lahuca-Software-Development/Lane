@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.google.inject.Inject;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
+import com.lahuca.lane.MessagesResourceBundle;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
@@ -61,14 +62,17 @@ import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.json.JSONOptions;
-import net.kyori.adventure.translation.GlobalTranslator;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
@@ -157,7 +161,13 @@ public class VelocityController {
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
         initializeConfig();
-        initializeResourceBundles();
+        MessagesResourceBundle messages = new MessagesResourceBundle(new File(dataDirectory.toFile(), "lang"), "messages", Locale.ENGLISH, "messages.properties");
+        messages.initialize(); // Initializes default resource bundle TODO Load state
+        try {
+            messages.loadResourceBundles(MiniMessageTranslationStore.create(Key.key("lane:controller"))); // Load them
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         // TODO Log whenever the config is the default one! So when it has made an error
 
         // Connection
@@ -263,82 +273,6 @@ public class VelocityController {
         } catch (Exception ignored) {
             configuration = new VelocityControllerConfiguration();
         }
-    }
-
-    private void initializeResourceBundles() {
-        // Resource Bundles
-        File resourceBundleFolder = new File(dataDirectory.toFile(), "lang");
-        File defaultResourceBundle = new File(resourceBundleFolder, "messages_en.properties");
-        // TODO Here, where it did not work! do something like exception
-        if(!defaultResourceBundle.exists()) {
-            // File does not exist
-            if(!defaultResourceBundle.getParentFile().exists()) {
-                // Parent folder does not exist, create it.
-                if(!defaultResourceBundle.getParentFile().mkdirs()) {
-                    // We could not make parent folder, stop
-                    return;
-                }
-            }
-            try {
-                if(!defaultResourceBundle.createNewFile()) {
-                    return;
-                }
-            } catch (IOException e) {
-                return;
-            }
-            // Create default
-            boolean done = false;
-            try (InputStream inputStream = getClass().getResourceAsStream("/messages.properties")) {
-                if (inputStream != null) {
-                    Files.copy(inputStream, defaultResourceBundle.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    done = true;
-                }
-            } catch (IOException ignored) {
-                ignored.printStackTrace();
-            }
-            if(!done) {
-                return;
-            }
-        }
-        loadResourceBundles(resourceBundleFolder, MiniMessageTranslationStore.create(Key.key("lane:controller")));
-    }
-
-    private static void loadResourceBundles(File langFolder, MiniMessageTranslationStore store) {
-        File[] files = langFolder.listFiles((dir, name) -> name.endsWith(".properties"));
-        if (files == null) return;
-
-        for (File file : files) {
-            Locale locale = parseLocale(file.getName());
-
-            try (InputStream in = new FileInputStream(file);
-                 Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-
-                ResourceBundle bundle = new PropertyResourceBundle(reader);
-                store.registerAll(locale, bundle, true);
-            } catch (IOException e) {
-                e.printStackTrace(); // TODO Hmmm
-            }
-        }
-        GlobalTranslator.translator().addSource(store);
-    }
-
-    private static Locale parseLocale(String filename) {
-        // messages_en_US_v.properties → en_US_v
-        String base = filename.replace(".properties", "");
-
-        // Remove prefix like "messages" (everything before first underscore)
-        int underscoreIndex = base.indexOf('_');
-        if (underscoreIndex == -1) return Locale.ROOT;
-
-        String localePart = base.substring(underscoreIndex + 1); // get just "en", "en_US", etc.
-        String[] parts = localePart.split("_");
-
-        return switch (parts.length) {
-            case 1 -> Locale.of(parts[0]); // en
-            case 2 -> Locale.of(parts[0], parts[1]); // en_US
-            case 3 -> Locale.of(parts[0], parts[1], parts[2]); // en_US_v
-            default -> Locale.ROOT;
-        };
     }
 
 
