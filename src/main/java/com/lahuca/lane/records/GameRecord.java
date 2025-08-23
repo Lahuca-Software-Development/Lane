@@ -23,5 +23,6 @@ public record GameRecord(long gameId, String instanceId, String gameType, String
                          HashSet<UUID> reserved, HashSet<UUID> online, HashSet<UUID> players,
                          HashSet<UUID> playing, boolean onlineJoinable, boolean playersJoinable,
                          boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots,
+                         boolean onlineKickable, boolean playersKickable, boolean playingKickable,
                          String state, HashMap<String, StatePropertyRecord> properties) {
 }

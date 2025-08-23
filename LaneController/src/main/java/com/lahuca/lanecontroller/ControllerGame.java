@@ -29,6 +29,9 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
     private int maxOnlineSlots;
     private int maxPlayersSlots;
     private int maxPlayingSlots;
+    private boolean onlineKickable;
+    private boolean playersKickable;
+    private boolean playingKickable;
 
     private String state;
     private final HashMap<String, ControllerStateProperty> properties = new HashMap<>();
@@ -115,6 +118,21 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
     }
 
     @Override
+    public boolean isOnlineKickable() {
+        return onlineKickable;
+    }
+
+    @Override
+    public boolean isPlayersKickable() {
+        return playersKickable;
+    }
+
+    @Override
+    public boolean isPlayingKickable() {
+        return playingKickable;
+    }
+
+    @Override
     public Optional<String> getState() {
         return Optional.ofNullable(state);
     }
@@ -130,7 +148,7 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
         properties.forEach((k, v) -> propertyRecords.put(k, v.convertRecord()));
         return new GameRecord(gameId, instanceId, gameType, gameMode, gameMap, reserved, online, players, playing,
                 onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots,
-                state, propertyRecords);
+                onlineKickable, playersKickable, playingKickable, state, propertyRecords);
     }
 
     @Override
@@ -152,6 +170,9 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
         maxOnlineSlots = record.maxOnlineSlots();
         maxPlayersSlots = record.maxPlayersSlots();
         maxPlayingSlots = record.maxPlayingSlots();
+        onlineKickable = record.onlineKickable();
+        playersKickable = record.playersKickable();
+        playingKickable = record.playingKickable();
         state = record.state();
         properties.clear();
         record.properties().forEach((k, v) -> properties.put(k, new ControllerStateProperty(v.id(), v.value(), v.extraData())));
@@ -175,6 +196,9 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
                 .add("maxOnlineSlots=" + maxOnlineSlots)
                 .add("maxPlayersSlots=" + maxPlayersSlots)
                 .add("maxPlayingSlots=" + maxPlayingSlots)
+                .add("onlineKickable=" + onlineKickable)
+                .add("playersKickable=" + playersKickable)
+                .add("playingKickable=" + playingKickable)
                 .add("state='" + state + "'")
                 .add("properties=" + properties)
                 .toString();

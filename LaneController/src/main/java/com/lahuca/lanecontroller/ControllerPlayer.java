@@ -44,6 +44,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     private Long gameId = null;
     private ControllerPlayerState state = null;
     private Long partyId = null;
+    private int queuePriority;
 
     // The following are only available on the controller
     private boolean networkProcessed = false; // This determines whether the player is fully processed by all plugins upon network join.
@@ -225,8 +226,13 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 // Fetch the instance and potential game; immediately check available as well; if correct, set the state
                 ControllerLaneInstance resultInstance;
                 Long resultGameId;
+
                 HashSet<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
-                int needSlots = playTogetherPlayers == null ? 1 : playTogetherPlayers.size() + 1;
+                playTogetherPlayers.add(stageEvent.getPlayer().getUuid()); // Add player it self
+                HashMap<UUID, Integer> playTogetherPlayersMap = new HashMap<>();
+                playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(current -> playTogetherPlayersMap.put(uuid, current.getQueuePriority())));
+
+
                 if (joinable instanceof QueueStageEventResult.JoinInstance joinInstance) {
                     // Set the IDs, and try to fetch
                     resultGameId = null;
@@ -238,7 +244,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
-                    if (!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots)) {
+                    if(!ControllerDefaultQueue.canJoinInstance(playTogetherPlayersMap, resultInstance, joinable.getQueueType(), null, true)) {
                         // Run the stage event again to find a joinable instance.
                         request.stages().add(joinInstance.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
                         yield handleQueueStage(stageEvent, handleResult, allowNone);
@@ -263,7 +269,8 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
-                    if (!resultInstance.isQueueJoinable(joinable.getQueueType(), needSlots) || !game.isQueueJoinable(joinable.getQueueType(), needSlots)) {
+                    if (!ControllerDefaultQueue.canJoinInstance(playTogetherPlayersMap, resultInstance, joinable.getQueueType(), null, true)
+                            || !ControllerDefaultQueue.canJoinGame(playTogetherPlayersMap, game, joinable.getQueueType(), null, true)) {
                         // Run the stage event again to find a joinable game.
                         request.stages().add(joinGame.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
                         yield handleQueueStage(stageEvent, handleResult, allowNone);
@@ -273,6 +280,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                                     new ControllerStateProperty(LaneStateProperty.GAME_ID, resultGameId),
                                     new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis()))));
                 } else {
+                    resultInstance = null;
                     request.stages().add(new QueueStage(QueueStageResult.INVALID_STATE, joinable.getQueueType(), null, null));
                     yield handleQueueStage(stageEvent, handleResult, allowNone);
                 }
@@ -376,6 +384,16 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         return Controller.getInstance().getPartyManager().getParty(partyId);
     }
 
+    @Override
+    public int getQueuePriority() {
+        return queuePriority;
+    }
+
+    public void setQueuePriority(int queuePriority) {
+        this.queuePriority = queuePriority;
+        updateInstancePlayer();
+    }
+
     public void setInstanceId(String instanceId) {
         this.instanceId = instanceId; // TODO Why this easily, this should not be this easy
         updateInstancePlayer();
@@ -388,7 +406,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId, queuePriority);
     }
 
     /**
@@ -407,6 +425,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         if (state == null) state = new ControllerPlayerState();
         state.applyRecord(record.state());
         partyId = record.partyId();
+        queuePriority = record.queuePriority();
     }
 
     public void updateInstancePlayer() {
@@ -493,6 +512,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 .add("gameId=" + gameId)
                 .add("state=" + state)
                 .add("partyId=" + partyId)
+                .add("queuePriority=" + queuePriority)
                 .add("networkProcessed=" + networkProcessed)
                 .toString();
     }

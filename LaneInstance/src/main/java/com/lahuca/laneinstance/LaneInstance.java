@@ -15,6 +15,7 @@
  */
 package com.lahuca.laneinstance;
 
+import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
@@ -64,7 +65,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     private final HashMap<Long, InstanceGame> games = new HashMap<>();
 
-    public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots) throws IOException, InstanceInstantiationException {
+    public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(connection, "connection cannot be null");
@@ -77,27 +78,67 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
         this.connection = connection;
 
-        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
+        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable);
 
         connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
             switch (input.packet()) {
                 case InstanceJoinPacket packet -> {
-                    if (!getPlayerManager().isQueueJoinable(packet.queueType(), 1)) { // TODO We do not neccassirily make a reservation for the whole party. Hmmm.
-                        sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
-                        return;
+                    // TODO This all assumes we do all party members one at a time!!
+                    // Check if we can even join that queue type
+                    HashSet<LanePlayer> kickable = null;
+                    Map<UUID, Integer> playerMap = Map.of(packet.player().uuid(), packet.player().queuePriority());
+                    Set<UUID> playerSet = Set.of(packet.player().uuid());
+                    if(!getPlayerManager().hasQueueSlots(playerSet, packet.queueType())) {
+                        // Cannot grant slot yet, check if we even can join
+                        if(!getPlayerManager().isQueueJoinable(packet.queueType())) {
+                            // We cannot join the queue type
+                            sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                            return;
+                        }
+                        // Okay, check if we can kick someone
+                        kickable = getPlayerManager().findKickableLanePlayers(playerMap, packet.queueType(), packet.gameId(), getPlayerManager()::getInstancePlayer);
+                        if(kickable == null) {
+                            // We could not find a slot
+                            sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                            return;
+                        }
+                        // Okay so we can kick the given player to join the instance (and game if present). First wait for game checks.
                     }
                     if (packet.gameId() != null) {
+                        // Do the same for the game
                         Optional<InstanceGame> instanceGame = getInstanceGame(packet.gameId());
                         if (instanceGame.isEmpty()) {
                             sendSimpleResult(packet, ResponsePacket.INVALID_ID);
                             return;
                         }
                         InstanceGame game = instanceGame.get();
-                        if (!game.isQueueJoinable(packet.queueType(), 1)) { // TODO Same as for the instance, make reservation for whole party.
-                            sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
-                            return;
+                        // Check if we can even join that queue type
+                        if(!game.hasQueueSlots(playerSet, packet.queueType())) {
+                            // Cannot grant slot yet, check if we even can join
+                            if(!game.isQueueJoinable(packet.queueType())) {
+                                // We cannot join the queue type
+                                sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                                return;
+                            }
+                            // Okay, so we need to kick someone
+                            if(kickable == null) {
+                                // So we kick someone
+                                kickable = getPlayerManager().findKickableLanePlayers(playerMap, packet.queueType(), packet.gameId(), getPlayerManager()::getInstancePlayer);
+                                if(kickable == null) {
+                                    // We could not find a slot
+                                    sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                                    return;
+                                }
+                            }
+                            // So if there was already someone found, they will be kicked
                         }
+                    }
+                    if(kickable != null) {
+                        // Kick the player, we can proceed basically
+                        kickable.forEach(kick -> {
+                            disconnectPlayer(kick.getUuid(), Component.translatable("queue.kick.lowPriority")); // TODO Translate!!
+                        });
                     }
                     // We are here, so we can apply it.
                     getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType(), packet.gameId()));
@@ -354,7 +395,10 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     @Override
     public InstanceRecord convertRecord() {
         InstancePlayerManager pm = getPlayerManager();
-        return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(), pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(), pm.getMaxOnlineSlots(), pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots());
+        return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(),
+                pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(),
+                pm.getMaxOnlineSlots(), pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots(),
+                pm.isOnlineKickable(), pm.isPlayersKickable(), pm.isPlayingKickable());
     }
 
     /**

@@ -27,6 +27,7 @@ public class InstancePlayer implements LanePlayer {
     private Long gameId = null;
     private InstancePlayerState state = null;
     private Long partyId = null;
+    private int queuePriority;
 
     // Below are instance only
     private RegisterData registerData;
@@ -166,8 +167,13 @@ public class InstancePlayer implements LanePlayer {
     }
 
     @Override
+    public int getQueuePriority() {
+        return queuePriority;
+    }
+
+    @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId);
+        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId, queuePriority);
     }
 
     @Override
@@ -181,6 +187,7 @@ public class InstancePlayer implements LanePlayer {
         if(state == null) state = new InstancePlayerState();
         state.applyRecord(record.state());
         partyId = record.partyId();
+        queuePriority = record.queuePriority();
     }
 
     @Override
@@ -195,6 +202,7 @@ public class InstancePlayer implements LanePlayer {
                 .add("gameId=" + gameId)
                 .add("state=" + state)
                 .add("partyId=" + partyId)
+                .add("queuePriority=" + queuePriority)
                 .add("registerData=" + registerData)
                 .toString();
     }

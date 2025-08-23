@@ -42,6 +42,9 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 	private int maxOnlineSlots = -1;
 	private int maxPlayersSlots = -1;
 	private int maxPlayingSlots = -1;
+    private boolean onlineKickable = false;
+    private boolean playersKickable = false;
+    private boolean playingKickable = false;
 
 	private String state;
 	private final HashMap<String, InstanceStateProperty> properties = new HashMap<>();
@@ -276,7 +279,37 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 		sendGameStatus();
 	}
 
-	@Override
+    @Override
+    public boolean isOnlineKickable() {
+        return onlineKickable;
+    }
+
+    public void setOnlineKickable(boolean onlineKickable) {
+        this.onlineKickable = onlineKickable;
+        sendGameStatus();
+    }
+
+    @Override
+    public boolean isPlayersKickable() {
+        return playersKickable;
+    }
+
+    public void setPlayersKickable(boolean playersKickable) {
+        this.playersKickable = playersKickable;
+        sendGameStatus();
+    }
+
+    @Override
+    public boolean isPlayingKickable() {
+        return playingKickable;
+    }
+
+    public void setPlayingKickable(boolean playingKickable) {
+        this.playingKickable = playingKickable;
+        sendGameStatus();
+    }
+
+    @Override
 	public Optional<String> getState() {
 		return Optional.ofNullable(state);
 	}
@@ -296,6 +329,7 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 		properties.forEach((k, v) -> propertyRecords.put(k, v.convertRecord()));
 		return new GameRecord(gameId, instanceId, gameType, gameMode, gameMap, reserved, online, players, playing,
 				onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots,
+                onlineKickable, playersKickable, playingKickable,
 				state, propertyRecords);
 	}
 
@@ -317,6 +351,9 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 				.add("maxOnlineSlots=" + maxOnlineSlots)
 				.add("maxPlayersSlots=" + maxPlayersSlots)
 				.add("maxPlayingSlots=" + maxPlayingSlots)
+                .add("onlineKickable=" + onlineKickable)
+                .add("playersKickable=" + playersKickable)
+                .add("playingKickable=" + playingKickable)
 				.add("state='" + state + "'")
 				.add("properties=" + properties)
 				.toString();

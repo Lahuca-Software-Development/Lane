@@ -16,6 +16,15 @@ Whenever there is a limitation on a list, this also limits the ones right of it.
 - If the *online* list is full, so would the *players* and *playing* lists be.
 - If the *players* list is full, so would the *playing* list be.
 
+To the last two items of the last list, there is an exception:
+Every list can set whether it allows kicking.
+Whenever a player tries to join, they do so with a queue priority.
+If one list is full and the queue system has resulted in joining that specific slottable.
+Then it may kick a player with a lower priority if it is allowed.
+- If the *online* list allows kicking, then it does not have to be full per se.
+- If the *players* list allows kicking, then it does not have to be full per se.
+- If the *playing* list allows kicking, then it does not have to be full per se.
+
 ### Reserved
 The *reserved* list is the most comprehensible list as it contains all UUIDs that are currently connected or still connecting to that instance/game.
 This therefore also includes UUIDs that are not on that instance. Its maximum is defined by the next mentioned *online* list,

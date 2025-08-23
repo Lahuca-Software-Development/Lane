@@ -38,5 +38,6 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
 	Optional<Long> getGameId();
 	LanePlayerState getState();
 	Optional<Long> getPartyId();
+    int getQueuePriority();
 
 }

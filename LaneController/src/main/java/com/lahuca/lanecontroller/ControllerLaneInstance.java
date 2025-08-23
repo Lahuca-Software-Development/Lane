@@ -36,6 +36,10 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
     private int maxOnlineSlots;
     private int maxPlayersSlots;
     private int maxPlayingSlots;
+    private boolean onlineKickable;
+    private boolean playersKickable;
+    private boolean playingKickable;
+
 
     ControllerLaneInstance(InstanceRecord record) {
         this.id = record.id();
@@ -100,11 +104,25 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
         return maxPlayingSlots;
     }
 
+    @Override
+    public boolean isOnlineKickable() {
+        return onlineKickable;
+    }
+
+    @Override
+    public boolean isPlayersKickable() {
+        return playersKickable;
+    }
+
+    @Override
+    public boolean isPlayingKickable() {
+        return playingKickable;
+    }
 
     @Override
     public InstanceRecord convertRecord() {
         return new InstanceRecord(id, type, reserved, online, players, playing, onlineJoinable, playersJoinable,
-                playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots);
+                playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable);
     }
 
     @Override
@@ -124,6 +142,9 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
         maxOnlineSlots = record.maxOnlineSlots();
         maxPlayersSlots = record.maxPlayersSlots();
         maxPlayingSlots = record.maxPlayingSlots();
+        onlineKickable = record.onlineKickable();
+        playersKickable = record.playersKickable();
+        playingKickable = record.playingKickable();
     }
 
     @Override
@@ -141,6 +162,9 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
                 .add("maxOnlineSlots=" + maxOnlineSlots)
                 .add("maxPlayersSlots=" + maxPlayersSlots)
                 .add("maxPlayingSlots=" + maxPlayingSlots)
+                .add("onlineKickable=" + onlineKickable)
+                .add("playersKickable=" + playersKickable)
+                .add("playingKickable=" + playingKickable)
                 .toString();
     }
 

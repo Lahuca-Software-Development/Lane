@@ -34,8 +34,11 @@ public class InstancePlayerManager implements Slottable {
     private int maxOnlineSlots;
     private int maxPlayersSlots;
     private int maxPlayingSlots;
+    private boolean onlineKickable;
+    private boolean playersKickable;
+    private boolean playingKickable;
 
-    InstancePlayerManager(LaneInstance instance, Runnable sendInstanceStatus, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots) {
+    InstancePlayerManager(LaneInstance instance, Runnable sendInstanceStatus, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) {
         this.instance = instance;
         this.sendInstanceStatus = sendInstanceStatus;
         this.onlineJoinable = onlineJoinable;
@@ -44,6 +47,9 @@ public class InstancePlayerManager implements Slottable {
         this.maxOnlineSlots = maxOnlineSlots;
         this.maxPlayersSlots = maxPlayersSlots;
         this.maxPlayingSlots = maxPlayingSlots;
+        this.onlineKickable = onlineKickable;
+        this.playersKickable = playersKickable;
+        this.playingKickable = playingKickable;
     }
 
     /**
@@ -417,6 +423,36 @@ public class InstancePlayerManager implements Slottable {
     }
 
     @Override
+    public boolean isOnlineKickable() {
+        return onlineKickable;
+    }
+
+    public void setOnlineKickable(boolean onlineKickable) {
+        this.onlineKickable = onlineKickable;
+        sendInstanceStatus.run();
+    }
+
+    @Override
+    public boolean isPlayersKickable() {
+        return playersKickable;
+    }
+
+    public void setPlayersKickable(boolean playersKickable) {
+        this.playersKickable = playersKickable;
+        sendInstanceStatus.run();
+    }
+
+    @Override
+    public boolean isPlayingKickable() {
+        return playingKickable;
+    }
+
+    public void setPlayingKickable(boolean playingKickable) {
+        this.playingKickable = playingKickable;
+        sendInstanceStatus.run();
+    }
+
+    @Override
     public boolean containsReserved(UUID uuid) {
         return reserved.containsKey(uuid);
     }
@@ -436,13 +472,16 @@ public class InstancePlayerManager implements Slottable {
         return playing.contains(uuid);
     }
 
-    public void updateJoinableSlots(boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots) {
+    public void updateJoinableSlots(boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) {
         this.onlineJoinable = onlineJoinable;
         this.playersJoinable = playersJoinable;
         this.playingJoinable = playingJoinable;
         this.maxOnlineSlots = maxOnlineSlots;
         this.maxPlayersSlots = maxPlayersSlots;
         this.maxPlayingSlots = maxPlayingSlots;
+        this.onlineKickable = onlineKickable;
+        this.playersKickable = playersKickable;
+        this.playingKickable = playingKickable;
         sendInstanceStatus.run();
     }
 
@@ -459,6 +498,8 @@ public class InstancePlayerManager implements Slottable {
         if (reserved.contains(player)) return InstancePlayerListType.RESERVED;
         return InstancePlayerListType.NONE;
     }
+
+
 
     // TODO Set locale in Paper.
     // TODO Set locale in Velocity
