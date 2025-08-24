@@ -356,6 +356,26 @@ public class DataObject {
     }
 
     /**
+     * Gets the value as a certain object by using the provided Gson and class.
+     * When the value is present and the value represents the given class, this optional will not be empty.
+     * @return the optional of the value
+     * @see #getValueAsJson(Gson, Class)
+     */
+    public <T> Optional<T> getValue(Gson gson, Class<T> type) {
+        return getValueAsJson(gson, type);
+    }
+
+    /**
+     * Gets the value as a certain object by using the provided Gson and type.
+     * When the value is present and the value represents the given type, this optional will not be empty.
+     * @return the optional of the value
+     * @see #getValueAsJson(Gson, Class)
+     */
+    public <T> Optional<T> getValue(Gson gson, TypeToken<T> type) {
+        return getValueAsJson(gson, type);
+    }
+
+    /**
      * Gets the value as a string list.
      * When the value is present and the value represents a string list, this optional will not be empty.
      * @return the optional of the value
