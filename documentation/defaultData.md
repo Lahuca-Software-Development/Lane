@@ -24,6 +24,10 @@ This gives following scenarios:
 
 The saved locale is only explicitly set using methods.
 
+### Nickname (nickname)
+This value is the nicknamee of the player.
+If it is not set, the player has no nickname.
+
 
 # Profiles
 Every profile has these same data objects. Network profile specific information can be read at "Players » Network Profile" in this document.

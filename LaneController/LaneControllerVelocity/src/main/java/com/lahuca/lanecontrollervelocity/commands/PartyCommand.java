@@ -523,7 +523,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             for (ControllerPlayer player : party.getControllerPlayers()) {
                 nameComponents.add(GlobalTranslator.translator().translate(Component.translatable(
                         "lane.controller.commands.party.list.name",
-                        Component.text(player.getDisplayName())
+                        Component.text(player.getUsername())
                 ), executor.getEffectiveLocale()));
             }
             Component nameSeparator = GlobalTranslator.translator().translate(Component.translatable("lane.controller.commands.party.list.nameSeparator"),

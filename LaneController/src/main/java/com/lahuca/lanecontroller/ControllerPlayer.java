@@ -28,6 +28,7 @@ import com.lahuca.lanecontroller.events.PlayerNetworkProcessedEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import net.kyori.adventure.text.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +39,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     private final UUID uuid;
     private final String username;
     private UUID networkProfileUuid;
-    private String displayName;
+    private String nickname;
     private QueueRequest queueRequest;
     private String instanceId = null;
     private Long gameId = null;
@@ -49,11 +50,11 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     // The following are only available on the controller
     private boolean networkProcessed = false; // This determines whether the player is fully processed by all plugins upon network join.
 
-    ControllerPlayer(UUID uuid, String username, UUID networkProfileUuid, String displayName) {
+    ControllerPlayer(UUID uuid, String username, UUID networkProfileUuid, String nickname) {
         this.uuid = uuid;
         this.username = username;
         this.networkProfileUuid = networkProfileUuid;
-        this.displayName = displayName;
+        this.nickname = nickname;
     }
 
     @Override
@@ -87,8 +88,8 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     }
 
     @Override
-    public String getDisplayName() {
-        return displayName;
+    public String getNickname() {
+        return nickname;
     }
 
     @Override
@@ -125,13 +126,16 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     }
 
     /**
-     * Sets the display name for this controller.
+     * Sets the nickname for this player.
      *
-     * @param displayName The new display name to be set.
+     * @param nickname The new nickname to be set.
      */
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
-        updateInstancePlayer();
+    public CompletableFuture<Void> setNickname(@NotNull String nickname) {
+        return Controller.getInstance().getPlayerManager().setNickname(networkProfileUuid, nickname).thenApply(success -> {
+            this.nickname = nickname;
+            updateInstancePlayer();
+            return null;
+        });
     }
 
     /**
@@ -406,7 +410,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId, queuePriority);
+        return new PlayerRecord(uuid, username, networkProfileUuid, nickname, queueRequest, instanceId, gameId, state.convertRecord(), partyId, queuePriority);
     }
 
     /**
@@ -418,7 +422,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     @Override
     public void applyRecord(PlayerRecord record) {
         networkProfileUuid = record.networkProfileUuid();
-        displayName = record.displayName();
+        nickname = record.nickname();
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
@@ -506,7 +510,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 .add("uuid=" + uuid)
                 .add("username='" + username + "'")
                 .add("networkProfileUuid=" + networkProfileUuid)
-                .add("displayName='" + displayName + "'")
+                .add("nickname='" + nickname + "'")
                 .add("queueRequest=" + queueRequest)
                 .add("instanceId='" + instanceId + "'")
                 .add("gameId=" + gameId)

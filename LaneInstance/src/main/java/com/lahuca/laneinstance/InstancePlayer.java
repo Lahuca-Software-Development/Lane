@@ -21,7 +21,7 @@ public class InstancePlayer implements LanePlayer {
     private final UUID uuid;
     private final String username;
     private UUID networkProfileUuid;
-    private String displayName;
+    private String nickname;
     private QueueRequest queueRequest;
     private String instanceId = null;
     private Long gameId = null;
@@ -151,9 +151,17 @@ public class InstancePlayer implements LanePlayer {
         return LaneInstance.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
     }
 
+    public CompletableFuture<Void> setNetworkProfileUuid(InstanceProfileData profile) {
+        return LaneInstance.getInstance().setNetworkProfile(this, profile);
+    }
+
     @Override
-    public String getDisplayName() {
-        return displayName;
+    public String getNickname() {
+        return nickname;
+    }
+
+    public CompletableFuture<Void> setNickname(String nickname) {
+        return LaneInstance.getInstance().setNickname(this, nickname);
     }
 
     @Override
@@ -173,14 +181,14 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public PlayerRecord convertRecord() {
-        return new PlayerRecord(uuid, username, networkProfileUuid, displayName, queueRequest, instanceId, gameId, state.convertRecord(), partyId, queuePriority);
+        return new PlayerRecord(uuid, username, networkProfileUuid, nickname, queueRequest, instanceId, gameId, state.convertRecord(), partyId, queuePriority);
     }
 
     @Override
     public void applyRecord(PlayerRecord record) {
         // TODO Maybe better recode?
         networkProfileUuid = record.networkProfileUuid();
-        displayName = record.displayName();
+        nickname = record.nickname();
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
@@ -196,7 +204,7 @@ public class InstancePlayer implements LanePlayer {
                 .add("uuid=" + uuid)
                 .add("username='" + username + "'")
                 .add("networkProfileUuid=" + networkProfileUuid)
-                .add("displayName='" + displayName + "'")
+                .add("nickname='" + nickname + "'")
                 .add("queueRequest=" + queueRequest)
                 .add("instanceId='" + instanceId + "'")
                 .add("gameId=" + gameId)

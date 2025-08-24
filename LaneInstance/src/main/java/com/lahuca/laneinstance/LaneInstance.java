@@ -39,6 +39,7 @@ import com.lahuca.laneinstance.events.InstanceShutdownGameEvent;
 import com.lahuca.laneinstance.events.InstanceStartupGameEvent;
 import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.*;
@@ -544,6 +545,19 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
             return CompletableFuture.failedFuture(new IllegalStateException("Can only set a network profile with no super profiles"));
         }
         return connection.<Void>sendRequestPacket(id -> new ProfilePacket.SetNetworkProfile(id, player.getUuid(), profile.getId()), null).getResult();
+    }
+
+    /**
+     * Sets the nickname of the given player.
+     *
+     * @param player the player
+     * @param nickname the nickname
+     * @return a {@link CompletableFuture} to signify success: the nickname has been set
+     */
+    public CompletableFuture<Void> setNickname(@NotNull InstancePlayer player, @NotNull String nickname) {
+        // Check if already set
+        if(player.getNickname().equals(nickname)) return CompletableFuture.completedFuture(null);
+        return connection.<Void>sendRequestPacket(id -> new SetInformationPacket.PlayerSetNickname(id, player.getUuid(), nickname), null).getResult();
     }
 
     /**

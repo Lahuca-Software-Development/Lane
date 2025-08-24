@@ -142,7 +142,7 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
     public boolean addInvitation(ControllerPlayer player) {
         if (player == null) throw new IllegalArgumentException("player is null"); // TODO Check this in the whole codebase!
         if (!isInvitationsOnly() || hasInvitation(player) || containsPlayer(player)) return false;
-        invitations.put(player.getUuid(), player.getDisplayName());
+        invitations.put(player.getUuid(), player.getUsername());
         return true;
     }
 

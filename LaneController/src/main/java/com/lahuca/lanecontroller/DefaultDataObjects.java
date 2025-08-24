@@ -76,11 +76,15 @@ class DefaultDataObjects {
      * Gets the locale from a network profile.
      * @param dataManager the data manager
      * @param profile the profile's UUID
-     * @return a {@link CompletableFuture} with a {@link Optional} whose value will contain the network profile if it is present
+     * @return a {@link CompletableFuture} with a {@link Optional} whose value will contain the locale if it is present
      */
     static CompletableFuture<Optional<Locale>> getNetworkProfilesLocale(DataManager dataManager, UUID profile) {
         return dataManager.readDataObject(PermissionKey.CONTROLLER, getNetworkProfilesLocaleId(profile))
                 .thenApply(opt -> opt.flatMap(DataObject::getValue).map(Locale::forLanguageTag));
+    }
+
+    private static DataObjectId getNetworkProfilesNicknameId(UUID profile) {
+        return new DataObjectId(RelationalId.Profiles(profile), "nickname");
     }
 
     /**
@@ -92,6 +96,29 @@ class DefaultDataObjects {
      */
     static CompletableFuture<Void> setNetworkProfilesLocale(DataManager dataManager, UUID profile, Locale locale) {
         DataObject object = new DataObject(getNetworkProfilesLocaleId(profile), PermissionKey.CONTROLLER, DataObjectType.STRING, locale.toLanguageTag());
+        return dataManager.writeDataObject(PermissionKey.CONTROLLER, object);
+    }
+
+    /**
+     * Gets the nickname from a network profile.
+     * @param dataManager the data manager
+     * @param profile the profile's UUID
+     * @return a {@link CompletableFuture} with a {@link Optional} whose value will contain the nickname if it is present
+     */
+    static CompletableFuture<Optional<String>> getNetworkProfilesNickname(DataManager dataManager, UUID profile) {
+        return dataManager.readDataObject(PermissionKey.CONTROLLER, getNetworkProfilesNicknameId(profile))
+                .thenApply(opt -> opt.flatMap(DataObject::getValue));
+    }
+
+    /**
+     * Sets the nickname for a network profile.
+     * @param dataManager the data manager
+     * @param profile the profile's UUID
+     * @param nickname the nickname
+     * @return a {@link CompletableFuture} with a void to signify success: it has been updated
+     */
+    static CompletableFuture<Void> setNetworkProfilesNickname(DataManager dataManager, UUID profile, String nickname) {
+        DataObject object = new DataObject(getNetworkProfilesLocaleId(profile), PermissionKey.CONTROLLER, DataObjectType.STRING, nickname);
         return dataManager.writeDataObject(PermissionKey.CONTROLLER, object);
     }
 

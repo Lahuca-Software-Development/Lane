@@ -586,6 +586,23 @@ public abstract class Controller {
                         default -> throw new IllegalStateException("Unexpected value: " + profilePacket);
                     }
                 }
+                case SetInformationPacket setInformation -> {
+                    switch (setInformation) {
+                        case SetInformationPacket.PlayerSetNickname(long requestId, UUID uuid, String nickname) ->
+                                getPlayer(uuid).ifPresentOrElse(player -> player.setNickname(nickname).whenComplete((result, exception) -> {
+                                    String response = ResponsePacket.OK;
+                                    if (exception != null) {
+                                        if (exception instanceof UnsuccessfulResultException ex) {
+                                            response = ex.getMessage();
+                                        } else {
+                                            response = ResponsePacket.UNKNOWN;
+                                        }
+                                    }
+                                    connection.sendPacket(new VoidResultPacket(requestId, response), input.from());
+                                }), () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_PLAYER), input.from()));
+                        default -> throw new IllegalStateException("Unexpected value: " + setInformation);
+                    }
+                }
                 case ResponsePacket<?> response -> {
                     if (!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
                         // TODO Well, log about packet that is not wanted.
