@@ -37,7 +37,7 @@ public record RelationalId(String type, String id) {
      * @return the RelationalID
      */
     public static RelationalId Usernames(String username) {
-        return new RelationalId("friendships", username);
+        return new RelationalId("usernames", username);
     }
 
     /**
