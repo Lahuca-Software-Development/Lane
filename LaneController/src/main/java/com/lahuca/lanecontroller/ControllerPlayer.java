@@ -88,8 +88,8 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
     }
 
     @Override
-    public String getNickname() {
-        return nickname;
+    public Optional<String> getNickname() {
+        return Optional.ofNullable(nickname);
     }
 
     @Override

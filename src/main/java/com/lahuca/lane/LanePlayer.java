@@ -32,7 +32,7 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
 	default DataObjectId getNetworkProfileDataObjectId(String id) {
 		return new DataObjectId(RelationalId.Profiles(getNetworkProfileUuid()), id);
 	}
-	String getNickname();
+	Optional<String> getNickname();
 	Optional<QueueRequest> getQueueRequest();
 	Optional<String> getInstanceId();
 	Optional<Long> getGameId();

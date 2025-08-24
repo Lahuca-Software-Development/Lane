@@ -156,8 +156,8 @@ public class InstancePlayer implements LanePlayer {
     }
 
     @Override
-    public String getNickname() {
-        return nickname;
+    public Optional<String> getNickname() {
+        return Optional.ofNullable(nickname);
     }
 
     public CompletableFuture<Void> setNickname(String nickname) {
