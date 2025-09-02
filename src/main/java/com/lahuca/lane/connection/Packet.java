@@ -20,10 +20,7 @@ import com.lahuca.lane.connection.packet.connection.ConnectionClosePacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionConnectPacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionKeepAlivePacket;
 import com.lahuca.lane.connection.packet.connection.ConnectionKeepAliveResultPacket;
-import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
-import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
-import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
-import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
+import com.lahuca.lane.connection.packet.data.*;
 import com.lahuca.lane.connection.request.result.*;
 
 import java.util.HashMap;
@@ -84,6 +81,8 @@ public interface Packet {
 		Packet.registerPacket(DataObjectReadPacket.packetId, DataObjectReadPacket.class);
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
+        Packet.registerPacket(DataObjectListIdsPacket.packetId, DataObjectListIdsPacket.class);
+        Packet.registerPacket(DataObjectCopyPacket.packetId, DataObjectCopyPacket.class);
 		Packet.registerPacket(SavedLocalePacket.Get.packetId, SavedLocalePacket.Get.class);
 		Packet.registerPacket(SavedLocalePacket.Set.packetId, SavedLocalePacket.Set.class);
 

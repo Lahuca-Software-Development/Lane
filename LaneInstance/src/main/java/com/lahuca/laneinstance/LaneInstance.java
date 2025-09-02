@@ -19,9 +19,7 @@ import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
-import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
-import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
-import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
+import com.lahuca.lane.connection.packet.data.*;
 import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
@@ -331,6 +329,38 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     // TODO updateDataObject
+
+    /**
+     * Retrieves a list of data object IDs whose key has the same prefix from the provided ID (case sensitive).
+     * Example for the input with id = "myPrefix" with relationalId = ("players", "Laurenshup"), it will return:
+     * <ul>
+     *     <li>players.Laurenshup.myPrefix.value1</li>
+     *     <li>players.Laurenshup.myPrefix.value2.subKey</li>
+     *     <li>players.Laurenshup.myPrefixSuffix</li>
+     * </ul>
+     * @param prefix the prefix ID. This cannot be null, its values can be null.
+     * @return a {@link CompletableFuture} with the array of IDs with matching prefix
+     */
+    public @NotNull CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
+        if(id == null || prefix == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        return connection.<ArrayList<DataObjectId>>sendRequestPacket(requestId -> new DataObjectListIdsPacket(requestId, prefix), null).getResult();
+    }
+
+    /**
+     * Copies a data object from one place to another.
+     * This completely copies the data object, but replaces the ID.
+     * @param permissionKey the permission key to use while reading and writing
+     * @param sourceId the source data object ID
+     * @param targetId the target data object ID
+     * @return a {@link CompletableFuture} with the void type to signify success: it has been copied
+     */
+    CompletableFuture<Void> copyDataObject(PermissionKey permissionKey, DataObjectId sourceId, DataObjectId targetId) {
+        if (id == null || permissionKey == null || !permissionKey.isFormattedCorrectly() || sourceId == null || targetId == null) {
+            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        }
+        return connection.<Void>sendRequestPacket(requestId -> new DataObjectCopyPacket(requestId, permissionKey, sourceId, targetId), null).getResult();
+    }
+
     // TODO Maybe still delagate getInstancePLayer()?
 
     /**
@@ -576,7 +606,5 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @param runnable the runnable
      */
     public abstract void runOnMainThread(Runnable runnable);
-
-
 
 }

@@ -21,10 +21,7 @@ import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
-import com.lahuca.lane.connection.packet.data.DataObjectReadPacket;
-import com.lahuca.lane.connection.packet.data.DataObjectRemovePacket;
-import com.lahuca.lane.connection.packet.data.DataObjectWritePacket;
-import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
+import com.lahuca.lane.connection.packet.data.*;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.connection.request.result.*;
@@ -366,6 +363,41 @@ public abstract class Controller {
                         }
                     });
                 }
+                case DataObjectListIdsPacket packet -> {
+                    dataManager.listDataObjectIds(packet.prefix()).whenComplete((object, ex) -> {
+                        if (ex != null) {
+                            // TODO Add more exceptions. To write and remove as well!
+                            String result = switch (ex) {
+                                case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                                case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                                default -> ResponsePacket.UNKNOWN;
+                            };
+                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), result), input.from());
+                        } else {
+                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, object), input.from());
+                        }
+                    });
+                }
+                case DataObjectCopyPacket packet -> {
+                    if (!packet.permissionKey().isIndividual()) {
+                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                    }
+                    dataManager.copyDataObject(packet.permissionKey(), packet.sourceId(), packet.targetId()).whenComplete((bool, ex) -> {
+                        if (ex != null) {
+                            String result = switch (ex) {
+                                case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                                case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                                case IllegalStateException ignored -> ResponsePacket.ILLEGAL_STATE;
+                                case SecurityException ignored -> ResponsePacket.ILLEGAL_STATE;
+                                default -> ResponsePacket.UNKNOWN;
+                            };
+                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), result), input.from());
+                        } else {
+                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                        }
+                    });
+                }
+
                 case RequestInformationPacket.Player packet ->
                         connection.sendPacket(new RequestInformationPacket.PlayerResponse(packet.getRequestId(), ResponsePacket.OK, getPlayer(packet.uuid()).map(ControllerPlayer::convertRecord).orElse(null)), input.from());
                 case RequestInformationPacket.Players packet -> {
@@ -716,6 +748,36 @@ public abstract class Controller {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.updateDataObject(permissionKey, id, updater);
+    }
+
+    /**
+     * Retrieves a list of data object IDs whose key has the same prefix from the provided ID (case sensitive).
+     * Example for the input with id = "myPrefix" with relationalId = ("players", "Laurenshup"), it will return:
+     * <ul>
+     *     <li>players.Laurenshup.myPrefix.value1</li>
+     *     <li>players.Laurenshup.myPrefix.value2.subKey</li>
+     *     <li>players.Laurenshup.myPrefixSuffix</li>
+     * </ul>
+     * @param prefix the prefix ID. This cannot be null, its values can be null.
+     * @return a {@link CompletableFuture} with the array of IDs with matching prefix
+     */
+    public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
+        return dataManager.listDataObjectIds(prefix);
+    }
+
+    /**
+     * Copies a data object from one place to another.
+     * This completely copies the data object, but replaces the ID.
+     * @param permissionKey the permission key to use while reading and writing
+     * @param sourceId the source data object ID
+     * @param targetId the target data object ID
+     * @return a {@link CompletableFuture} with the void type to signify success: it has been copied
+     */
+    CompletableFuture<Void> copyDataObject(PermissionKey permissionKey, DataObjectId sourceId, DataObjectId targetId) {
+        if (!permissionKey.isIndividual()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
+        }
+        return dataManager.copyDataObject(permissionKey, sourceId, targetId);
     }
 
     /**
