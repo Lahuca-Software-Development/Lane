@@ -7,6 +7,7 @@ import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.game.Slottable;
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.laneinstance.events.*;
@@ -199,6 +200,7 @@ public class InstancePlayerManager implements Slottable {
             }
             // We have a reservation, so we can proceed, first get the current queue types and then send the queue finished packet
             QueueType queueType = player.getRegisterData().queueType();
+            QueueRequestParameter parameter = player.getRegisterData().parameter();
             boolean instanceSwitched = player.getInstanceId().map(id -> !id.equals(instance.getId())).orElse(true);
             boolean gameSwitched = player.getGame().map(obj -> player.getRegisterData().getGameId().map(id -> obj.getGameId() != id).orElse(true)).orElse(true);
             Optional<InstanceGame> oldGame = player.getGame();
@@ -228,7 +230,7 @@ public class InstancePlayerManager implements Slottable {
                             // We were already on the same game
                             if (oldGameListType != newListType) {
                                 // Okay so we switched queue type of the game
-                                game.get().onSwitchQueueType(player, oldGameListType, queueType);
+                                game.get().onSwitchQueueType(player, oldGameListType, queueType, parameter);
                                 instance.handleInstanceEvent(new InstanceSwitchGameQueueTypeEvent(player, game.get(), oldGameListType, queueType));
                                 return;
                             }
@@ -236,12 +238,12 @@ public class InstancePlayerManager implements Slottable {
                             return;
                         }
                         // We join a different game
-                        game.get().onJoin(player, queueType);
+                        game.get().onJoin(player, queueType, parameter);
                         instance.handleInstanceEvent(new InstanceJoinGameEvent(player, game.get(), queueType));
                     } else {
                         // We were not yet on this instance
                         instance.handleInstanceEvent(new InstanceJoinEvent(player, queueType));
-                        game.get().onJoin(player, queueType);
+                        game.get().onJoin(player, queueType, parameter);
                         instance.handleInstanceEvent(new InstanceJoinGameEvent(player, game.get(), queueType));
                     }
                 } else {

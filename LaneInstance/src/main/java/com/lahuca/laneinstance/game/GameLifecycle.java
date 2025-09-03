@@ -1,5 +1,6 @@
 package com.lahuca.laneinstance.game;
 
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.laneinstance.InstancePlayer;
 import com.lahuca.laneinstance.InstancePlayerListType;
@@ -8,8 +9,8 @@ public interface GameLifecycle {
 
     void onStartup();
     void onShutdown();
-    void onJoin(InstancePlayer instancePlayer, QueueType queueType);
+    void onJoin(InstancePlayer instancePlayer, QueueType queueType, QueueRequestParameter parameter);
     void onQuit(InstancePlayer instancePlayer);
-    void onSwitchQueueType(InstancePlayer instancePlayer, InstancePlayerListType oldPlayerListType, QueueType queueType);
+    void onSwitchQueueType(InstancePlayer instancePlayer, InstancePlayerListType oldPlayerListType, QueueType queueType, QueueRequestParameter parameter);
 
 }

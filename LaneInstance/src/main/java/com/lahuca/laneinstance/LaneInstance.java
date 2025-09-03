@@ -141,7 +141,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                         });
                     }
                     // We are here, so we can apply it.
-                    getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType(), packet.gameId()));
+                    getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType(), packet.parameter(), packet.gameId()));
                     sendSimpleResult(packet, ResponsePacket.OK);
                 }
                 case InstanceUpdatePlayerPacket packet -> {

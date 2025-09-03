@@ -16,6 +16,7 @@
 package com.lahuca.lanecontroller.events;
 
 import com.lahuca.lane.queue.QueueRequest;
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import net.kyori.adventure.text.Component;
@@ -90,20 +91,20 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.Disconnect(message);
     }
 
-    public void setJoinInstanceResult(String instanceId) {
-        result = new QueueStageEventResult.JoinInstance(instanceId);
+    public void setJoinInstanceResult(String instanceId, QueueRequestParameter parameter) {
+        result = new QueueStageEventResult.JoinInstance(instanceId, parameter);
     }
 
-    public void setJoinInstanceResult(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType) {
-        result = new QueueStageEventResult.JoinInstance(instanceId, joinTogetherPlayers, queueType);
+    public void setJoinInstanceResult(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) {
+        result = new QueueStageEventResult.JoinInstance(instanceId, joinTogetherPlayers, queueType, parameter);
     }
 
-    public void setJoinGameResult(long gameId) {
-        result = new QueueStageEventResult.JoinGame(gameId);
+    public void setJoinGameResult(long gameId, QueueRequestParameter parameter) {
+        result = new QueueStageEventResult.JoinGame(gameId, parameter);
     }
 
-    public void setJoinGameResult(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType) {
-        result = new QueueStageEventResult.JoinGame(gameId, joinTogetherPlayers, queueType);
+    public void setJoinGameResult(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) {
+        result = new QueueStageEventResult.JoinGame(gameId, joinTogetherPlayers, queueType, parameter);
     }
 
 }

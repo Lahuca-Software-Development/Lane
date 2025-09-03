@@ -1,5 +1,6 @@
 package com.lahuca.laneinstance.game;
 
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.laneinstance.InstancePlayer;
 import com.lahuca.laneinstance.InstancePlayerListType;
@@ -57,7 +58,7 @@ public interface TeamGame<T extends Team> extends GameLifecycle {
     }
 
     @Override
-    default void onSwitchQueueType(InstancePlayer instancePlayer, InstancePlayerListType oldPlayerListType, QueueType queueType) {
+    default void onSwitchQueueType(InstancePlayer instancePlayer, InstancePlayerListType oldPlayerListType, QueueType queueType, QueueRequestParameter parameter) {
         if(queueType != QueueType.PLAYING) getTeamOfPlayer(instancePlayer).ifPresent(team -> team.removeMember(instancePlayer));
     }
 

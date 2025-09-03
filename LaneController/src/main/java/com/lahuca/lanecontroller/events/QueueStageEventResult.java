@@ -15,6 +15,7 @@
  */
 package com.lahuca.lanecontroller.events;
 
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueStage;
 import com.lahuca.lane.queue.QueueStageResult;
 import com.lahuca.lane.queue.QueueType;
@@ -62,6 +63,12 @@ public sealed interface QueueStageEventResult permits QueueStageEventResult.None
          */
         QueueType getQueueType();
 
+        /**
+         * The parameter that was used to join the instance/game.
+         * @return the parameter
+         */
+        QueueRequestParameter getParameter();
+
     }
 
     /**
@@ -103,10 +110,10 @@ public sealed interface QueueStageEventResult permits QueueStageEventResult.None
      * The class consisting of the data for an instance join result.
      * It also holds any other players (in UUID form) that should also do the same interaction.
      */
-    record JoinInstance(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
+    record JoinInstance(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
-        public JoinInstance(String instanceId) {
-            this(instanceId, null, QueueType.PLAYING);
+        public JoinInstance(String instanceId, QueueRequestParameter parameter) {
+            this(instanceId, null, QueueType.PLAYING, parameter);
         }
 
         @Override
@@ -124,16 +131,21 @@ public sealed interface QueueStageEventResult permits QueueStageEventResult.None
             return queueType;
         }
 
+        @Override
+        public QueueRequestParameter getParameter() {
+            return parameter;
+        }
+
     }
 
     /**
      * The class consisting of the data for a game join result.
      * It also holds any other players (in UUID form) that should also do the same interaction.
      */
-    record JoinGame(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
+    record JoinGame(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
-        public JoinGame(long gameId) {
-            this(gameId, null, QueueType.PLAYING);
+        public JoinGame(long gameId, QueueRequestParameter parameter) {
+            this(gameId, null, QueueType.PLAYING, parameter);
         }
 
         @Override
@@ -153,6 +165,11 @@ public sealed interface QueueStageEventResult permits QueueStageEventResult.None
         @Override
         public QueueType getQueueType() {
             return queueType;
+        }
+
+        @Override
+        public QueueRequestParameter getParameter() {
+            return parameter;
         }
 
     }

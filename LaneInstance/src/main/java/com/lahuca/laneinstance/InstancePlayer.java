@@ -7,6 +7,7 @@ import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
 import com.lahuca.lane.data.ordered.OrderedDataMap;
 import com.lahuca.lane.queue.QueueRequest;
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.laneinstance.game.InstanceGame;
@@ -52,7 +53,7 @@ public class InstancePlayer implements LanePlayer {
         this.registerData = registerData;
     }
 
-    public record RegisterData(QueueType queueType, Long gameId) {
+    public record RegisterData(QueueType queueType, QueueRequestParameter parameter, Long gameId) {
 
         public Optional<Long> getGameId() {
             return Optional.ofNullable(gameId);

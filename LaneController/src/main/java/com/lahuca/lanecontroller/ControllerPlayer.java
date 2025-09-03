@@ -291,7 +291,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
                 // Make the reservation
                 setQueueRequest(request);
-                CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), joinable.getQueueType(), resultGameId), resultInstance.getId()).getFutureResult();
+                CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), joinable.getQueueType(), joinable.getParameter(), resultGameId), resultInstance.getId()).getFutureResult();
                 future.exceptionallyCompose(exception -> {
                     if (exception instanceof UnsuccessfulResultException ex) {
                         // We are not allowing to join at this instance.

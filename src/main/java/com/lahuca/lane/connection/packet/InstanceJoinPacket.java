@@ -17,6 +17,7 @@ package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 
@@ -28,7 +29,7 @@ import com.lahuca.lane.records.PlayerRecord;
  * @param queueType the queue type it has used to join
  * @param gameId the game id to join, null if only joining the instance
  */
-public record InstanceJoinPacket(long requestId, PlayerRecord player, QueueType queueType, Long gameId) implements RequestPacket {
+public record InstanceJoinPacket(long requestId, PlayerRecord player, QueueType queueType, QueueRequestParameter parameter, Long gameId) implements RequestPacket {
 
 	public static final String packetId = "instanceJoin";
 

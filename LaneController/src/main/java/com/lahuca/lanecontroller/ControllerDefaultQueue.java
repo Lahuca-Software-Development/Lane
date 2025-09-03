@@ -88,9 +88,9 @@ public class ControllerDefaultQueue {
                     if (parameter.gameId().isPresent()) {
                         Optional<ControllerGame> value = findByGameId(parameter.gameId().get(), excludeInstances, excludeGames, queueType, joinTogether, allowKick);
                         if (value.isPresent()) {
-                            if (joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId());
+                            if (joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId(), parameter);
                             else
-                                event.setJoinGameResult(value.get().getGameId(), new HashSet<>(joinTogether.keySet()), queueType);
+                                event.setJoinGameResult(value.get().getGameId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
                             return true;
                         }
                     }
@@ -98,27 +98,27 @@ public class ControllerDefaultQueue {
                         Optional<ControllerGame> value = findByGameData(parameter.instanceId().orElse(null), parameter.gameType().orElse(null),
                                 parameter.gameMap().orElse(null), parameter.gameMode().orElse(null), excludeInstances, excludeGames, queueType, joinTogether, allowKick);
                         if (value.isPresent()) {
-                            if (joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId());
+                            if (joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId(), parameter);
                             else
-                                event.setJoinGameResult(value.get().getGameId(), new HashSet<>(joinTogether.keySet()), queueType);
+                                event.setJoinGameResult(value.get().getGameId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
                             return true;
                         }
                     }
                     if (parameter.instanceId().isPresent()) {
                         Optional<ControllerLaneInstance> value = findByInstanceId(parameter.instanceId().get(), excludeInstances, queueType, joinTogether, allowKick);
                         if (value.isPresent()) {
-                            if (joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
+                            if (joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId(), parameter);
                             else
-                                event.setJoinInstanceResult(value.get().getId(), new HashSet<>(joinTogether.keySet()), queueType);
+                                event.setJoinInstanceResult(value.get().getId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
                             return true;
                         }
                     }
                     if (parameter.instanceType().isPresent()) {
                         Optional<ControllerLaneInstance> value = findByInstanceType(parameter.instanceType().get(), excludeInstances, queueType, joinTogether, allowKick);
                         if (value.isPresent()) {
-                            if (joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId());
+                            if (joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId(), parameter);
                             else
-                                event.setJoinInstanceResult(value.get().getId(), new HashSet<>(joinTogether.keySet()), queueType);
+                                event.setJoinInstanceResult(value.get().getId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
                             return true;
                         }
                     }
