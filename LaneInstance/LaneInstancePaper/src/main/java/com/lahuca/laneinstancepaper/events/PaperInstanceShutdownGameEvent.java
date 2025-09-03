@@ -1,7 +1,7 @@
 package com.lahuca.laneinstancepaper.events;
 
-import com.lahuca.laneinstance.InstanceGame;
 import com.lahuca.laneinstance.events.InstanceShutdownGameEvent;
+import com.lahuca.laneinstance.game.InstanceGame;
 import org.bukkit.event.HandlerList;
 
 public class PaperInstanceShutdownGameEvent extends PaperInstanceEvent<InstanceShutdownGameEvent> {

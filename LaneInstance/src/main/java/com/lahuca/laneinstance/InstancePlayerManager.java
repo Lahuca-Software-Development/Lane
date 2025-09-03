@@ -10,6 +10,7 @@ import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.laneinstance.events.*;
+import com.lahuca.laneinstance.game.InstanceGame;
 import net.kyori.adventure.text.Component;
 
 import java.util.*;

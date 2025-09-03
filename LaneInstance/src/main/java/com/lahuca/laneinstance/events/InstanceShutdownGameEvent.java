@@ -1,6 +1,6 @@
 package com.lahuca.laneinstance.events;
 
-import com.lahuca.laneinstance.InstanceGame;
+import com.lahuca.laneinstance.game.InstanceGame;
 
 /**
  * This event is called when a game is about to be shutdown.

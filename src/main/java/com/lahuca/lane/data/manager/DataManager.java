@@ -105,4 +105,6 @@ public interface DataManager {
         });
     }
 
+    // TODO Order by, CompletableFuture<ArrayList<DataObject> readOrderBy(DataObjectId, DataSelector)
+
 }

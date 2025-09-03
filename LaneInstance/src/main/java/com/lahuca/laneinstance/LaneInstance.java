@@ -35,6 +35,7 @@ import com.lahuca.lane.records.*;
 import com.lahuca.laneinstance.events.InstanceEvent;
 import com.lahuca.laneinstance.events.InstanceShutdownGameEvent;
 import com.lahuca.laneinstance.events.InstanceStartupGameEvent;
+import com.lahuca.laneinstance.game.InstanceGame;
 import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
