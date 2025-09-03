@@ -204,6 +204,11 @@ public abstract class AbstractInstanceGame implements InstanceGame {
         sendGameStatus();
     }
 
+    public void setState(String state) {
+        this.state = state;
+        sendGameStatus();
+    }
+
     @Override
     public Optional<String> getState() {
         return Optional.ofNullable(state);
