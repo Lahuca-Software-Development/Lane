@@ -608,4 +608,6 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      */
     public abstract void runOnMainThread(Runnable runnable);
 
+    public abstract void updatePlayerListName(UUID uuid);
+
 }

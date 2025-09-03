@@ -3,6 +3,9 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.connection.packet.SendMessagePacket;
+import com.lahuca.lane.data.ordered.OrderedData;
+import com.lahuca.lane.data.ordered.OrderedDataComponents;
+import com.lahuca.lane.data.ordered.OrderedDataMap;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
@@ -32,6 +35,13 @@ public class InstancePlayer implements LanePlayer {
 
     // Below are instance only
     private RegisterData registerData;
+
+    //TODO Add default values for the OrderedDataMap
+    private final OrderedDataComponents playerListNameData = new OrderedDataComponents();
+    private final OrderedDataComponents chatNameData = new OrderedDataComponents();
+
+    private final OrderedDataMap<Integer> sortPriorityData = new OrderedDataMap<>();
+
 
     InstancePlayer(PlayerRecord record, RegisterData registerData) {
         Objects.requireNonNull(record, "record must not be null");
@@ -178,6 +188,34 @@ public class InstancePlayer implements LanePlayer {
     @Override
     public int getQueuePriority() {
         return queuePriority;
+    }
+
+    public void updatePlayerListName() {
+        LaneInstance.getInstance().updatePlayerListName(uuid);
+    }
+
+    public void addPlayerListName(OrderedData<Component> data) {
+        playerListNameData.add(data);
+    }
+
+    public void removePlayerListName(String id) {
+        playerListNameData.remove(id);
+    }
+
+    public OrderedDataComponents getPlayerListNameData() {
+        return playerListNameData;
+    }
+
+    public Component getChatName() {
+        return getChatNameData().asComponent();
+    }
+
+    public OrderedDataComponents getChatNameData() {
+        return chatNameData;
+    }
+
+    public OrderedDataMap<Integer> getSortPriorityData() {
+        return sortPriorityData;
     }
 
     @Override

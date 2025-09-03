@@ -18,6 +18,7 @@ package com.lahuca.laneinstancepaper;
 import com.google.gson.Gson;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
+import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import com.lahuca.laneinstance.events.*;
@@ -37,6 +38,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -190,6 +192,18 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         @Override
         public void runOnMainThread(Runnable runnable) {
             getServer().getScheduler().runTask(instance, runnable);
+        }
+
+        @Override
+        public void updatePlayerListName(UUID uuid) {
+            Player player = getServer().getPlayer(uuid);
+            if(player == null) return;
+            getPlayerManager().getInstancePlayer(uuid).ifPresent(instancePlayer -> {
+                player.playerListName(instancePlayer.getPlayerListNameData().asComponent());
+
+                List<OrderedData<Integer>> sortedPriorities = instancePlayer.getSortPriorityData().sort();
+                if(!sortedPriorities.isEmpty()) player.setPlayerListOrder(sortedPriorities.getFirst().getData());
+            });
         }
     }
 

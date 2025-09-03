@@ -7,6 +7,7 @@ import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.RecordConverter;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +25,7 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
     private final HashSet<UUID> players = new HashSet<>();
     private boolean invitationsOnly = true;
 
-    private final Cache<UUID, String> invitations;
+    private final Cache<@NotNull UUID, String> invitations;
     private final long creationTimestamp;
 
     ControllerParty(long partyId, ControllerPlayer owner) {
@@ -115,7 +116,7 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
                 .toString();
     }
 
-    public Cache<UUID, String> getInvitations() {
+    public Cache<@NotNull UUID, String> getInvitations() {
         return invitations;
     }
 
