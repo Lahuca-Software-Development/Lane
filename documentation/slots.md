@@ -25,6 +25,9 @@ Then it may kick a player with a lower priority if it is allowed.
 - If the *players* list allows kicking, then it does not have to be full per se.
 - If the *playing* list allows kicking, then it does not have to be full per se.
 
+A slotted instance or game can be private, meaning that by default, 
+only when the instance ID/game ID itself is specified, the instance/game is found in the default queue process.
+
 ### Reserved
 The *reserved* list is the most comprehensible list as it contains all UUIDs that are currently connected or still connecting to that instance/game.
 This therefore also includes UUIDs that are not on that instance. Its maximum is defined by the next mentioned *online* list,

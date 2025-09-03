@@ -37,8 +37,9 @@ public class InstancePlayerManager implements Slottable {
     private boolean onlineKickable;
     private boolean playersKickable;
     private boolean playingKickable;
+    private boolean isPrivate;
 
-    InstancePlayerManager(LaneInstance instance, Runnable sendInstanceStatus, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) {
+    InstancePlayerManager(LaneInstance instance, Runnable sendInstanceStatus, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) {
         this.instance = instance;
         this.sendInstanceStatus = sendInstanceStatus;
         this.onlineJoinable = onlineJoinable;
@@ -50,6 +51,7 @@ public class InstancePlayerManager implements Slottable {
         this.onlineKickable = onlineKickable;
         this.playersKickable = playersKickable;
         this.playingKickable = playingKickable;
+        this.isPrivate = isPrivate;
     }
 
     /**
@@ -453,6 +455,16 @@ public class InstancePlayerManager implements Slottable {
     }
 
     @Override
+    public boolean isPrivate() {
+        return isPrivate;
+    }
+
+    public void setPrivate(boolean isPrivate) {
+        this.isPrivate = isPrivate;
+        sendInstanceStatus.run();
+    }
+
+    @Override
     public boolean containsReserved(UUID uuid) {
         return reserved.containsKey(uuid);
     }
@@ -472,7 +484,7 @@ public class InstancePlayerManager implements Slottable {
         return playing.contains(uuid);
     }
 
-    public void updateJoinableSlots(boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) {
+    public void updateJoinableSlots(boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) {
         this.onlineJoinable = onlineJoinable;
         this.playersJoinable = playersJoinable;
         this.playingJoinable = playingJoinable;
@@ -482,6 +494,7 @@ public class InstancePlayerManager implements Slottable {
         this.onlineKickable = onlineKickable;
         this.playersKickable = playersKickable;
         this.playingKickable = playingKickable;
+        this.isPrivate = isPrivate;
         sendInstanceStatus.run();
     }
 

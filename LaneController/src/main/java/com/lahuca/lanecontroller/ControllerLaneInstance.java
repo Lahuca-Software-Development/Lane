@@ -39,7 +39,7 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
     private boolean onlineKickable;
     private boolean playersKickable;
     private boolean playingKickable;
-
+    private boolean isPrivate;
 
     ControllerLaneInstance(InstanceRecord record) {
         this.id = record.id();
@@ -120,9 +120,15 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
     }
 
     @Override
+    public boolean isPrivate() {
+        return isPrivate;
+    }
+
+    @Override
     public InstanceRecord convertRecord() {
         return new InstanceRecord(id, type, reserved, online, players, playing, onlineJoinable, playersJoinable,
-                playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable);
+                playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable,
+                playingKickable,isPrivate);
     }
 
     @Override
@@ -145,6 +151,7 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
         onlineKickable = record.onlineKickable();
         playersKickable = record.playersKickable();
         playingKickable = record.playingKickable();
+        isPrivate = record.isPrivate();
     }
 
     @Override
@@ -165,6 +172,7 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
                 .add("onlineKickable=" + onlineKickable)
                 .add("playersKickable=" + playersKickable)
                 .add("playingKickable=" + playingKickable)
+                .add("isPrivate=" + isPrivate)
                 .toString();
     }
 

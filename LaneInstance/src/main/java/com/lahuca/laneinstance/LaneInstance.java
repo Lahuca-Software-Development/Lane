@@ -64,7 +64,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     private final HashMap<Long, InstanceGame> games = new HashMap<>();
 
-    public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) throws IOException, InstanceInstantiationException {
+    public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(connection, "connection cannot be null");
@@ -77,7 +77,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
         this.connection = connection;
 
-        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable);
+        playerManager = new InstancePlayerManager(this, this::sendInstanceStatus, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable, isPrivate);
 
         connection.setOnReconnect(this::sendInstanceStatus);
         connection.initialise(input -> {
@@ -429,7 +429,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(),
                 pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(),
                 pm.getMaxOnlineSlots(), pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots(),
-                pm.isOnlineKickable(), pm.isPlayersKickable(), pm.isPlayingKickable());
+                pm.isOnlineKickable(), pm.isPlayersKickable(), pm.isPlayingKickable(), pm.isPrivate());
     }
 
     /**

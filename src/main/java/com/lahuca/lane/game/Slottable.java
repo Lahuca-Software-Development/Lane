@@ -37,6 +37,8 @@ public interface Slottable {
 
     boolean isPlayingKickable();
 
+    boolean isPrivate();
+
     default int getAvailableOnlineSlots() {
         if (getMaxOnlineSlots() <= 0) return Integer.MAX_VALUE;
         return getMaxOnlineSlots() - getReserved().size();

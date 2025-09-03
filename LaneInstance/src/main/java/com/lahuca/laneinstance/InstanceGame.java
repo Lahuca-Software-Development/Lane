@@ -45,6 +45,7 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
     private boolean onlineKickable = false;
     private boolean playersKickable = false;
     private boolean playingKickable = false;
+    private boolean isPrivate = false;
 
 	private String state;
 	private final HashMap<String, InstanceStateProperty> properties = new HashMap<>();
@@ -310,6 +311,16 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
     }
 
     @Override
+    public boolean isPrivate() {
+        return isPrivate;
+    }
+
+    public void setPrivate(boolean isPrivate) {
+        this.isPrivate = isPrivate;
+        sendGameStatus();
+    }
+
+    @Override
 	public Optional<String> getState() {
 		return Optional.ofNullable(state);
 	}
@@ -329,7 +340,7 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
 		properties.forEach((k, v) -> propertyRecords.put(k, v.convertRecord()));
 		return new GameRecord(gameId, instanceId, gameType, gameMode, gameMap, reserved, online, players, playing,
 				onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots,
-                onlineKickable, playersKickable, playingKickable,
+                onlineKickable, playersKickable, playingKickable, isPrivate,
 				state, propertyRecords);
 	}
 
@@ -354,6 +365,7 @@ public abstract class InstanceGame implements LaneGame, RecordConverter<GameReco
                 .add("onlineKickable=" + onlineKickable)
                 .add("playersKickable=" + playersKickable)
                 .add("playingKickable=" + playingKickable)
+                .add("isPrivate=" + isPrivate)
 				.add("state='" + state + "'")
 				.add("properties=" + properties)
 				.toString();

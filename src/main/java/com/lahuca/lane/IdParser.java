@@ -47,7 +47,7 @@ public class IdParser {
      *     <li>Reduction 8 (total length: 5): Output length 4: Precision 10 seconds</li>
      *     <li>Reduction 9 (total length: 4): Output length 3: Precision 1 second</li>
      *     <li>Reduction 10 (total length: 3): Output length 2: Precision 100 milliseconds</li>
-     *     <li>Recuction 11 (total length: 2): Output length 2: Precision 10 milliseconds</li>
+     *     <li>Reduction 11 (total length: 2): Output length 2: Precision 10 milliseconds</li>
      * </ul>
      * @param id the id.
      * @param reduce the reduction from the left side of the id.

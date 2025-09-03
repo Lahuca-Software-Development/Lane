@@ -32,6 +32,7 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
     private boolean onlineKickable;
     private boolean playersKickable;
     private boolean playingKickable;
+    private boolean isPrivate;
 
     private String state;
     private final HashMap<String, ControllerStateProperty> properties = new HashMap<>();
@@ -133,6 +134,11 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
     }
 
     @Override
+    public boolean isPrivate() {
+        return isPrivate;
+    }
+
+    @Override
     public Optional<String> getState() {
         return Optional.ofNullable(state);
     }
@@ -148,7 +154,7 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
         properties.forEach((k, v) -> propertyRecords.put(k, v.convertRecord()));
         return new GameRecord(gameId, instanceId, gameType, gameMode, gameMap, reserved, online, players, playing,
                 onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots,
-                onlineKickable, playersKickable, playingKickable, state, propertyRecords);
+                onlineKickable, playersKickable, playingKickable, isPrivate, state, propertyRecords);
     }
 
     @Override
@@ -173,6 +179,7 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
         onlineKickable = record.onlineKickable();
         playersKickable = record.playersKickable();
         playingKickable = record.playingKickable();
+        isPrivate = record.isPrivate();
         state = record.state();
         properties.clear();
         record.properties().forEach((k, v) -> properties.put(k, new ControllerStateProperty(v.id(), v.value(), v.extraData())));
@@ -199,6 +206,7 @@ public class ControllerGame implements RecordConverterApplier<GameRecord>, LaneG
                 .add("onlineKickable=" + onlineKickable)
                 .add("playersKickable=" + playersKickable)
                 .add("playingKickable=" + playingKickable)
+                .add("isPrivate=" + isPrivate)
                 .add("state='" + state + "'")
                 .add("properties=" + properties)
                 .toString();

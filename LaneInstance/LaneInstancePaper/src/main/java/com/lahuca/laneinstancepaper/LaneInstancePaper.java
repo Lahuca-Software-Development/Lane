@@ -98,15 +98,16 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         boolean onlineKickable = configuration.getBoolean("onlineKickable");
         boolean playersKickable = configuration.getBoolean("playersKickable");
         boolean playingKickable = configuration.getBoolean("playingKickable");
+        boolean isPrivate = configuration.getBoolean("isPrivate");
         try {
-            new Implementation(id, connection, type, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable);
+            new Implementation(id, connection, type, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable, isPrivate);
         } catch(IOException e) {
             e.printStackTrace(); // TODO Send message with exception
             getServer().getPluginManager().disablePlugin(this);
         } catch(InstanceInstantiationException e) {
             LaneInstance.getInstance().getPlayerManager().updateJoinableSlots(onlineJoinable, playersJoinable,
                     playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots,
-                    onlineKickable, playersKickable, playingKickable);
+                    onlineKickable, playersKickable, playingKickable, isPrivate);
         }
     }
 
@@ -145,8 +146,8 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 
     private class Implementation extends LaneInstance {
 
-        private Implementation(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable) throws IOException, InstanceInstantiationException {
-            super(id, connection, type, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable);
+        private Implementation(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) throws IOException, InstanceInstantiationException {
+            super(id, connection, type, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable, isPrivate);
         }
 
         private Server getServer() {
