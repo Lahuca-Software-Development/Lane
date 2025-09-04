@@ -215,6 +215,14 @@ public class InstancePlayer implements LanePlayer {
         return chatNameData;
     }
 
+    public void addSortPriority(OrderedData<Integer> data) {
+        sortPriorityData.add(data);
+    }
+
+    public void removeSortPriority(String id) {
+        sortPriorityData.remove(id);
+    }
+
     public OrderedDataMap<Integer> getSortPriorityData() {
         return sortPriorityData;
     }
