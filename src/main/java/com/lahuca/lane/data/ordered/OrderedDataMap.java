@@ -27,7 +27,7 @@ public class OrderedDataMap<T> {
     private final Map<String, OrderedData<T>> data = new HashMap<>();
 
     private Predicate<OrderedData<T>> shouldInclude = d -> false;
-    private Comparator<OrderedData<T>> comparator = Comparator.comparingInt(OrderedData::getPriority);
+    private Comparator<OrderedData<T>> comparator = Comparator.comparingDouble(OrderedData::getPriority);
 
     public @NotNull @Unmodifiable List<OrderedData<T>> sort() {
         return sort(null);
@@ -36,9 +36,7 @@ public class OrderedDataMap<T> {
     public @NotNull @Unmodifiable List<OrderedData<T>> sort(@Nullable Predicate<OrderedData<T>> filter) {
         Collection<OrderedData<T>> all = getData().values();
         if(filter != null) all = all.stream().filter(filter).toList();
-
-
-        int targetPriority = all.stream().mapToInt(OrderedData::getPriority).max().orElse(0);
+        double targetPriority = all.stream().mapToDouble(OrderedData::getPriority).max().orElse(0);
         Collection<OrderedData<T>> finalAll = all;
 
         return all.stream()
@@ -47,13 +45,14 @@ public class OrderedDataMap<T> {
                 .toList();
     }
 
-    public void add(OrderedData<T> data) {
+    public OrderedDataMap<T> add(OrderedData<T> data) {
         this.data.put(data.getId(), data);
+        return this;
     }
 
-    public boolean remove(String id) {
+    public OrderedDataMap<T> remove(String id) {
         this.data.remove(id);
-        return true;
+        return this;
     }
 
     public OrderedData<T> get(String id) {

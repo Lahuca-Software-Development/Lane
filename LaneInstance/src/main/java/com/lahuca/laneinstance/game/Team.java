@@ -11,6 +11,9 @@ import java.util.Set;
  **/
 public interface Team extends ComponentLike {
 
+    // TODO Actually also add options for TeamColor, friendly fire, and other MC stuff.
+    //  This is connected with a ScoreboardManager
+
     /**
      * Gets the team Id
      *
