@@ -48,6 +48,26 @@ public interface ProfilePacket {
 
     }
 
+    record CreateSubProfile(long requestId, UUID current, ProfileType type, String name, boolean active) implements RequestPacket, ProfilePacket {
+
+        public static final String packetId = "profileCreateSubProfile";
+
+        static {
+            Packet.registerPacket(packetId, ProfilePacket.CreateSubProfile.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
     record AddSubProfile(long requestId, UUID current, UUID subProfile,
                          String name, boolean active) implements RequestPacket, ProfilePacket {
 

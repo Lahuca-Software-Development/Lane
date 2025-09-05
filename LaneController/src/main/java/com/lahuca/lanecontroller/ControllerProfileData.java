@@ -51,6 +51,11 @@ public class ControllerProfileData extends ProfileData {
     }
 
     @Override
+    public CompletableFuture<? extends ProfileData> createSubProfile(ProfileType type, String name, boolean active) {
+        return Controller.getInstance().createSubProfile(this, type, name, active);
+    }
+
+    @Override
     public CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name, boolean active) {
         if(!(subProfile instanceof ControllerProfileData subProfileController)) {
             throw new IllegalArgumentException("subProfile is not a ControllerProfileData");

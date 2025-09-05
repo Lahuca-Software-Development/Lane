@@ -103,7 +103,8 @@ public interface Packet {
 
 		Packet.registerPacket(ProfilePacket.GetProfileData.packetId, ProfilePacket.GetProfileData.class);
 		Packet.registerPacket(ProfilePacket.CreateNew.packetId, ProfilePacket.CreateNew.class);
-		Packet.registerPacket(ProfilePacket.AddSubProfile.packetId, ProfilePacket.AddSubProfile.class);
+        Packet.registerPacket(ProfilePacket.CreateSubProfile.packetId, ProfilePacket.CreateSubProfile.class);
+        Packet.registerPacket(ProfilePacket.AddSubProfile.packetId, ProfilePacket.AddSubProfile.class);
 		Packet.registerPacket(ProfilePacket.RemoveSubProfile.packetId, ProfilePacket.RemoveSubProfile.class);
 		Packet.registerPacket(ProfilePacket.ResetDelete.packetId, ProfilePacket.ResetDelete.class);
 		Packet.registerPacket(ProfilePacket.Copy.packetId, ProfilePacket.Copy.class);
