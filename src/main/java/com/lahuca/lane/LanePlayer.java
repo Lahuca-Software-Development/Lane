@@ -36,8 +36,8 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
     CompletableFuture<? extends ProfileData> getNetworkProfile();
 
     /**
-     * Retrieves sub profiles with the given name and active state from the network profile.
-     * If none exists, one will be created
+     * Retrieves sub profiles with the given name from the network profile.
+     * If none exists, one will be created with the given name and active state.
      *
      * @param name   the name
      * @param active the active state

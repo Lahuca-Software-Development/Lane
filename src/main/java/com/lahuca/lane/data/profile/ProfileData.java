@@ -67,8 +67,8 @@ public abstract class ProfileData implements RecordConverter<ProfileRecord> { //
     }
 
     /**
-     * Retrieves a sub profile with the given name and active state from this profile.
-     * If it does not exist, it will be created.
+     * Retrieves a sub profile with the given name from this profile.
+     * If it does not exist, it will create a new sub profile with the given name and active state.
      *
      * @param name   the name
      * @param active the active state
@@ -76,7 +76,7 @@ public abstract class ProfileData implements RecordConverter<ProfileRecord> { //
      */
     public @NotNull CompletableFuture<Set<UUID>> fetchSubProfilesIds(@NotNull String name, boolean active) {
         Objects.requireNonNull(name, "name cannot be null");
-        HashSet<UUID> subProfiles = getSubProfiles(name, active);
+        Set<UUID> subProfiles = getSubProfiles(name);
         if (subProfiles.isEmpty()) {
             return createSubProfile(ProfileType.SUB, name, active).thenApply(ProfileData::getId).thenApply(Set::of);
         }
