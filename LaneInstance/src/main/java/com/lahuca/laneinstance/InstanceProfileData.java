@@ -65,6 +65,11 @@ public class InstanceProfileData extends ProfileData {
     }
 
     @Override
+    public CompletableFuture<InstanceProfileData> createSubProfile(ProfileType type, String name, boolean active) {
+        return LaneInstance.getInstance().createSubProfile(this, type, name, active);
+    }
+
+    @Override
     public CompletableFuture<Boolean> addSubProfile(ProfileData subProfile, String name, boolean active) {
         if(!(subProfile instanceof InstanceProfileData subProfileInstance)) {
             throw new IllegalArgumentException("subProfile is not a InstanceProfileData");

@@ -162,6 +162,7 @@ public class InstancePlayer implements LanePlayer {
         return networkProfileUuid;
     }
 
+    @Override
     public CompletableFuture<InstanceProfileData> getNetworkProfile() {
         return LaneInstance.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
     }

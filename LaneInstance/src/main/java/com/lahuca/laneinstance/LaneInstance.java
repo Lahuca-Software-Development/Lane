@@ -462,9 +462,39 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @param type the profile type
      * @return a {@link CompletableFuture} with a {@link UUID}, which is the UUID of the new profile
      */
-    public CompletableFuture<UUID> createNewProfile(ProfileType type) {
+    public CompletableFuture<InstanceProfileData> createNewProfile(ProfileType type) {
         Objects.requireNonNull(type, "type cannot be null");
-        return connection.<String>sendRequestPacket(id -> new ProfilePacket.CreateNew(id, type), null).getResult().thenApply(UUID::fromString);
+        return connection.<ProfileRecord>sendRequestPacket(id -> new ProfilePacket.CreateNew(id, type), null).getResult().thenApply(InstanceProfileData::new);
+    }
+
+    /**
+     * Creates a sub profile to another "super profile", the current profile, at the given name.
+     * This returns a {@link CompletableFuture} with the profile that has been made and added to the super profile.
+     * Internally, first creates a new profile;
+     * after which the current profile is added as super profile in the sub profile;
+     * then the sub profile is added to the current profile.
+     * These changes are reflected in the respective parameters' values as well.
+     * The type cannot be of type {@link ProfileType#NETWORK}.
+     * @param current the current profile, where to create the sub profile
+     * @param type the profile type to create
+     * @param name the name to add the sub profile to
+     * @param active whether the sub profile is active
+     * @return a {@link CompletableFuture} with the new profile data if successful
+     */
+    public @NotNull CompletableFuture<InstanceProfileData> createSubProfile(@NotNull InstanceProfileData current, @NotNull ProfileType type, @NotNull String name, boolean active) {
+        Objects.requireNonNull(current, "current cannot be null");
+        Objects.requireNonNull(type, "type cannot be null");
+        Objects.requireNonNull(name, "name cannot be null");
+        if (type == ProfileType.NETWORK) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Cannot add a network profile as sub profile"));
+        }
+        return connection.<ProfileRecord>sendRequestPacket(id -> new ProfilePacket.CreateSubProfile(id, current.getId(), type, name, active), null).getResult()
+                .thenApply(profile -> {
+                    if(profile != null) {
+                        current.addSubProfile(profile.id(), name, active);
+                    }
+                    return new InstanceProfileData(profile);
+                });
     }
 
     /**

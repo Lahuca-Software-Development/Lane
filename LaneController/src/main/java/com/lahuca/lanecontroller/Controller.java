@@ -43,6 +43,7 @@ import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueFinishedEvent;
 import net.kyori.adventure.text.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.*;
@@ -512,17 +513,31 @@ public abstract class Controller {
                                     connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, opt.map(ControllerProfileData::convertRecord).orElse(null)), input.from());
                                 });
                         case ProfilePacket.CreateNew packet ->
-                                createNewProfile(packet.type()).whenComplete((uuid, ex) -> {
+                                createNewProfile(packet.type()).whenComplete((profile, ex) -> {
                                     if (ex != null) {
                                         // TODO Additional instnceof? As read?
                                         if (ex instanceof IllegalArgumentException) {
-                                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
-                                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                        connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                                         return;
                                     }
-                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, uuid), input.from());
+                                    connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, profile.convertRecord()), input.from());
+                                });
+                        case ProfilePacket.CreateSubProfile packet -> getProfileData(packet.current()).thenApply(opt -> opt.orElse(null))
+                                .thenCompose(current -> createSubProfile(current, packet.type(), packet.name(), packet.active()))
+                                .whenComplete((profile, ex) -> {
+                                    if (ex != null) {
+                                        // TODO Additional instnceof? As read?
+                                        if (ex instanceof IllegalArgumentException) {
+                                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            return;
+                                        }
+                                        connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                        return;
+                                    }
+                                    connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, profile.convertRecord()), input.from());
                                 });
                         case ProfilePacket.AddSubProfile packet -> getProfileData(packet.current())
                                 .thenApply(opt -> opt.orElse(null))
@@ -799,16 +814,41 @@ public abstract class Controller {
      * @param type the profile type
      * @return a {@link CompletableFuture} with a {@link UUID}, which is the UUID of the new profile
      */
-    public CompletableFuture<UUID> createNewProfile(ProfileType type) {
+    public CompletableFuture<ControllerProfileData> createNewProfile(@NotNull ProfileType type) {
+        Objects.requireNonNull(type, "type cannot be null");
         UUID uuid = UUID.randomUUID();
         return getProfileData(uuid).thenCompose(optProfile -> {
             if (optProfile.isPresent()) return createNewProfile(type);
             // Our UUID is unique, now create
             // TODO This can still cause troubles! We should do reservation: write into reservation array somewhere, even before getProfileData!
-            ProfileData newData = new ControllerProfileData(uuid, type);
+            ControllerProfileData newData = new ControllerProfileData(uuid, type);
             DataObject dataObject = new DataObject(newData.getDataObjectId(), PermissionKey.CONTROLLER, gson, newData);
-            return dataManager.writeDataObject(PermissionKey.CONTROLLER, dataObject).thenApply(none -> uuid);
+            return dataManager.writeDataObject(PermissionKey.CONTROLLER, dataObject).thenApply(none -> newData);
         });
+    }
+
+    /**
+     * Creates a sub profile to another "super profile", the current profile, at the given name.
+     * This returns a {@link CompletableFuture} with the profile that has been made and added to the super profile.
+     * Internally, first creates a new profile;
+     * after which the current profile is added as super profile in the sub profile;
+     * then the sub profile is added to the current profile.
+     * These changes are reflected in the respective parameters' values as well.
+     * The type cannot be of type {@link ProfileType#NETWORK}.
+     * @param current the current profile, where to create the sub profile
+     * @param type the profile type to create
+     * @param name the name to add the sub profile to
+     * @param active whether the sub profile is active
+     * @return a {@link CompletableFuture} with the new profile data if successful
+     */
+    public @NotNull CompletableFuture<ControllerProfileData> createSubProfile(@NotNull ControllerProfileData current, @NotNull ProfileType type, @NotNull String name, boolean active) {
+        return createNewProfile(type).thenCompose(subProfile -> addSubProfile(current, subProfile, name, active).thenCompose(status -> {
+            if(!status) {
+                resetDeleteProfile(subProfile, true);
+                return CompletableFuture.failedFuture(new IllegalStateException("Could not add the newly created sub profile to the current profile"));
+            }
+            return CompletableFuture.completedFuture(subProfile);
+        }));
     }
 
     /**
@@ -850,7 +890,6 @@ public abstract class Controller {
             if (!status) {
                 return CompletableFuture.failedFuture(new IllegalStateException("Profile data of sub profile did not exist"));
             }
-            if (!status) return CompletableFuture.completedFuture(false);
             // We know we updated the sub profile, now update the current one.
             return dataManager.updateDataObject(PermissionKey.CONTROLLER, current.getDataObjectId(), obj -> {
                 current.addSubProfile(subProfile.getId(), name, active);

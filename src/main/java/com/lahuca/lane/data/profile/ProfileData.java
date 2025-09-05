@@ -6,6 +6,7 @@ import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.records.ProfileRecord;
 import com.lahuca.lane.records.RecordConverter;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +64,23 @@ public abstract class ProfileData implements RecordConverter<ProfileRecord> { //
     public UUID getFirstSuperProfile() {
         if (superProfiles.isEmpty()) return null;
         return superProfiles.iterator().next();
+    }
+
+    /**
+     * Retrieves a sub profile with the given name and active state from this profile.
+     * If it does not exist, it will be created.
+     *
+     * @param name   the name
+     * @param active the active state
+     * @return a {@link CompletableFuture} with the sub profile ID
+     */
+    public @NotNull CompletableFuture<Set<UUID>> fetchSubProfilesIds(@NotNull String name, boolean active) {
+        Objects.requireNonNull(name, "name cannot be null");
+        HashSet<UUID> subProfiles = getSubProfiles(name, active);
+        if (subProfiles.isEmpty()) {
+            return createSubProfile(ProfileType.SUB, name, active).thenApply(ProfileData::getId).thenApply(Set::of);
+        }
+        return CompletableFuture.completedFuture(subProfiles);
     }
 
     /**
@@ -151,6 +169,16 @@ public abstract class ProfileData implements RecordConverter<ProfileRecord> { //
         });
         return data;
     }
+
+    /**
+     * Creates a sub profile under the given name with the given active state.
+     *
+     * @param type   the profile type
+     * @param name   the name
+     * @param active if the sub profile is active
+     * @return a {@link CompletableFuture} with the new profile data if successful
+     */
+    public abstract CompletableFuture<? extends ProfileData> createSubProfile(ProfileType type, String name, boolean active);
 
     /**
      * Adds a sub profile under the given name with the given active state.
