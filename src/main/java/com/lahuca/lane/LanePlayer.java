@@ -43,8 +43,8 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
      * @param active the active state
      * @return a {@link CompletableFuture} with the sub profile ID
      */
-    default CompletableFuture<Set<UUID>> fetchSubProfilesId(String name, boolean active) {
-        return getNetworkProfile().thenCompose(networkProfile -> networkProfile.fetchSubProfileId(name, active));
+    default CompletableFuture<Set<UUID>> fetchSubProfilesIds(String name, boolean active) {
+        return getNetworkProfile().thenCompose(networkProfile -> networkProfile.fetchSubProfilesIds(name, active));
     }
 	default DataObjectId getNetworkProfileDataObjectId(String id) {
 		return new DataObjectId(RelationalId.Profiles(getNetworkProfileUuid()), id);
