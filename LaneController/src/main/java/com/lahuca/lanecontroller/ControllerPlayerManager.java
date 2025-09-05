@@ -49,13 +49,10 @@ public class ControllerPlayerManager {
         CompletableFuture<UUID> networkProfileUuidFuture = DefaultDataObjects.getPlayersNetworkProfile(dataManager, uuid).thenCompose(opt -> {
             // If UUID is present, return it; otherwise create new profile
             return opt.<CompletionStage<UUID>>map(CompletableFuture::completedFuture)
-                    .orElseGet(() -> controller.createNewProfile(ProfileType.NETWORK).thenCompose(controller::getProfileData)
+                    .orElseGet(() -> controller.createNewProfile(ProfileType.NETWORK)
                             .thenCompose(profile -> {
-                                if (profile.isEmpty()) {
-                                    throw new IllegalStateException("Profile data is empty");
-                                }
                                 // We created and fetched a profile, now set it in the data manager
-                                return controller.setNewNetworkProfile(uuid, profile.get()).thenApply(data -> profile.get().getId());
+                                return controller.setNewNetworkProfile(uuid, profile).thenApply(data -> profile.getId());
                             }));
             // We have a profile, return its value
         });

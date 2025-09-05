@@ -74,13 +74,13 @@ public abstract class ProfileData implements RecordConverter<ProfileRecord> { //
      * @param active the active state
      * @return a {@link CompletableFuture} with the sub profile ID
      */
-    public @NotNull CompletableFuture<UUID> fetchSubProfileId(@NotNull String name, boolean active) {
+    public @NotNull CompletableFuture<Set<UUID>> fetchSubProfileId(@NotNull String name, boolean active) {
         Objects.requireNonNull(name, "name cannot be null");
         HashSet<UUID> subProfiles = getSubProfiles(name, active);
         if (subProfiles.isEmpty()) {
-            return createSubProfile(ProfileType.SUB, name, active).thenApply(ProfileData::getId);
+            return createSubProfile(ProfileType.SUB, name, active).thenApply(ProfileData::getId).thenApply(Set::of);
         }
-        return CompletableFuture.completedFuture(subProfiles.iterator().next());
+        return CompletableFuture.completedFuture(subProfiles);
     }
 
     /**

@@ -23,6 +23,7 @@ import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -35,14 +36,14 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
     CompletableFuture<? extends ProfileData> getNetworkProfile();
 
     /**
-     * Retrieves a sub profile with the given name and active state from the network profile.
-     * If it does not exist, it will be created.
+     * Retrieves sub profiles with the given name and active state from the network profile.
+     * If none exists, one will be created
      *
      * @param name   the name
      * @param active the active state
      * @return a {@link CompletableFuture} with the sub profile ID
      */
-    default CompletableFuture<UUID> fetchSubProfileId(String name, boolean active) {
+    default CompletableFuture<Set<UUID>> fetchSubProfilesId(String name, boolean active) {
         return getNetworkProfile().thenCompose(networkProfile -> networkProfile.fetchSubProfileId(name, active));
     }
 	default DataObjectId getNetworkProfileDataObjectId(String id) {
