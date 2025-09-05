@@ -153,6 +153,10 @@ public class DataObject {
         setValue(gson, value);
     }
 
+    public DataObject(DataObjectId id, PermissionKey readPermission, PermissionKey writePermission, Gson gson, Object value) {
+        this(id, readPermission, writePermission, -1, 0, gson, value);
+    }
+
     public DataObject(DataObjectId id, PermissionKey permission, long removalTime, int version, Gson gson, Object value) {
         this(id, permission, permission, removalTime, version, gson, value);
     }
