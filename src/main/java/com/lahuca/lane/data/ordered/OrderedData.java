@@ -22,11 +22,11 @@ public class OrderedData<T> {
 
     private String id;
     private T data;
-    private int priority;
+    private double priority;
     private int ordering;
     private Predicate<Collection<OrderedData<T>>> forceInclude;
 
-    public OrderedData(String id, T data, int priority, int ordering, Predicate<Collection<OrderedData<T>>> forceInclude) {
+    public OrderedData(String id, T data, double priority, int ordering, Predicate<Collection<OrderedData<T>>> forceInclude) {
         this.id = id;
         this.data = data;
         this.priority = priority;
@@ -34,7 +34,7 @@ public class OrderedData<T> {
         this.forceInclude = forceInclude;
     }
 
-    public OrderedData(String id, T data, int priority, int ordering) {
+    public OrderedData(String id, T data, double priority, int ordering) {
         this(id, data, priority, ordering, l -> false);
     }
 
@@ -54,11 +54,11 @@ public class OrderedData<T> {
         this.data = data;
     }
 
-    public int getPriority() {
+    public double getPriority() {
         return priority;
     }
 
-    public void setPriority(int priority) {
+    public void setPriority(double priority) {
         this.priority = priority;
     }
 
