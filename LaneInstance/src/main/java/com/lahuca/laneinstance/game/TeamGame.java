@@ -32,7 +32,7 @@ public interface TeamGame<T extends Team> extends GameLifecycle {
     /**
      * Gets a team of given UUID
      *
-     * @param uuid The player's uuid
+     * @param player The Instance Player
      * @return GameTeam of player, null when he is not in team
      */
     default Optional<T> getTeamOfPlayer(InstancePlayer player) {

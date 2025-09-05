@@ -9,6 +9,7 @@ maxPlayingSlots: -1
 onlineKickable: true
 playersKickable: true
 playingKickable: true
+isPrivate: false
 
 connection:
   port: 7766

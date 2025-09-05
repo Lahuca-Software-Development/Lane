@@ -19,6 +19,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 public class InstancePlayerManager implements Slottable {
 
@@ -515,7 +516,9 @@ public class InstancePlayerManager implements Slottable {
         return InstancePlayerListType.NONE;
     }
 
-
+    public void broadcast(Consumer<InstancePlayer> consumer) {
+        getInstancePlayers().forEach(consumer);
+    }
 
     // TODO Set locale in Paper.
     // TODO Set locale in Velocity

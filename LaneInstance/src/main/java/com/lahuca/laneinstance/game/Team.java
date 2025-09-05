@@ -9,10 +9,6 @@ import java.util.Set;
  * @author _Neko1
  * @date 04.04.2024
  **/
-
-/**
- *
- */
 public interface Team extends ComponentLike {
 
     /**

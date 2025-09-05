@@ -11,6 +11,7 @@ import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.laneinstance.game.InstanceGame;
+import com.lahuca.laneinstance.scoreboard.PlayerScoreboard;
 import net.kyori.adventure.text.Component;
 
 import java.util.*;
@@ -37,8 +38,11 @@ public class InstancePlayer implements LanePlayer {
     // Below are instance only
     private RegisterData registerData;
 
+    private PlayerScoreboard scoreboard;
+
     //TODO Add default values for the OrderedDataMap
-    private final OrderedDataComponents playerListNameData = new OrderedDataComponents();
+    private final OrderedDataComponents playerListName = new OrderedDataComponents(d -> d.getPriority() > 0,
+            d -> d.getPriority() == 0, d -> d.getPriority() < 0);
     private final OrderedDataComponents chatNameData = new OrderedDataComponents();
 
     private final OrderedDataMap<Integer> sortPriorityData = new OrderedDataMap<>();
@@ -58,7 +62,6 @@ public class InstancePlayer implements LanePlayer {
         public Optional<Long> getGameId() {
             return Optional.ofNullable(gameId);
         }
-
     }
 
     /**
@@ -191,20 +194,28 @@ public class InstancePlayer implements LanePlayer {
         return queuePriority;
     }
 
+    public PlayerScoreboard getScoreboard() {
+        return scoreboard;
+    }
+
+    public void setScoreboard(PlayerScoreboard scoreboard) {
+        this.scoreboard = scoreboard;
+    }
+
     public void updatePlayerListName() {
         LaneInstance.getInstance().updatePlayerListName(uuid);
     }
 
     public void addPlayerListName(OrderedData<Component> data) {
-        playerListNameData.add(data);
+        playerListName.add(data);
     }
 
     public void removePlayerListName(String id) {
-        playerListNameData.remove(id);
+        playerListName.remove(id);
     }
 
     public OrderedDataComponents getPlayerListNameData() {
-        return playerListNameData;
+        return playerListName;
     }
 
     public Component getChatName() {

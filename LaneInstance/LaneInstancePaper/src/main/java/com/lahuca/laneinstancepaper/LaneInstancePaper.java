@@ -36,6 +36,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLocaleChangeEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 import java.io.IOException;
 import java.util.List;
@@ -199,12 +201,18 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
             Player player = getServer().getPlayer(uuid);
             if(player == null) return;
             getPlayerManager().getInstancePlayer(uuid).ifPresent(instancePlayer -> {
-                player.playerListName(instancePlayer.getPlayerListNameData().asComponent());
-
+                Component component = instancePlayer.getPlayerListNameData().asComponent();
+                player.playerListName(component);
                 List<OrderedData<Integer>> sortedPriorities = instancePlayer.getSortPriorityData().sort();
                 if(!sortedPriorities.isEmpty()) player.setPlayerListOrder(sortedPriorities.getFirst().getData());
+
+                Scoreboard scoreboard = player.getScoreboard();
+                Team scoreboardTeam = scoreboard.getTeam("playerListName");
+                if(scoreboardTeam != null) scoreboardTeam.unregister();
+                scoreboardTeam = scoreboard.registerNewTeam("playerListName");
+                scoreboardTeam.addEntity(player);
+                scoreboardTeam.displayName(component);
             });
         }
     }
-
 }
