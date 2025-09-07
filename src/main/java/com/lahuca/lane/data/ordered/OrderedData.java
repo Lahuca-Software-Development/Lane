@@ -1,13 +1,3 @@
-/*
- * @author _Neko1
- * @date 3. 9. 2025
- */
-
-/*
- * @author _Neko1
- * @date 2. 9. 2025
- */
-
 package com.lahuca.lane.data.ordered;
 
 import java.util.Collection;
