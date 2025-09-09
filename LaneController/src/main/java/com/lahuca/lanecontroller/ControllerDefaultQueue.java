@@ -21,7 +21,7 @@ public class ControllerDefaultQueue {
         switch (event.getQueueRequest().reason()) {
             case NETWORK_JOIN, SERVER_KICKED, GAME_QUIT, GAME_SHUTDOWN -> {
                 if (!handleDefaultQueueStageEventParameters(event, false, true)) {
-                    event.setDisconnectResult(); // TODO Maybe add message?
+                    event.setDisconnectResult(event.getQueueRequest().reasonMessage());
                 }
             }
             case PARTY_JOIN -> handleDefaultQueueStageEventParameters(event, false, true);
