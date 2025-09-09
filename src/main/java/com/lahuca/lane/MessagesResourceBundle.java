@@ -21,6 +21,7 @@ public class MessagesResourceBundle {
     private final String prefix;
     private final Locale defaultLocale;
     private final String defaultResource;
+    private final Class<?> resourceClass;
 
     /**
      * Constructs a new MessagesResourceBundle.
@@ -30,15 +31,17 @@ public class MessagesResourceBundle {
      * @param defaultLocale the default locale to place the default resource at
      * @param defaultResource the default resource to write, it should be in the resources folder
      */
-    public MessagesResourceBundle(File messagesFolder, String prefix, Locale defaultLocale, String defaultResource) {
+    public MessagesResourceBundle(File messagesFolder, String prefix, Locale defaultLocale, String defaultResource, Class<?> resourceClass) {
         Objects.requireNonNull(messagesFolder, "messagesFolder cannot be null");
         Objects.requireNonNull(prefix, "prefix cannot be null");
         Objects.requireNonNull(defaultLocale, "defaultLocale cannot be null");
         Objects.requireNonNull(defaultResource, "defaultResource cannot be null");
+        Objects.requireNonNull(resourceClass, "resourceClass cannot be null");
         this.messagesFolder = messagesFolder;
         this.prefix = prefix;
         this.defaultLocale = defaultLocale;
         this.defaultResource = defaultResource;
+        this.resourceClass = resourceClass;
     }
 
     /**
@@ -67,7 +70,7 @@ public class MessagesResourceBundle {
             }
             // Create default
             boolean done = false;
-            try (InputStream inputStream = getClass().getResourceAsStream("/" + defaultResource)) {
+            try (InputStream inputStream = resourceClass.getResourceAsStream("/" + defaultResource)) {
                 if (inputStream != null) {
                     Files.copy(inputStream, defaultResourceBundle.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     done = true;

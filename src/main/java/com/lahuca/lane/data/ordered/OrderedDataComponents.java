@@ -16,6 +16,8 @@ import java.util.function.Predicate;
 
 public class OrderedDataComponents extends GroupedOrderedDataMap<Component> implements ComponentLike {
 
+    // TODO Use vars within the components
+
     public OrderedDataComponents() {
         super();
     }

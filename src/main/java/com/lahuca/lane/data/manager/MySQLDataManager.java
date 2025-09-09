@@ -77,8 +77,7 @@ public class MySQLDataManager implements DataManager {
         return CompletableFuture.completedFuture(Optional.empty());
     }
 
-    @Override
-    public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
+    private CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id, boolean madeTable) {
         String tableName = getTableName(id);
         if(tableName == null) return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
@@ -129,8 +128,51 @@ public class MySQLDataManager implements DataManager {
                 return empty();
             }
         } catch (SQLException e) {
+            if((e.getErrorCode() == 1051 || e.getErrorCode() == 1146) && !madeTable) {
+                // Unknown table, create and retry!
+                try(Connection connection = dataSource.getConnection()) {
+                    connection.setAutoCommit(false);
+                    PreparedStatement statement;
+                    if(id.isRelational()) {
+                        statement = connection.prepareStatement("CREATE TABLE " + tableName + """
+                             (
+                                relational_id VARCHAR(128) NOT NULL,
+                                id VARCHAR(128) NOT NULL,
+                                read_permission VARCHAR(39) NOT NULL,
+                                write_permission VARCHAR(39) NOT NULL,
+                                last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                removal_time BIGINT DEFAULT -1,
+                                version INT NOT NULL DEFAULT 0,
+                                `type` VARCHAR(32) NOT NULL,
+                                `value` JSON NOT NULL,
+                                PRIMARY KEY (relational_id, id)
+                            );""");
+                    } else {
+                        statement = connection.prepareStatement("CREATE TABLE " + tableName + """
+                             (
+                                id VARCHAR(128) NOT NULL PRIMARY KEY,
+                                read_permission VARCHAR(39) NOT NULL,
+                                write_permission VARCHAR(39) NOT NULL,
+                                last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                removal_time BIGINT DEFAULT -1,
+                                version INT NOT NULL DEFAULT 0,
+                                `type` VARCHAR(32) NOT NULL,
+                                `value` JSON NOT NULL
+                            );""");
+                    }
+                    statement.executeUpdate();
+                    return readDataObject(permissionKey, id, true);
+                } catch (SQLException ex2) {
+                    return CompletableFuture.failedFuture(ex2);
+                }
+            }
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
+        return readDataObject(permissionKey, id, false);
     }
 
     /**
@@ -348,6 +390,9 @@ public class MySQLDataManager implements DataManager {
                 }
             }
         } catch (SQLException e) {
+            if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
+                return CompletableFuture.completedFuture(null);
+            }
             return CompletableFuture.failedFuture(e);
         }
     }
@@ -378,6 +423,9 @@ public class MySQLDataManager implements DataManager {
                 return CompletableFuture.completedFuture(ids);
             }
         } catch (SQLException e) {
+            if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
+                return CompletableFuture.completedFuture(new ArrayList<>());
+            }
             return CompletableFuture.failedFuture(e);
         }
     }

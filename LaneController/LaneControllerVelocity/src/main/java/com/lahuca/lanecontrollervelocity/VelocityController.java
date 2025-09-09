@@ -161,7 +161,7 @@ public class VelocityController {
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
         initializeConfig();
-        MessagesResourceBundle messages = new MessagesResourceBundle(new File(dataDirectory.toFile(), "lang"), "messages", Locale.ENGLISH, "messages.properties");
+        MessagesResourceBundle messages = new MessagesResourceBundle(new File(dataDirectory.toFile(), "lang"), "messages", Locale.ENGLISH, "messages.properties", this.getClass());
         messages.initialize(); // Initializes default resource bundle TODO Load state
         try {
             messages.loadResourceBundles(MiniMessageTranslationStore.create(Key.key("lane:controller"))); // Load them
