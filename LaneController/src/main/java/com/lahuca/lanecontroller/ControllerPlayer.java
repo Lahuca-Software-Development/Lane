@@ -131,6 +131,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      *
      * @param nickname The new nickname to be set.
      */
+    @Override
     public CompletableFuture<Void> setNickname(@NotNull String nickname) {
         return Controller.getInstance().getPlayerManager().setNickname(networkProfileUuid, nickname).thenApply(success -> {
             this.nickname = nickname;

@@ -119,8 +119,8 @@ public class InstancePlayerManager implements Slottable {
      */
     public CompletableFuture<Optional<UUID>> getPlayerUuid(String username) {
         Objects.requireNonNull(username, "username cannot be null");
-        return instance.getConnection().<UUID>sendRequestPacket(id -> new RequestInformationPacket.PlayerUuid(id, username), null)
-                .getResult().thenApply(Optional::ofNullable);
+        return instance.getConnection().<String>sendRequestPacket(id -> new RequestInformationPacket.PlayerUuid(id, username), null)
+                .getResult().thenApply(val -> val == null ? Optional.empty() : Optional.of(UUID.fromString(val)));
     }
 
     private void disconnectPlayer(UUID uuid, Component message) {

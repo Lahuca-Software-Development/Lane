@@ -176,6 +176,7 @@ public class InstancePlayer implements LanePlayer {
         return Optional.ofNullable(nickname);
     }
 
+    @Override
     public CompletableFuture<Void> setNickname(String nickname) {
         return LaneInstance.getInstance().setNickname(this, nickname);
     }

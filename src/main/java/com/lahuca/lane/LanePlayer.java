@@ -54,6 +54,7 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
     default boolean isNicked() {
         return getNickname().isPresent();
     }
+    CompletableFuture<Void> setNickname(String nickname);
 
     /**
      * Returns the public name to display to other players.

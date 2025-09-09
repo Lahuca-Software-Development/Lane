@@ -57,7 +57,7 @@ public class ControllerPlayerManager {
             // We have a profile, return its value
         });
         UUID networkProfileUuid = networkProfileUuidFuture.get(); // TODO Blocking
-        Optional<String> nickname = DefaultDataObjects.getNetworkProfilesNickname(dataManager, uuid).get(); // TODO Blocking
+        Optional<String> nickname = DefaultDataObjects.getNetworkProfilesNickname(dataManager, networkProfileUuid).get(); // TODO Blocking
         ControllerPlayer player = new ControllerPlayer(uuid, username, networkProfileUuid, nickname.orElse(null));
         if (players.containsKey(player.getUuid())) return null;
         players.put(player.getUuid(), player);
@@ -225,7 +225,6 @@ public class ControllerPlayerManager {
 
     protected CompletableFuture<Void> setNickname(UUID networkProfile, String nickname) {
         Objects.requireNonNull(networkProfile, "networkProfile cannot be null");
-        Objects.requireNonNull(nickname, "nickname cannot be null");
         return DefaultDataObjects.setNetworkProfilesNickname(dataManager, networkProfile, nickname);
     }
 

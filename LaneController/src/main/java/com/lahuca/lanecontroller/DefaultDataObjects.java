@@ -118,7 +118,10 @@ class DefaultDataObjects {
      * @return a {@link CompletableFuture} with a void to signify success: it has been updated
      */
     static CompletableFuture<Void> setNetworkProfilesNickname(DataManager dataManager, UUID profile, String nickname) {
-        DataObject object = new DataObject(getNetworkProfilesLocaleId(profile), PermissionKey.CONTROLLER, DataObjectType.STRING, nickname);
+        if(nickname == null) {
+            return dataManager.removeDataObject(PermissionKey.CONTROLLER, getNetworkProfilesNicknameId(profile));
+        }
+        DataObject object = new DataObject(getNetworkProfilesNicknameId(profile), PermissionKey.CONTROLLER, DataObjectType.STRING, nickname);
         return dataManager.writeDataObject(PermissionKey.CONTROLLER, object);
     }
 
