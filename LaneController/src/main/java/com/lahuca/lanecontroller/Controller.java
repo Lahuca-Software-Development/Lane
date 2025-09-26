@@ -456,6 +456,19 @@ public abstract class Controller {
                             }
                             connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, uuid.orElse(null)), input.from());
                         });
+                case RequestInformationPacket.PlayerNetworkProfile packet -> getPlayerManager().getPlayerNetworkProfile(packet.uuid())
+                        .whenComplete((data, ex) -> {
+                            if (ex != null) {
+                                // TODO Additional instnceof? As read?
+                                if (ex instanceof IllegalArgumentException) {
+                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                    return;
+                                }
+                                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                return;
+                            }
+                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, data.map(ProfileData::convertRecord).orElse(null)), input.from());
+                        });
                 case SendMessagePacket packet -> {
                     sendMessage(packet.player(), packet.message());
                 }

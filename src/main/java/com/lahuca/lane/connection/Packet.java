@@ -98,7 +98,9 @@ public interface Packet {
 		Packet.registerPacket(RequestInformationPacket.InstanceResponse.packetId, RequestInformationPacket.InstanceResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Instances.packetId, RequestInformationPacket.Instances.class);
 		Packet.registerPacket(RequestInformationPacket.InstancesResponse.packetId, RequestInformationPacket.InstancesResponse.class);
+        Packet.registerPacket(RequestInformationPacket.PlayerUsername.packetId, RequestInformationPacket.PlayerUsername.class);
         Packet.registerPacket(RequestInformationPacket.PlayerUuid.packetId, RequestInformationPacket.PlayerUuid.class);
+        Packet.registerPacket(RequestInformationPacket.PlayerNetworkProfile.packetId, RequestInformationPacket.PlayerNetworkProfile.class);
         Packet.registerPacket(SetInformationPacket.PlayerSetNickname.packetId, SetInformationPacket.PlayerSetNickname.class);
 
 		Packet.registerPacket(SendMessagePacket.packetId, SendMessagePacket.class);

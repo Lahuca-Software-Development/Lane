@@ -10,6 +10,7 @@ import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lane.records.ProfileRecord;
 import com.lahuca.laneinstance.events.*;
 import com.lahuca.laneinstance.game.InstanceGame;
 import net.kyori.adventure.text.Component;
@@ -121,6 +122,19 @@ public class InstancePlayerManager implements Slottable {
         Objects.requireNonNull(username, "username cannot be null");
         return instance.getConnection().<String>sendRequestPacket(id -> new RequestInformationPacket.PlayerUuid(id, username), null)
                 .getResult().thenApply(val -> val == null ? Optional.empty() : Optional.of(UUID.fromString(val)));
+    }
+
+    /**
+     * Gets the network profile from the given UUID.
+     * This is done either by taking the network profile from the online player, or by taking it from the data manager.
+     *
+     * @param uuid the player's UUID
+     * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found, the optional is populated with the network profile; otherwise it is empty
+     */
+    public CompletableFuture<Optional<InstanceProfileData>> getPlayerNetworkProfile(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid cannot be null");
+        return instance.getConnection().<ProfileRecord>sendRequestPacket(id -> new RequestInformationPacket.PlayerNetworkProfile(id, uuid), null)
+                .getResult().thenApply(val -> val == null ? Optional.empty() : Optional.of(new InstanceProfileData(val)));
     }
 
     private void disconnectPlayer(UUID uuid, Component message) {

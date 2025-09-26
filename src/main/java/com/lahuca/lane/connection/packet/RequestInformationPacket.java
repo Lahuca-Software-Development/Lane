@@ -358,5 +358,25 @@ public class RequestInformationPacket {
 
     }
 
+    public record PlayerNetworkProfile(long requestId, UUID uuid) implements RequestPacket {
+
+        public static final String packetId = "requestInformationPacket.playerNetworkProfile";
+
+        static {
+            Packet.registerPacket(packetId, PlayerNetworkProfile.class);
+        }
+
+        @Override
+        public String getPacketId() {
+            return packetId;
+        }
+
+        @Override
+        public long getRequestId() {
+            return requestId;
+        }
+
+    }
+
 
 }

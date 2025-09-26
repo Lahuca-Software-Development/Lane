@@ -185,6 +185,19 @@ public class ControllerPlayerManager {
     }
 
     /**
+     * Gets the network profile from the given UUID.
+     * This is done either by taking the network profile from the online player, or by taking it from the data manager.
+     *
+     * @param uuid the player's UUID
+     * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found, the optional is populated with the network profile; otherwise it is empty
+     */
+    public CompletableFuture<Optional<ControllerProfileData>> getPlayerNetworkProfile(UUID uuid) {
+        return getPlayer(uuid).map(ControllerPlayer::getNetworkProfileUuid).map(controller::getProfileData)
+                .orElseGet(() -> DefaultDataObjects.getPlayersNetworkProfile(dataManager, uuid).thenCompose(profileIdOpt ->
+                        profileIdOpt.map(controller::getProfileData).orElse(CompletableFuture.completedFuture(Optional.empty()))));
+    }
+
+    /**
      * Gets the last known username of the player with the given UUID.
      *
      * @param uuid the uuid
