@@ -20,7 +20,7 @@ public interface QueueableGame extends GameLifecycle, Slottable {
 
     @Override
     default void onJoin(InstancePlayer instancePlayer, QueueType queueType, QueueRequestParameter parameter) {
-        if(parameter.queueType().orElse(null) == QueueType.PLAYING && getPlaying().size() >= getNeededPlaying() && !hasGameStarted()) onGameStart();
+        if(queueType == QueueType.PLAYING && getPlaying().size() >= getNeededPlaying() && !hasGameStarted()) onGameStart();
     }
 
     @Override

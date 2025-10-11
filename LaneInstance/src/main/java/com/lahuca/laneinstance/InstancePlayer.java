@@ -62,6 +62,7 @@ public class InstancePlayer implements LanePlayer {
         public Optional<Long> getGameId() {
             return Optional.ofNullable(gameId);
         }
+
     }
 
     /**
