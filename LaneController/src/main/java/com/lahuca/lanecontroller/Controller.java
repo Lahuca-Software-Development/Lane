@@ -97,7 +97,7 @@ public abstract class Controller {
 
         Packet.registerPackets();
 
-        if (connection instanceof ServerSocketConnection serverSocketConnection) {
+        if(connection instanceof ServerSocketConnection serverSocketConnection) {
             // TODO Definitely change the type!
             serverSocketConnection.setOnClientRemove(id -> {
                 instances.remove(id);
@@ -108,21 +108,21 @@ public abstract class Controller {
         connection.initialise(input -> {
             Packet iPacket = input.packet();
             System.out.println("Got Packet: " + input.from());
-            switch (iPacket) {
+            switch(iPacket) {
                 case GameStatusUpdatePacket(long requestId, GameRecord record) -> {
                     long gameId = record.gameId();
-                    if (!input.from().equals(record.instanceId())) {
+                    if(!input.from().equals(record.instanceId())) {
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                         return;
                     }
-                    if (!games.containsKey(gameId)) {
+                    if(!games.containsKey(gameId)) {
                         // A new game has been created, yeey!
                         games.put(gameId, new ControllerGame(record));
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                         return;
                     }
                     ControllerGame game = games.get(gameId);
-                    if (!game.getInstanceId().equals(input.from())) {
+                    if(!game.getInstanceId().equals(input.from())) {
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                         return;
                     }
@@ -135,7 +135,7 @@ public abstract class Controller {
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from());
                         return;
                     }
-                    if (!input.from().equals(game.getInstanceId())) {
+                    if(!input.from().equals(game.getInstanceId())) {
                         connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
                         return;
                     }
@@ -152,28 +152,29 @@ public abstract class Controller {
                     }));
                     connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                 }
-                case GameQuitPacket(long requestId, UUID uuid) -> playerManager.getPlayer(uuid).ifPresentOrElse(player -> {
-                    player.getGameId().flatMap(this::getGame).ifPresentOrElse(game -> {
-                        if(!input.from().equals(game.getInstanceId())) {
-                            connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
-                            return;
-                        }
-                        // Okay we can quit the game
-                        player.setGameId(null);
-                        if(player.getQueueRequest().isEmpty()) {
-                            // We do not have a queue yet, requeue for a new server
-                            // We NEED one, so do not allow none
-                            player.queue(new QueueRequest(QueueRequestReason.GAME_QUIT, null, QueueRequestParameters.lobbyParameters), false);
-                        }
-                        connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
-                    }, () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from()));
-                }, () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from()));
+                case GameQuitPacket(long requestId, UUID uuid) ->
+                        playerManager.getPlayer(uuid).ifPresentOrElse(player -> {
+                            player.getGameId().flatMap(this::getGame).ifPresentOrElse(game -> {
+                                if(!input.from().equals(game.getInstanceId())) {
+                                    connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INSUFFICIENT_RIGHTS), input.from());
+                                    return;
+                                }
+                                // Okay we can quit the game
+                                player.setGameId(null);
+                                if(player.getQueueRequest().isEmpty()) {
+                                    // We do not have a queue yet, requeue for a new server
+                                    // We NEED one, so do not allow none
+                                    player.queue(new QueueRequest(QueueRequestReason.GAME_QUIT, null, QueueRequestParameters.lobbyParameters), false);
+                                }
+                                connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
+                            }, () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from()));
+                        }, () -> connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.INVALID_ID), input.from()));
                 case InstanceStatusUpdatePacket(InstanceRecord record) -> {
-                    if (!input.from().equals(record.id())) {
+                    if(!input.from().equals(record.id())) {
                         // TODO Report?
                         return;
                     }
-                    if (!instances.containsKey(record.id())) {
+                    if(!instances.containsKey(record.id())) {
                         instances.put(record.id(), new ControllerLaneInstance(record));
                         return;
                     }
@@ -239,14 +240,14 @@ public abstract class Controller {
                         () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
 
                 case QueueRequestPacket packet -> {
-                    if (packet.parameters() == null) {
+                    if(packet.parameters() == null) {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), "requestParameters must not be null"), input.from());
                         return;
                     }
                     getPlayer(packet.player()).ifPresentOrElse(player -> player.queue(new QueueRequest(QueueRequestReason.PLUGIN_INSTANCE, packet.parameters()), true).whenComplete((result, exception) -> {
                         String response = ResponsePacket.OK;
-                        if (exception != null) {
-                            if (exception instanceof UnsuccessfulResultException ex) {
+                        if(exception != null) {
+                            if(exception instanceof UnsuccessfulResultException ex) {
                                 response = ex.getMessage();
                             } else {
                                 response = ResponsePacket.UNKNOWN;
@@ -261,9 +262,9 @@ public abstract class Controller {
                         player.getQueueRequest().ifPresentOrElse(queue -> {
                             // There is a queue, check if the state of the player was to transfer to the retrieved instance/game.
                             ControllerPlayerState state = player.getState();
-                            if (state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
+                            if(state != null && state.getProperties() != null && state.getProperties().containsKey(LaneStateProperty.INSTANCE_ID)) {
                                 // Check if we either joined the correct instance or game.
-                                if (state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
+                                if(state.getName().equals(LanePlayerState.INSTANCE_TRANSFER) && state.getProperties().get(LaneStateProperty.INSTANCE_ID).getValue().equals(input.from())) {
                                     // We joined an instance.
                                     ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.INSTANCE_ONLINE, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                                     player.setState(newState);
@@ -272,7 +273,7 @@ public abstract class Controller {
                                     player.setInstanceId(input.from());
                                     connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
                                     Controller.getInstance().handleControllerEvent(new QueueFinishedEvent(player, queue, input.from(), null));
-                                } else if (packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID) && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId()) && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
+                                } else if(packet.gameId() != null && state.getProperties().containsKey(LaneStateProperty.GAME_ID) && state.getProperties().get(LaneStateProperty.GAME_ID).getValue().equals(packet.gameId()) && state.getName().equals(LanePlayerState.GAME_TRANSFER)) {
                                     // We joined a game.
                                     ControllerPlayerState newState = new ControllerPlayerState(LanePlayerState.GAME_ONLINE, Set.of(new ControllerStateProperty(LaneStateProperty.INSTANCE_ID, input.from()), new ControllerStateProperty(LaneStateProperty.GAME_ID, packet.gameId()), new ControllerStateProperty(LaneStateProperty.TIMESTAMP, System.currentTimeMillis())));
                                     player.setState(newState);
@@ -293,15 +294,15 @@ public abstract class Controller {
                 }
                 case RequestIdPacket packet -> {
                     Long newId;
-                    switch (packet.type()) {
+                    switch(packet.type()) {
                         case GAME -> {
                             do {
                                 newId = System.currentTimeMillis();
-                            } while (games.containsKey(newId));
+                            } while(games.containsKey(newId));
                         }
                         default -> newId = null;
                     }
-                    if (newId == null) {
+                    if(newId == null) {
                         connection.sendPacket(new LongResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                     } else {
                         // TODO Do reservation, we do not want doubles!
@@ -309,13 +310,13 @@ public abstract class Controller {
                     }
                 }
                 case DataObjectReadPacket packet -> {
-                    if (!packet.permissionKey().isIndividual()) {
+                    if(!packet.permissionKey().isIndividual()) {
                         connection.sendPacket(new DataObjectResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                     }
                     dataManager.readDataObject(packet.permissionKey(), packet.id()).whenComplete((object, ex) -> {
-                        if (ex != null) {
+                        if(ex != null) {
                             // TODO Add more exceptions. To write and remove as well!
-                            String result = switch (ex) {
+                            String result = switch(ex) {
                                 case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                                 case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
                                 default -> ResponsePacket.UNKNOWN;
@@ -327,12 +328,12 @@ public abstract class Controller {
                     });
                 }
                 case DataObjectWritePacket packet -> {
-                    if (!packet.permissionKey().isIndividual()) {
+                    if(!packet.permissionKey().isIndividual()) {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                     }
                     dataManager.writeDataObject(packet.permissionKey(), packet.object()).whenComplete((bool, ex) -> {
-                        if (ex != null) {
-                            String result = switch (ex) {
+                        if(ex != null) {
+                            String result = switch(ex) {
                                 case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                                 case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
                                 case IllegalStateException ignored -> ResponsePacket.ILLEGAL_STATE;
@@ -346,12 +347,12 @@ public abstract class Controller {
                     });
                 }
                 case DataObjectRemovePacket packet -> {
-                    if (!packet.permissionKey().isIndividual()) {
+                    if(!packet.permissionKey().isIndividual()) {
                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                     }
                     dataManager.removeDataObject(packet.permissionKey(), packet.id()).whenComplete((bool, ex) -> {
-                        if (ex != null) {
-                            String result = switch (ex) {
+                        if(ex != null) {
+                            String result = switch(ex) {
                                 case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                                 case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
                                 case IllegalStateException ignored -> ResponsePacket.ILLEGAL_STATE;
@@ -366,9 +367,9 @@ public abstract class Controller {
                 }
                 case DataObjectListIdsPacket packet -> {
                     dataManager.listDataObjectIds(packet.prefix()).whenComplete((object, ex) -> {
-                        if (ex != null) {
+                        if(ex != null) {
                             // TODO Add more exceptions. To write and remove as well!
-                            String result = switch (ex) {
+                            String result = switch(ex) {
                                 case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                                 case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
                                 default -> ResponsePacket.UNKNOWN;
@@ -379,13 +380,31 @@ public abstract class Controller {
                         }
                     });
                 }
+
+                case DataObjectsListPacket packet -> {
+                    dataManager.listDataObjects(packet.prefix(), packet.permissionKey(), packet.version())
+                            .whenComplete((object, ex) -> {
+                                if(ex != null) {
+                                    // TODO Add more exceptions. To write and remove as well!
+                                    String result = switch(ex) {
+                                        case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
+                                        case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
+                                        default -> ResponsePacket.UNKNOWN;
+                                    };
+                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), result), input.from());
+                                } else {
+                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, object), input.from());
+                                }
+                            });
+                }
+
                 case DataObjectCopyPacket packet -> {
-                    if (!packet.permissionKey().isIndividual()) {
+                    if(!packet.permissionKey().isIndividual()) {
                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
                     }
                     dataManager.copyDataObject(packet.permissionKey(), packet.sourceId(), packet.targetId()).whenComplete((bool, ex) -> {
-                        if (ex != null) {
-                            String result = switch (ex) {
+                        if(ex != null) {
+                            String result = switch(ex) {
                                 case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
                                 case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
                                 case IllegalStateException ignored -> ResponsePacket.ILLEGAL_STATE;
@@ -403,7 +422,7 @@ public abstract class Controller {
                         connection.sendPacket(new RequestInformationPacket.PlayerResponse(packet.getRequestId(), ResponsePacket.OK, getPlayer(packet.uuid()).map(ControllerPlayer::convertRecord).orElse(null)), input.from());
                 case RequestInformationPacket.Players packet -> {
                     ArrayList<PlayerRecord> data = new ArrayList<>();
-                    for (ControllerPlayer value : getPlayerManager().getPlayers()) {
+                    for(ControllerPlayer value : getPlayerManager().getPlayers()) {
                         // TODO Concurrent?
                         data.add(value.convertRecord());
                     }
@@ -413,7 +432,7 @@ public abstract class Controller {
                         connection.sendPacket(new RequestInformationPacket.GameResponse(packet.getRequestId(), ResponsePacket.OK, getGame(packet.gameId()).map(ControllerGame::convertRecord).orElse(null)), input.from());
                 case RequestInformationPacket.Games packet -> {
                     ArrayList<GameRecord> data = new ArrayList<>();
-                    for (ControllerGame value : games.values()) {
+                    for(ControllerGame value : games.values()) {
                         // TODO Concurrent?
                         data.add(value.convertRecord());
                     }
@@ -424,7 +443,7 @@ public abstract class Controller {
                 }
                 case RequestInformationPacket.Instances packet -> {
                     ArrayList<InstanceRecord> data = new ArrayList<>();
-                    for (ControllerLaneInstance value : instances.values()) {
+                    for(ControllerLaneInstance value : instances.values()) {
                         // TODO Concurrent?
                         data.add(value.convertRecord());
                     }
@@ -432,9 +451,9 @@ public abstract class Controller {
                 }
                 case RequestInformationPacket.PlayerUsername packet ->
                         getPlayerManager().getPlayerUsername(packet.uuid()).whenComplete((username, ex) -> {
-                            if (ex != null) {
+                            if(ex != null) {
                                 // TODO Additional instnceof? As read?
-                                if (ex instanceof IllegalArgumentException) {
+                                if(ex instanceof IllegalArgumentException) {
                                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                     return;
                                 }
@@ -445,9 +464,9 @@ public abstract class Controller {
                         });
                 case RequestInformationPacket.PlayerUuid packet ->
                         getPlayerManager().getPlayerUuid(packet.username()).whenComplete((uuid, ex) -> {
-                            if (ex != null) {
+                            if(ex != null) {
                                 // TODO Additional instnceof? As read?
-                                if (ex instanceof IllegalArgumentException) {
+                                if(ex instanceof IllegalArgumentException) {
                                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                     return;
                                 }
@@ -456,19 +475,20 @@ public abstract class Controller {
                             }
                             connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, uuid.orElse(null)), input.from());
                         });
-                case RequestInformationPacket.PlayerNetworkProfile packet -> getPlayerManager().getPlayerNetworkProfile(packet.uuid())
-                        .whenComplete((data, ex) -> {
-                            if (ex != null) {
-                                // TODO Additional instnceof? As read?
-                                if (ex instanceof IllegalArgumentException) {
-                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
-                                    return;
-                                }
-                                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                                return;
-                            }
-                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, data.map(ProfileData::convertRecord).orElse(null)), input.from());
-                        });
+                case RequestInformationPacket.PlayerNetworkProfile packet ->
+                        getPlayerManager().getPlayerNetworkProfile(packet.uuid())
+                                .whenComplete((data, ex) -> {
+                                    if(ex != null) {
+                                        // TODO Additional instnceof? As read?
+                                        if(ex instanceof IllegalArgumentException) {
+                                            connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            return;
+                                        }
+                                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                        return;
+                                    }
+                                    connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, data.map(ProfileData::convertRecord).orElse(null)), input.from());
+                                });
                 case SendMessagePacket packet -> {
                     sendMessage(packet.player(), packet.message());
                 }
@@ -477,16 +497,16 @@ public abstract class Controller {
                     getProfileData(packet.networkProfile()).thenApply(opt -> opt.orElse(null))
                             .thenCompose(profile -> getPlayerManager().getSavedLocale(profile))
                             .whenComplete((locale, ex) -> {
-                                if (ex != null) {
+                                if(ex != null) {
                                     // TODO Additional instnceof? As read?
-                                    if (ex instanceof IllegalArgumentException) {
+                                    if(ex instanceof IllegalArgumentException) {
                                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                         return;
                                     }
                                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                                     return;
                                 }
-                                if (locale.isPresent()) {
+                                if(locale.isPresent()) {
                                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, locale.get().toLanguageTag()), input.from());
                                 } else {
                                     connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, null), input.from());
@@ -497,9 +517,9 @@ public abstract class Controller {
                     getProfileData(packet.networkProfile()).thenApply(opt -> opt.orElse(null))
                             .thenCompose(profile -> getPlayerManager().setSavedLocale(profile, Locale.forLanguageTag(packet.locale())).thenApply(data -> profile))
                             .whenComplete((profile, ex) -> {
-                                if (ex != null) {
+                                if(ex != null) {
                                     // TODO Additional instnceof? As write?
-                                    if (ex instanceof IllegalArgumentException) {
+                                    if(ex instanceof IllegalArgumentException) {
                                         connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                         return;
                                     }
@@ -511,12 +531,12 @@ public abstract class Controller {
                             });
                 }
                 case ProfilePacket profilePacket -> {
-                    switch (profilePacket) {
+                    switch(profilePacket) {
                         case ProfilePacket.GetProfileData packet ->
                                 getProfileData(packet.uuid()).whenComplete((opt, ex) -> {
-                                    if (ex != null) {
+                                    if(ex != null) {
                                         // TODO Additional instnceof? As read?
-                                        if (ex instanceof IllegalArgumentException) {
+                                        if(ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
@@ -527,9 +547,9 @@ public abstract class Controller {
                                 });
                         case ProfilePacket.CreateNew packet ->
                                 createNewProfile(packet.type()).whenComplete((profile, ex) -> {
-                                    if (ex != null) {
+                                    if(ex != null) {
                                         // TODO Additional instnceof? As read?
-                                        if (ex instanceof IllegalArgumentException) {
+                                        if(ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
@@ -538,20 +558,21 @@ public abstract class Controller {
                                     }
                                     connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, profile.convertRecord()), input.from());
                                 });
-                        case ProfilePacket.CreateSubProfile packet -> getProfileData(packet.current()).thenApply(opt -> opt.orElse(null))
-                                .thenCompose(current -> createSubProfile(current, packet.type(), packet.name(), packet.active()))
-                                .whenComplete((profile, ex) -> {
-                                    if (ex != null) {
-                                        // TODO Additional instnceof? As read?
-                                        if (ex instanceof IllegalArgumentException) {
-                                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
-                                            return;
-                                        }
-                                        connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                                        return;
-                                    }
-                                    connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, profile.convertRecord()), input.from());
-                                });
+                        case ProfilePacket.CreateSubProfile packet ->
+                                getProfileData(packet.current()).thenApply(opt -> opt.orElse(null))
+                                        .thenCompose(current -> createSubProfile(current, packet.type(), packet.name(), packet.active()))
+                                        .whenComplete((profile, ex) -> {
+                                            if(ex != null) {
+                                                // TODO Additional instnceof? As read?
+                                                if(ex instanceof IllegalArgumentException) {
+                                                    connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                                    return;
+                                                }
+                                                connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
+                                                return;
+                                            }
+                                            connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, profile.convertRecord()), input.from());
+                                        });
                         case ProfilePacket.AddSubProfile packet -> getProfileData(packet.current())
                                 .thenApply(opt -> opt.orElse(null))
                                 .thenCompose(current ->
@@ -559,9 +580,9 @@ public abstract class Controller {
                                                 .thenApply(opt2 -> opt2.orElse(null))
                                                 .thenCompose(subProfile -> addSubProfile(current, subProfile, packet.name(), packet.active())))
                                 .whenComplete((status, ex) -> {
-                                    if (ex != null) {
+                                    if(ex != null) {
                                         // TODO Additional instnceof? As read?
-                                        if (ex instanceof IllegalArgumentException) {
+                                        if(ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
@@ -577,9 +598,9 @@ public abstract class Controller {
                                                 .thenApply(opt2 -> opt2.orElse(null))
                                                 .thenCompose(subProfile -> removeSubProfile(current, subProfile, packet.name())))
                                 .whenComplete((status, ex) -> {
-                                    if (ex != null) {
+                                    if(ex != null) {
                                         // TODO Additional instnceof? As read?
-                                        if (ex instanceof IllegalArgumentException) {
+                                        if(ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
@@ -592,13 +613,13 @@ public abstract class Controller {
                                 .thenApply(opt -> opt.orElse(null))
                                 .thenCompose(current -> resetDeleteProfile(current, packet.delete()))
                                 .whenComplete((status, ex) -> {
-                                    if (ex != null) {
+                                    if(ex != null) {
                                         // TODO Additional instnceof? As write?
-                                        if (ex instanceof IllegalArgumentException) {
+                                        if(ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
-                                        if(ex instanceof IllegalStateException){
+                                        if(ex instanceof IllegalStateException) {
                                             connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_STATE), input.from());
                                             return;
                                         }
@@ -614,9 +635,9 @@ public abstract class Controller {
                                                 .thenApply(opt2 -> opt2.orElse(null))
                                                 .thenCompose(from -> copyProfile(current, from)))
                                 .whenComplete((status, ex) -> {
-                                    if (ex != null) {
+                                    if(ex != null) {
                                         // TODO Additional instnceof? As read?
-                                        if (ex instanceof IllegalArgumentException) {
+                                        if(ex instanceof IllegalArgumentException) {
                                             connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                             return;
                                         }
@@ -631,9 +652,9 @@ public abstract class Controller {
                                     .thenApply(opt -> opt.orElse(null))
                                     .thenCompose(profile -> setNetworkProfile(player, profile))
                                     .whenComplete((status, ex) -> {
-                                        if (ex != null) {
+                                        if(ex != null) {
                                             // TODO Additional instnceof? As write?
-                                            if (ex instanceof IllegalArgumentException) {
+                                            if(ex instanceof IllegalArgumentException) {
                                                 connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
                                                 return;
                                             }
@@ -647,12 +668,12 @@ public abstract class Controller {
                     }
                 }
                 case SetInformationPacket setInformation -> {
-                    switch (setInformation) {
+                    switch(setInformation) {
                         case SetInformationPacket.PlayerSetNickname(long requestId, UUID uuid, String nickname) ->
                                 getPlayer(uuid).ifPresentOrElse(player -> player.setNickname(nickname).whenComplete((result, exception) -> {
                                     String response = ResponsePacket.OK;
-                                    if (exception != null) {
-                                        if (exception instanceof UnsuccessfulResultException ex) {
+                                    if(exception != null) {
+                                        if(exception instanceof UnsuccessfulResultException ex) {
                                             response = ex.getMessage();
                                         } else {
                                             response = ResponsePacket.UNKNOWN;
@@ -664,7 +685,7 @@ public abstract class Controller {
                     }
                 }
                 case ResponsePacket<?> response -> {
-                    if (!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
+                    if(!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
                         // TODO Well, log about packet that is not wanted.
                     }
                 }
@@ -715,7 +736,7 @@ public abstract class Controller {
      * @return a completable future with an optional with the data object
      */
     public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
-        if (!permissionKey.isIndividual()) {
+        if(!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.readDataObject(permissionKey, id);
@@ -733,7 +754,7 @@ public abstract class Controller {
      * @return a completable future with the void type to signify success: it has been written
      */
     public CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object) {
-        if (!permissionKey.isIndividual()) {
+        if(!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.writeDataObject(permissionKey, object);
@@ -750,7 +771,7 @@ public abstract class Controller {
      * @return a completable future with the void type to signify success: it was removed or did not exist
      */
     public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
-        if (!permissionKey.isIndividual()) {
+        if(!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.removeDataObject(permissionKey, id);
@@ -772,7 +793,7 @@ public abstract class Controller {
      * false when the data object did not exist.
      */
     public CompletableFuture<Boolean> updateDataObject(PermissionKey permissionKey, DataObjectId id, Function<DataObject, Boolean> updater) {
-        if (!permissionKey.isIndividual()) {
+        if(!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.updateDataObject(permissionKey, id, updater);
@@ -786,6 +807,7 @@ public abstract class Controller {
      *     <li>players.Laurenshup.myPrefix.value2.subKey</li>
      *     <li>players.Laurenshup.myPrefixSuffix</li>
      * </ul>
+     *
      * @param prefix the prefix ID. This cannot be null, its values can be null.
      * @return a {@link CompletableFuture} with the array of IDs with matching prefix
      */
@@ -796,13 +818,14 @@ public abstract class Controller {
     /**
      * Copies a data object from one place to another.
      * This completely copies the data object, but replaces the ID.
+     *
      * @param permissionKey the permission key to use while reading and writing
-     * @param sourceId the source data object ID
-     * @param targetId the target data object ID
+     * @param sourceId      the source data object ID
+     * @param targetId      the target data object ID
      * @return a {@link CompletableFuture} with the void type to signify success: it has been copied
      */
     CompletableFuture<Void> copyDataObject(PermissionKey permissionKey, DataObjectId sourceId, DataObjectId targetId) {
-        if (!permissionKey.isIndividual()) {
+        if(!permissionKey.isIndividual()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.copyDataObject(permissionKey, sourceId, targetId);
@@ -831,7 +854,7 @@ public abstract class Controller {
         Objects.requireNonNull(type, "type cannot be null");
         UUID uuid = UUID.randomUUID();
         return getProfileData(uuid).thenCompose(optProfile -> {
-            if (optProfile.isPresent()) return createNewProfile(type);
+            if(optProfile.isPresent()) return createNewProfile(type);
             // Our UUID is unique, now create
             // TODO This can still cause troubles! We should do reservation: write into reservation array somewhere, even before getProfileData!
             ControllerProfileData newData = new ControllerProfileData(uuid, type);
@@ -848,10 +871,11 @@ public abstract class Controller {
      * then the sub profile is added to the current profile.
      * These changes are reflected in the respective parameters' values as well.
      * The type cannot be of type {@link ProfileType#NETWORK}.
+     *
      * @param current the current profile, where to create the sub profile
-     * @param type the profile type to create
-     * @param name the name to add the sub profile to
-     * @param active whether the sub profile is active
+     * @param type    the profile type to create
+     * @param name    the name to add the sub profile to
+     * @param active  whether the sub profile is active
      * @return a {@link CompletableFuture} with the new profile data if successful
      */
     public @NotNull CompletableFuture<ControllerProfileData> createSubProfile(@NotNull ControllerProfileData current, @NotNull ProfileType type, @NotNull String name, boolean active) {
@@ -884,10 +908,10 @@ public abstract class Controller {
         Objects.requireNonNull(current, "current cannot be null");
         Objects.requireNonNull(subProfile, "subProfile cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        if (subProfile.getType() == ProfileType.NETWORK) {
+        if(subProfile.getType() == ProfileType.NETWORK) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Cannot add a network profile as sub profile"));
         }
-        if (subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
+        if(subProfile.getType() == ProfileType.SUB && !subProfile.getSuperProfiles().isEmpty()) {
             // Check whether we update the inactive/active state
             if(!current.getSubProfileData(subProfile.getId()).containsKey(name)) {
                 return CompletableFuture.failedFuture(new IllegalArgumentException("This sub profile already has a super profile which is not the current profile and current name"));
@@ -900,7 +924,7 @@ public abstract class Controller {
             obj.setValue(gson, subProfile);
             return true;
         }).thenCompose(status -> {
-            if (!status) {
+            if(!status) {
                 return CompletableFuture.failedFuture(new IllegalStateException("Profile data of sub profile did not exist"));
             }
             // We know we updated the sub profile, now update the current one.
@@ -935,7 +959,7 @@ public abstract class Controller {
             obj.setValue(gson, current);
             return true;
         }).thenCompose(status -> {
-            if (!status) return CompletableFuture.completedFuture(false);
+            if(!status) return CompletableFuture.completedFuture(false);
             // We know we updated the current profile, now update the sub profile.
             if(!current.getSubProfileData(subProfile.getId()).isEmpty()) {
                 // We do not need to update, it is still a super profile
@@ -960,15 +984,15 @@ public abstract class Controller {
      */
     public CompletableFuture<Void> resetDeleteProfile(ControllerProfileData current, boolean delete) {
         Objects.requireNonNull(current, "current cannot be null");
-        if (delete && (!current.getSuperProfiles().isEmpty() || !current.getSubProfiles().isEmpty())) {
+        if(delete && (!current.getSuperProfiles().isEmpty() || !current.getSubProfiles().isEmpty())) {
             return CompletableFuture.failedFuture(new IllegalStateException("Cannot delete profile with sub or super profiles"));
         }
         return dataManager.listDataObjectIds(new DataObjectId(RelationalId.Profiles(current.getId()), null)).thenCompose(dataObjectIds -> {
-            if (!delete)
+            if(!delete)
                 dataObjectIds.remove(current.getDataObjectId()); // Remove the data object information if deleting
             // Create futures that remove every one of them
             CompletableFuture<?>[] futures = new CompletableFuture[dataObjectIds.size()];
-            for (int i = 0; i < dataObjectIds.size(); i++) {
+            for(int i = 0; i < dataObjectIds.size(); i++) {
                 futures[i] = dataManager.removeDataObject(PermissionKey.CONTROLLER, dataObjectIds.get(i));
             }
             // Combine the futures into one that only accepts if all of them do
@@ -993,7 +1017,7 @@ public abstract class Controller {
             dataObjectIds.remove(from.getDataObjectId()); // Remove the data object information
             // Create futures that copy every one of them
             CompletableFuture<?>[] futures = new CompletableFuture[dataObjectIds.size()];
-            for (int i = 0; i < dataObjectIds.size(); i++) {
+            for(int i = 0; i < dataObjectIds.size(); i++) {
                 DataObjectId fromDataObject = dataObjectIds.get(i);
                 DataObjectId toDataObject = new DataObjectId(RelationalId.Profiles(current.getId()), fromDataObject.id());
                 System.out.println("Copying " + fromDataObject + " to " + toDataObject);
@@ -1016,9 +1040,9 @@ public abstract class Controller {
         Objects.requireNonNull(player, "player cannot be null");
         Objects.requireNonNull(profile, "profile cannot be null");
         // Check if already set
-        if (player.getNetworkProfileUuid().equals(profile.getId())) return CompletableFuture.completedFuture(null);
+        if(player.getNetworkProfileUuid().equals(profile.getId())) return CompletableFuture.completedFuture(null);
         // Check whether the profile can be set
-        if (profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
+        if(profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Can only set a network profile with no super profiles"));
         }
         // Retrieve old profile
@@ -1031,7 +1055,7 @@ public abstract class Controller {
                 obj.setValue(gson, profile);
                 return true;
             }).thenCompose(status -> {
-                if (status) {
+                if(status) {
                     // We added the super profile. Now replace the network profile
                     return DefaultDataObjects.setPlayersNetworkProfile(dataManager, player.getUuid(), profile.getId())
                             .thenCompose(data -> {
@@ -1064,7 +1088,7 @@ public abstract class Controller {
         Objects.requireNonNull(player, "player cannot be null");
         Objects.requireNonNull(profile, "profile cannot be null");
         // Check whether the profile can be set
-        if (profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
+        if(profile.getType() != ProfileType.NETWORK || !profile.getSuperProfiles().isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Can only set a network profile with no super profiles"));
         }
         // Update profiles, first we update the sub profile so that it holds the super profile.
@@ -1075,7 +1099,7 @@ public abstract class Controller {
             obj.setValue(gson, profile);
             return true;
         }).thenCompose(status -> {
-            if (status) {
+            if(status) {
                 // We added the super profile. Now replace the network profile
                 return DefaultDataObjects.setPlayersNetworkProfile(dataManager, player, profile.getId());
             }

@@ -348,6 +348,17 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     /**
+     * Retrieves a list of DataObjects from the given table that match the version.
+     *
+     * @param prefix the prefix ID. This cannot be null, its values can be null.
+     * @return a {@link CompletableFuture} with the array of DataObjects matching the version
+     */
+    public @NotNull CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, int version) {
+        if(id == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        return connection.<ArrayList<DataObject>>sendRequestPacket(requestId -> new DataObjectsListPacket(requestId, prefix, permissionKey, version), null).getResult();
+    }
+
+    /**
      * Copies a data object from one place to another.
      * This completely copies the data object, but replaces the ID.
      * @param permissionKey the permission key to use while reading and writing
