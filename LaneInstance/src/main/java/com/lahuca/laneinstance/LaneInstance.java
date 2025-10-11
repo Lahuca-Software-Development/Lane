@@ -285,7 +285,11 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         if(game == null) {
             throw new IllegalStateException("No game with the given game ID found on this instance");
         }
-        game.onShutdown();
+        try {
+            game.onShutdown();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         handleInstanceEvent(new InstanceShutdownGameEvent(game));
         games.remove(gameId);
         return connection.<Void>sendRequestPacket(id -> new GameShutdownPacket(id, gameId), null).getResult(); // TODO What if failed??
