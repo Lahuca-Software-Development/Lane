@@ -8,10 +8,7 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -52,8 +49,8 @@ public class FileDataManager implements DataManager {
     public FileDataManager(Gson gson, File dataFolder) throws FileNotFoundException {
         this.gson = gson;
         this.dataFolder = dataFolder;
-        if(!dataFolder.exists()) {
-            if(!dataFolder.mkdirs()) {
+        if (!dataFolder.exists()) {
+            if (!dataFolder.mkdirs()) {
                 throw new FileNotFoundException("Unable to create data folder, could not find file");
             }
         }
@@ -61,7 +58,8 @@ public class FileDataManager implements DataManager {
 
     private File buildFilePath(DataObjectId id) {
         File file;
-        if(id.isRelational()) file = new File(dataFolder, "relational" + File.separator + id.relationalId().type() + File.separator + id.relationalId().id());
+        if (id.isRelational())
+            file = new File(dataFolder, "relational" + File.separator + id.relationalId().type() + File.separator + id.relationalId().id());
         else file = new File(dataFolder, "singular");
         return new File(file, id.id() + ".json");
     }
@@ -74,11 +72,11 @@ public class FileDataManager implements DataManager {
     @Override
     public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
         File file = buildFilePath(id);
-        if(!file.exists()) return CompletableFuture.completedFuture(Optional.empty());
+        if (!file.exists()) return CompletableFuture.completedFuture(Optional.empty());
         try (FileReader reader = new FileReader(file)) {
             DataObject object = gson.fromJson(reader, DataObject.class);
             // First check if this object is to be removed
-            if(object.shouldRemove(startTime)) {
+            if (object.shouldRemove(startTime)) {
                 return removeDataObject(PermissionKey.CONTROLLER, id).thenApply(status -> Optional.empty());
             }
             // Object should not be removed, check read access
@@ -94,17 +92,21 @@ public class FileDataManager implements DataManager {
     @Override
     public CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object) {
         // Check if given object is even valid.
-        if(!object.isWriteable()) return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
-        if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
+        if (!object.isWriteable())
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
+        if (!object.hasWriteAccess(permissionKey, false))
+            return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
         File file = buildFilePath(object.getId());
         // Check if it already exists
-        if(!file.exists()) {
+        if (!file.exists()) {
             // It does not exist, create it first.
             try {
-                if(!file.getParentFile().exists()) {
-                    if(!file.getParentFile().mkdirs()) return CompletableFuture.failedFuture(new SecurityException("Could not create parent directory"));
+                if (!file.getParentFile().exists()) {
+                    if (!file.getParentFile().mkdirs())
+                        return CompletableFuture.failedFuture(new SecurityException("Could not create parent directory"));
                 }
-                if(!file.createNewFile()) return CompletableFuture.failedFuture(new SecurityException("Could not create file"));
+                if (!file.createNewFile())
+                    return CompletableFuture.failedFuture(new SecurityException("Could not create file"));
             } catch (IOException | SecurityException e) {
                 return CompletableFuture.failedFuture(e);
             }
@@ -113,7 +115,8 @@ public class FileDataManager implements DataManager {
             try (FileReader reader = new FileReader(file)) {
                 DataObject current = gson.fromJson(reader, DataObject.class);
                 boolean writeAccess = current.hasWriteAccess(permissionKey, false);
-                if(!writeAccess) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing saved object"));
+                if (!writeAccess)
+                    return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing saved object"));
             } catch (IOException | JsonIOException | JsonSyntaxException | SecurityException e) {
                 return CompletableFuture.failedFuture(e);
             }
@@ -124,7 +127,7 @@ public class FileDataManager implements DataManager {
             gson.toJson(object, writer);
             // It is completed, if removed upon stop, add to list
             object.getRemovalTime().ifPresent(removalTime -> {
-                if(removalTime == 0) {
+                if (removalTime == 0) {
                     removeOnStop.add(object.getId());
                 } else {
                     removeOnStop.remove(object.getId());
@@ -139,21 +142,21 @@ public class FileDataManager implements DataManager {
     @Override
     public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
         File file = buildFilePath(id);
-        if(!file.exists()) return CompletableFuture.completedFuture(null);
+        if (!file.exists()) return CompletableFuture.completedFuture(null);
         try (FileReader reader = new FileReader(file)) {
             DataObject object = gson.fromJson(reader, DataObject.class);
             boolean writeAccess = object.hasWriteAccess(permissionKey, false);
-            if(!writeAccess) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow removing saved object"));
+            if (!writeAccess)
+                return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow removing saved object"));
             else {
                 // Remove
-                if(file.delete()) {
+                if (file.delete()) {
                     // Remove the parent directory for if this is empty
-                    if(Optional.ofNullable(file.getParentFile().listFiles()).map(files -> files.length == 0).orElse(false)) {
+                    if (Optional.ofNullable(file.getParentFile().listFiles()).map(files -> files.length == 0).orElse(false)) {
                         file.getParentFile().delete();
                     }
                     return CompletableFuture.completedFuture(null);
-                }
-                else return CompletableFuture.failedFuture(new SecurityException("Could not delete file"));
+                } else return CompletableFuture.failedFuture(new SecurityException("Could not delete file"));
             }
         } catch (IOException | JsonIOException | JsonSyntaxException | SecurityException e) {
             return CompletableFuture.failedFuture(e);
@@ -163,22 +166,29 @@ public class FileDataManager implements DataManager {
     @Override
     public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
         Objects.requireNonNull(prefix, "prefix cannot be null");
-        File folder;
-        if(prefix.isRelational()) folder = new File(dataFolder, "relational" + File.separator + prefix.relationalId().type() + File.separator + prefix.relationalId().id());
-        else folder = new File(dataFolder, "singular");
+        if (prefix.isRelational() && (prefix.relationalId().type() == null || prefix.relationalId().type().isEmpty() || prefix.relationalId().type().length() > 64 || !prefix.relationalId().type().matches("[a-zA-Z]+"))) {
+            throw new IllegalArgumentException("Relational ID type is not properly formatted");
+        }
+        File[] folders;
+        if (prefix.isRelational())
+            folders = new File(dataFolder, "relational" + File.separator + prefix.relationalId().type()).listFiles();
+        else folders = List.of(new File(dataFolder, "singular")).toArray(new File[0]);
+        if(folders == null) return CompletableFuture.completedFuture(new ArrayList<>());
         String keyPrefix = prefix.id();
-        if(keyPrefix == null) keyPrefix = "";
+        if (keyPrefix == null) keyPrefix = "";
         ArrayList<DataObjectId> ids = new ArrayList<>();
-        File[] files = folder.listFiles();
-        if(files == null) return CompletableFuture.completedFuture(new ArrayList<>());
-        for (File file : files) {
-            String nameExtension = file.getName();
-            String name = nameExtension;
-            if(nameExtension.contains(".")) {
-                name = name.substring(0, nameExtension.lastIndexOf("."));
-            }
-            if(name.startsWith(keyPrefix)) {
-                ids.add(new DataObjectId(prefix.relationalId(), name));
+        for (File folder : folders) {
+            File[] files = folder.listFiles();
+            if(files == null) continue;
+            for (File file : files) {
+                String nameExtension = file.getName();
+                String name = nameExtension;
+                if (nameExtension.contains(".")) {
+                    name = name.substring(0, nameExtension.lastIndexOf("."));
+                }
+                if (name.startsWith(keyPrefix)) {
+                    ids.add(new DataObjectId(prefix.relationalId(), name));
+                }
             }
         }
         return CompletableFuture.completedFuture(ids);

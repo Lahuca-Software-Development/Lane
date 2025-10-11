@@ -67,9 +67,8 @@ public class MySQLDataManager implements DataManager {
     }
 
     private String getTableName(DataObjectId id) {
-        if(id.id().isEmpty() || id.id().length() > 128) return null;
-        if(id.isRelational() && (id.relationalId().type().isEmpty() || id.relationalId().type().length() > 64
-                || id.relationalId().id().isEmpty() || !id.relationalId().type().matches("[a-zA-Z]+"))) return null;
+        if(id == null || (id.isRelational() && (id.relationalId().type() == null || id.relationalId().type().isEmpty() || id.relationalId().type().length() > 64
+                || !id.relationalId().type().matches("[a-zA-Z]+")))) return null;
         return prefix + (id.isRelational() ? "_relational_" + id.relationalId().type() : "_singular");
     }
 
@@ -79,7 +78,7 @@ public class MySQLDataManager implements DataManager {
 
     private CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id, boolean madeTable) {
         String tableName = getTableName(id);
-        if(tableName == null)
+        if(tableName == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128)
             return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
@@ -195,7 +194,7 @@ public class MySQLDataManager implements DataManager {
             return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
         DataObjectId id = object.getId();
         String tableName = getTableName(id);
-        if(tableName == null)
+        if(tableName == null || id == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128)
             return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
             // First fetch the permission if it already exists. Make sure to lock it.
@@ -357,7 +356,7 @@ public class MySQLDataManager implements DataManager {
     @Override
     public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
         String tableName = getTableName(id);
-        if(tableName == null) return CompletableFuture.completedFuture(null);
+        if(tableName == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128) return CompletableFuture.completedFuture(null);
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             connection.setAutoCommit(false);
@@ -417,16 +416,30 @@ public class MySQLDataManager implements DataManager {
         if(tableName == null) {
             return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
         }
+        boolean idFalse = prefix.id() == null || prefix.id().isEmpty() || prefix.id().length() > 128;
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             PreparedStatement statement;
             if(prefix.isRelational()) {
-                statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
-                statement.setString(1, prefix.relationalId().id());
-                statement.setString(2, prefix.id() + "%");
+                if(prefix.relationalId().id() == null || prefix.relationalId().id().isEmpty()) {
+                    if(idFalse) {
+                        statement = connection.prepareStatement("SELECT id FROM " + tableName);
+                    } else {
+                        statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
+                        statement.setString(1, prefix.id() + "%");
+                    }
+                } else {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
+                    statement.setString(1, prefix.relationalId().id());
+                    statement.setString(2, prefix.id() + "%");
+                }
             } else {
-                statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
-                statement.setString(1, prefix.id() + "%");
+                if(idFalse) {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName);
+                } else {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
+                    statement.setString(1, prefix.id() + "%");
+                }
             }
             // Get result of query
             try(ResultSet resultSet = statement.executeQuery()) {
