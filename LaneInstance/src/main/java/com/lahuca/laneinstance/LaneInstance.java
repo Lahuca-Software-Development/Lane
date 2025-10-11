@@ -178,8 +178,10 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     public void shutdown() {
+        ArrayList<CompletableFuture<Void>> futures = new ArrayList<>();
         HashSet<Long> gamesSet = new HashSet<>(games.keySet());
-        gamesSet.forEach(this::unregisterGame);
+        gamesSet.forEach(gameId -> futures.add(unregisterGame(gameId)));
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         connection.disableReconnect();
         connection.close();
         // TODO Probably other stuff?
