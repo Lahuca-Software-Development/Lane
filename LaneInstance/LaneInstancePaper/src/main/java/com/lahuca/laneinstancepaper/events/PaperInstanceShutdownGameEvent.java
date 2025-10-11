@@ -9,7 +9,7 @@ public class PaperInstanceShutdownGameEvent extends PaperInstanceEvent<InstanceS
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperInstanceShutdownGameEvent(InstanceShutdownGameEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {
