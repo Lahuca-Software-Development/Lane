@@ -82,6 +82,7 @@ public interface Packet {
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
         Packet.registerPacket(DataObjectListIdsPacket.packetId, DataObjectListIdsPacket.class);
+        Packet.registerPacket(DataObjectListIdsPacket.packetId, DataObjectsListPacket.class);
         Packet.registerPacket(DataObjectCopyPacket.packetId, DataObjectCopyPacket.class);
 		Packet.registerPacket(SavedLocalePacket.Get.packetId, SavedLocalePacket.Get.class);
 		Packet.registerPacket(SavedLocalePacket.Set.packetId, SavedLocalePacket.Set.class);

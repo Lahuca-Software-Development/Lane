@@ -21,15 +21,15 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * Retrieves a list of DataObjects from the given table that match the version.
  *
+ * @param requestId the request id to give the response to
  * @param prefix the prefix ID. This cannot be null, its values can be null.
- * @return a {@link CompletableFuture} with the array of DataObjects matching the version
+ * @param permissionKey the permission key
+ * @param version the version to match, null if no version is required
  */
-public record DataObjectsListPacket(long requestId, @NotNull DataObjectId prefix, PermissionKey permissionKey, int version) implements RequestPacket {
+public record DataObjectsListPacket(long requestId, @NotNull DataObjectId prefix, PermissionKey permissionKey, Integer version) implements RequestPacket {
 
     public static final String packetId = "dataObjectsList";
 

@@ -5,13 +5,15 @@ import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.DataObjectType;
 import com.lahuca.lane.data.PermissionKey;
-import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -238,8 +240,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(6, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB))
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
                         value = gson.toJson(value);
+                    }
                     update.setString(7, value);
                     update.setString(8, id.relationalId().id());
                     update.setString(9, id.id());
@@ -253,8 +256,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(6, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB))
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
                         value = gson.toJson(value);
+                    }
                     update.setString(7, value);
                     update.setString(8, id.id());
                 }
@@ -271,8 +275,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(8, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB))
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
                         value = gson.toJson(value);
+                    }
                     update.setString(9, value);
                 } else {
                     update = connection.prepareStatement("INSERT INTO " + tableName + " (id, read_permission, write_permission, last_updated, removal_time, version, `type`, `value`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
@@ -285,8 +290,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(7, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB))
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
                         value = gson.toJson(value);
+                    }
                     update.setString(8, value);
                 }
             }
@@ -408,8 +414,9 @@ public class MySQLDataManager implements DataManager {
     public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
         Objects.requireNonNull(prefix, "prefix cannot be null");
         String tableName = getTableName(prefix);
-        if(tableName == null)
+        if(tableName == null) {
             return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
+        }
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             PreparedStatement statement;
@@ -438,23 +445,4 @@ public class MySQLDataManager implements DataManager {
         }
     }
 
-    @Override
-    public CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, int version) {
-        Objects.requireNonNull(prefix, "prefix cannot be null");
-        String tableName = getTableName(prefix);
-        if(tableName == null)
-            return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
-        listDataObjectIds(prefix).thenApply(ids -> {
-            if(ids.isEmpty()) return new ArrayList<>();
-            List<DataObject> dataObjects = new ArrayList<>();
-            for(DataObjectId id : ids) {
-                readDataObject(permissionKey, id).thenAccept(dataObjectOpt -> dataObjectOpt.ifPresent(dataObject -> {
-                    if(dataObject.getVersion().isPresent() && dataObject.getVersion().get() != version) return;
-                    dataObjects.add(dataObject);
-                }));
-            }
-            return dataObjects;
-        });
-        return CompletableFuture.completedFuture(new ArrayList<>());
-    }
 }

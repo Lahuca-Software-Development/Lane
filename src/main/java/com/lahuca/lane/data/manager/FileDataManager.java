@@ -6,10 +6,12 @@ import com.google.gson.JsonSyntaxException;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -182,20 +184,4 @@ public class FileDataManager implements DataManager {
         return CompletableFuture.completedFuture(ids);
     }
 
-    @Override
-    public CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, int version) {
-        Objects.requireNonNull(prefix, "prefix cannot be null");
-        listDataObjectIds(prefix).thenApply(ids -> {
-            if(ids.isEmpty()) return new ArrayList<>();
-            List<DataObject> dataObjects = new ArrayList<>();
-            for(DataObjectId id : ids) {
-                readDataObject(permissionKey, id).thenAccept(dataObjectOpt -> dataObjectOpt.ifPresent(dataObject -> {
-                    if(dataObject.getVersion().isPresent() && dataObject.getVersion().get() != version) return;
-                    dataObjects.add(dataObject);
-                }));
-            }
-            return dataObjects;
-        });
-        return CompletableFuture.completedFuture(new ArrayList<>());
-    }
 }
