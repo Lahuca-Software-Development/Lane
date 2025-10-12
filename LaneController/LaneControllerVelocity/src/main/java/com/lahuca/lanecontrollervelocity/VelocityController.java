@@ -36,6 +36,7 @@ import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
+import com.lahuca.lanecontrollervelocity.commands.HubCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.command.CommandManager;
@@ -227,6 +228,10 @@ public class VelocityController {
         if(configuration.getCommands().isParty()) {
             commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand(this, controller).createBrigadierCommand());
         }
+        if(configuration.getCommands().isHub()) {
+            commandManager.register(commandManager.metaBuilder("hub").aliases("lobby", "leave").plugin(this).build(), new HubCommand(this, controller).createBrigadierCommand());
+        }
+
     }
 
     private void initializeConfig() {

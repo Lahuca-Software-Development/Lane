@@ -172,10 +172,12 @@ public class VelocityControllerConfiguration {
 
         private final boolean friend;
         private final boolean party;
+        private final boolean hub;
 
         public Commands() {
             friend = true;
             party = true;
+            hub = true;
         }
 
         public boolean isFriend() {
@@ -186,6 +188,9 @@ public class VelocityControllerConfiguration {
             return party;
         }
 
+        public boolean isHub() {
+            return hub;
+        }
     }
 
 }
