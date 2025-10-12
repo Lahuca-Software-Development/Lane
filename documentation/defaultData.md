@@ -28,6 +28,11 @@ The saved locale is only explicitly set using methods.
 This value is the nicknamee of the player.
 If it is not set, the player has no nickname.
 
+### Friends (friends)
+This value is a list of UUIDs, 
+which signify the friendships of the player of this network profile.
+These UUIDs are the ids of a friendship.
+
 
 # Profiles
 Every profile has these same data objects. Network profile specific information can be read at "Players » Network Profile" in this document.
@@ -65,3 +70,12 @@ No data besides the UUID should be stored here.
 
 ## UUID (uuid)
 This value is the UUID that was last used when accessing the given username.
+
+# Friendships
+A friendship is a relation, typically between two players, where additional status updates are forwarded to.
+This includes network join and quit messages.
+
+## Data (data)
+A friendship's main data is stored in this data object.
+This data component consists of the UUIDs involved in the friendship.
+These UUIDs are the network profile IDs.
