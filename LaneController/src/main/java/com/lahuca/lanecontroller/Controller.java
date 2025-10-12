@@ -391,9 +391,9 @@ public abstract class Controller {
                                         case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
                                         default -> ResponsePacket.UNKNOWN;
                                     };
-                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), result), input.from());
+                                    connection.sendPacket(new DataObjectsResultPacket(packet.getRequestId(), result), input.from());
                                 } else {
-                                    connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, object), input.from());
+                                    connection.sendPacket(new DataObjectsResultPacket(packet.getRequestId(), ResponsePacket.OK, object), input.from());
                                 }
                             });
                 }
