@@ -66,10 +66,13 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             });
             return builder.buildFuture();
         };
+
+        LiteralCommandNode<CommandSource> addCommand = BrigadierCommand.literalArgumentBuilder("add").executes(needArguments)
+                .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(addCommand())).build();
         LiteralCommandNode<CommandSource> node = BrigadierCommand.literalArgumentBuilder("party")
                 .requires(source -> source instanceof Player)
-                .then(BrigadierCommand.literalArgumentBuilder("add").executes(needArguments)
-                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(addCommand())))
+                .then(addCommand)
+                .then(BrigadierCommand.literalArgumentBuilder("invite").redirect(addCommand))
                 .then(BrigadierCommand.literalArgumentBuilder("accept").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(acceptCommand())))
                 .then(BrigadierCommand.literalArgumentBuilder("deny").executes(needArguments)
