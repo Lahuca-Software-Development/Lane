@@ -65,6 +65,9 @@ public class ControllerPlayerManager {
         DefaultDataObjects.setPlayersUsername(dataManager, player.getUuid(), username);
         DefaultDataObjects.setUsernamesUuid(dataManager, username, player.getUuid());
         applySavedLocale(player.getUuid(), networkProfileUuid, defaultLocale); // TODO Check result?
+        controller.getPartyManager().getParties().forEach(party -> {
+            if(party.containsPlayer(player)) player.setPartyId(party.getId());
+        });
         try {
             // TODO This is blocking, but doing it using whenComplete; is incorrect in the register. As it will not find the player yet
             Optional<Locale> object = DefaultDataObjects.getNetworkProfilesLocale(dataManager, networkProfileUuid).get();
