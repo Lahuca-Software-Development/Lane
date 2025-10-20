@@ -85,7 +85,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     @Override
     public CompletableFuture<ControllerProfileData> getNetworkProfile() {
-        return Controller.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
+        return Controller.getInstance().getDataManager().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
     }
 
     @Override

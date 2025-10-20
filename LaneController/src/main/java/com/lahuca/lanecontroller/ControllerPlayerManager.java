@@ -49,10 +49,10 @@ public class ControllerPlayerManager {
         CompletableFuture<UUID> networkProfileUuidFuture = DefaultDataObjects.getPlayersNetworkProfile(dataManager, uuid).thenCompose(opt -> {
             // If UUID is present, return it; otherwise create new profile
             return opt.<CompletionStage<UUID>>map(CompletableFuture::completedFuture)
-                    .orElseGet(() -> controller.createNewProfile(ProfileType.NETWORK)
+                    .orElseGet(() -> controller.getDataManager().createNewProfile(ProfileType.NETWORK)
                             .thenCompose(profile -> {
                                 // We created and fetched a profile, now set it in the data manager
-                                return controller.setNewNetworkProfile(uuid, profile).thenApply(data -> profile.getId());
+                                return controller.getDataManager().setNewNetworkProfile(uuid, profile).thenApply(data -> profile.getId());
                             }));
             // We have a profile, return its value
         });
@@ -195,9 +195,9 @@ public class ControllerPlayerManager {
      * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found, the optional is populated with the network profile; otherwise it is empty
      */
     public CompletableFuture<Optional<ControllerProfileData>> getPlayerNetworkProfile(UUID uuid) {
-        return getPlayer(uuid).map(ControllerPlayer::getNetworkProfileUuid).map(controller::getProfileData)
+        return getPlayer(uuid).map(ControllerPlayer::getNetworkProfileUuid).map(val -> controller.getDataManager().getProfileData(val))
                 .orElseGet(() -> DefaultDataObjects.getPlayersNetworkProfile(dataManager, uuid).thenCompose(profileIdOpt ->
-                        profileIdOpt.map(controller::getProfileData).orElse(CompletableFuture.completedFuture(Optional.empty()))));
+                        profileIdOpt.map(val -> controller.getDataManager().getProfileData(val)).orElse(CompletableFuture.completedFuture(Optional.empty()))));
     }
 
     /**

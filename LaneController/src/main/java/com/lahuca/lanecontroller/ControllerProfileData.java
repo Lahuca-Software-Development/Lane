@@ -52,7 +52,7 @@ public class ControllerProfileData extends ProfileData {
 
     @Override
     public CompletableFuture<? extends ProfileData> createSubProfile(ProfileType type, String name, boolean active) {
-        return Controller.getInstance().createSubProfile(this, type, name, active);
+        return Controller.getInstance().getDataManager().createSubProfile(this, type, name, active);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class ControllerProfileData extends ProfileData {
         if(!(subProfile instanceof ControllerProfileData subProfileController)) {
             throw new IllegalArgumentException("subProfile is not a ControllerProfileData");
         }
-        return Controller.getInstance().addSubProfile(this, subProfileController, name, active);
+        return Controller.getInstance().getDataManager().addSubProfile(this, subProfileController, name, active);
     }
 
     @Override
@@ -68,22 +68,22 @@ public class ControllerProfileData extends ProfileData {
         if(!(subProfile instanceof ControllerProfileData subProfileController)) {
             throw new IllegalArgumentException("subProfile is not a ControllerProfileData");
         }
-        return Controller.getInstance().removeSubProfile(this, subProfileController, name);
+        return Controller.getInstance().getDataManager().removeSubProfile(this, subProfileController, name);
     }
 
     @Override
     public CompletableFuture<Void> resetProfile() {
-        return Controller.getInstance().resetDeleteProfile(this, false);
+        return Controller.getInstance().getDataManager().resetDeleteProfile(this, false);
     }
 
     @Override
     public CompletableFuture<Void> deleteProfile() {
-        return Controller.getInstance().resetDeleteProfile(this, true);
+        return Controller.getInstance().getDataManager().resetDeleteProfile(this, true);
     }
 
     @Override
     public CompletableFuture<Void> copyProfile(ProfileData from) {
-        return Controller.getInstance().copyProfile(this, from);
+        return Controller.getInstance().getDataManager().copyProfile(this, from);
     }
 
 }
