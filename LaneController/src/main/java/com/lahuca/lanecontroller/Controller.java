@@ -81,7 +81,7 @@ public abstract class Controller {
 
     private final ControllerPlayerManager playerManager;
     private final ControllerPartyManager partyManager;
-
+    private final ControllerFriendshipManager friendshipManager;
 
     private final HashMap<Long, ControllerGame> games = new HashMap<>(); // Games are only registered because of instances
     private final HashMap<String, ControllerLaneInstance> instances = new HashMap<>(); // Additional data for the instances
@@ -94,6 +94,7 @@ public abstract class Controller {
         this.dataManager = dataManager;
         playerManager = new ControllerPlayerManager(this, dataManager);
         partyManager = new ControllerPartyManager(this, dataManager);
+        friendshipManager = new ControllerFriendshipManager(this, dataManager, gson);
 
         Packet.registerPackets();
 
@@ -714,6 +715,10 @@ public abstract class Controller {
 
     public ControllerPartyManager getPartyManager() {
         return partyManager;
+    }
+
+    public ControllerFriendshipManager getFriendshipManager() {
+        return friendshipManager;
     }
 
     public Optional<ControllerLaneInstance> getInstance(String id) {

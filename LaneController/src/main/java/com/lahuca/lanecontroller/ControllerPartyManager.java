@@ -71,4 +71,8 @@ public class ControllerPartyManager {
         return Optional.ofNullable(parties.get(id));
     }
 
+    public Optional<ControllerParty> getParty(ControllerPlayer player) {
+        return player.getParty();
+    }
+
 }
