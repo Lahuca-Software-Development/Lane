@@ -1,11 +1,12 @@
 package com.lahuca.lanecontrollervelocity.commands;
 
 import com.google.gson.Gson;
+import com.lahuca.lane.FriendshipInvitation;
 import com.lahuca.lane.data.manager.DataManager;
+import com.lahuca.lane.records.RelationshipRecord;
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerFriendshipManager;
 import com.lahuca.lanecontroller.ControllerPlayer;
-import com.lahuca.lanecontroller.ControllerRelationship;
 import com.lahuca.lanecontrollervelocity.VelocityController;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -101,8 +102,8 @@ public class FriendCommand {
                         }
                         player.sendPlainMessage("Friends:");
                         // TODO We might want to filter out the friends that are online first!
-                        for (ControllerRelationship friendship : friendships) {
-                            Optional<UUID> other = friendship.getPlayers().stream().filter(uuid -> !uuid.equals(player.getUniqueId())).findFirst();
+                        for (RelationshipRecord friendship : friendships) {
+                            Optional<UUID> other = friendship.players().stream().filter(uuid -> !uuid.equals(player.getUniqueId())).findFirst();
                             if (other.isEmpty())
                                 continue; // TODO Whut. Do not send "Friends:" if we only have invalid data
                             // Check whether player with given UUID is online.
@@ -154,7 +155,7 @@ public class FriendCommand {
                                         }
                                         UUID uuid = uuidOptional.get();
                                         // Check if already invited
-                                        for (Map.Entry<ControllerFriendshipManager.FriendshipInvitation, String> invitation : manager().getInvitations(cPlayer, true, true).entrySet()) {
+                                        for (Map.Entry<FriendshipInvitation, String> invitation : manager().getInvitations(cPlayer, true, true).entrySet()) {
                                             if (invitation.getKey().requester().equals(uuid)) {
                                                 player.sendPlainMessage("This player has already given you an invite, accept with /friend accept");
                                                 return;
@@ -172,7 +173,7 @@ public class FriendCommand {
                                                 return;
                                             }
                                             // Check whether we are already in a friendship
-                                            for (ControllerRelationship friendship : friendships) {
+                                            for (RelationshipRecord friendship : friendships) {
                                                 if (friendship.players().contains(uuid)) {
                                                     player.sendPlainMessage("You are already friends!");
                                                     return;
@@ -180,8 +181,7 @@ public class FriendCommand {
                                             }
                                             // Not yet friends, check if
                                             velocityController.getPlayerPair(uuid).ifPresentOrElse(invited -> {
-                                                manager().invite(new ControllerFriendshipManager.FriendshipInvitation(cPlayer.getNetworkProfileUuid(), invited.cPlayer().getNetworkProfileUuid()),
-                                                        player.getUsername()); // TODO Display?
+                                                manager().invite(new FriendshipInvitation(cPlayer.getNetworkProfileUuid(), invited.cPlayer().getNetworkProfileUuid()), player.getUsername()); // TODO Display?
                                                 player.sendPlainMessage("Successfully invited " + username);
                                                 invited.player().sendPlainMessage("Got friend invitation of " + player.getUsername() + ", it will become invalid in 1 minute"); // TODO Display
                                             }, () -> player.sendPlainMessage("The invited person is not online, cannot invite."));
@@ -220,8 +220,8 @@ public class FriendCommand {
                                                 player.sendPlainMessage("Error happened while retrieving friends: " + ex.getMessage());
                                                 return;
                                             }
-                                            ControllerRelationship removal = null;
-                                            for (ControllerRelationship friendship : friendships) {
+                                            RelationshipRecord removal = null;
+                                            for (RelationshipRecord friendship : friendships) {
                                                 if (friendship.players().contains(uuidOptional.get())) {
                                                     // Found the friendship, remove
                                                     removal = friendship;
@@ -270,7 +270,7 @@ public class FriendCommand {
                                             return;
                                         }
                                         // Assumed can be that a friendship is only invited whenever they are not friends yet.
-                                        ControllerFriendshipManager.FriendshipInvitation invitation = new ControllerFriendshipManager.FriendshipInvitation(uuidOptional.get(), player.getUniqueId());
+                                        FriendshipInvitation invitation = new FriendshipInvitation(uuidOptional.get(), player.getUniqueId());
                                         String requesterUsername = manager().containsInvitation(invitation);
                                         if (requesterUsername == null) {
                                             player.sendPlainMessage("The player " + username + " has not invited you, or it has timed out");
@@ -316,7 +316,7 @@ public class FriendCommand {
                                             return;
                                         }
                                         // Assumed can be that a friendship is only invited whenever they are not friends yet.
-                                        ControllerFriendshipManager.FriendshipInvitation invitation = new ControllerFriendshipManager.FriendshipInvitation(uuidOptional.get(), player.getUniqueId());
+                                        FriendshipInvitation invitation = new FriendshipInvitation(uuidOptional.get(), player.getUniqueId());
                                         String requesterUsername = manager().containsInvitation(invitation);
                                         if (requesterUsername == null) {
                                             player.sendPlainMessage("The player " + username + " has not invited you, or it has timed out");

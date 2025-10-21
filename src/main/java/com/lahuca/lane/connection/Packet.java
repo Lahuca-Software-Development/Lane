@@ -114,6 +114,8 @@ public interface Packet {
 		Packet.registerPacket(ProfilePacket.ResetDelete.packetId, ProfilePacket.ResetDelete.class);
 		Packet.registerPacket(ProfilePacket.Copy.packetId, ProfilePacket.Copy.class);
 		Packet.registerPacket(ProfilePacket.SetNetworkProfile.packetId, ProfilePacket.SetNetworkProfile.class);
+
+        FriendshipPacket.register();
 	}
 
 	String getPacketId();

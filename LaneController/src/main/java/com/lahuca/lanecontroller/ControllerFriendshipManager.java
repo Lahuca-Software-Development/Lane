@@ -4,10 +4,10 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.Gson;
+import com.lahuca.lane.FriendshipInvitation;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.RelationalId;
 import com.lahuca.lane.data.manager.DataManager;
-import com.lahuca.lane.records.RecordConverter;
 import com.lahuca.lane.records.RelationshipRecord;
 import org.jetbrains.annotations.NotNull;
 
@@ -57,18 +57,9 @@ public class ControllerFriendshipManager {
     }
 
     /**
-     * Returns the username of the requester, or null if the invitation is not present.
-     * @param invitation the invitation
-     * @return the name
-     */
-    public String containsInvitation(FriendshipInvitation invitation) {
-        return invitations.getIfPresent(invitation);
-    }
-
-    /**
      * Retrieves all invitations for the player's network profile.
      *
-     * @param player           the player's UUID
+     * @param player           the player
      * @param includeRequester if the player should be the requester
      * @param includeInvited   if the player should be invited
      * @return the map
@@ -82,16 +73,43 @@ public class ControllerFriendshipManager {
                 }).collect(Collectors.toConcurrentMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    /**
+     * Returns the username of the requester, or null if the invitation is not present.
+     *
+     * @param invitation the invitation
+     * @return the name of the requester if present, null otherwise
+     */
+    public String containsInvitation(FriendshipInvitation invitation) {
+        return invitations.getIfPresent(invitation);
+    }
+
+    /**
+     * Invalidates the invitation.
+     *
+     * @param invitation the invitation
+     */
     public void invalidateInvitation(FriendshipInvitation invitation) {
         invitations.invalidate(invitation);
     }
 
+    /**
+     * Invites a player for a friendship.
+     *
+     * @param invitation the invitation
+     * @param username   the username of the requester
+     */
     public void invite(FriendshipInvitation invitation, String username) {
         invitations.put(invitation, username); // TODO Additional things? checks?
     }
 
+    /**
+     * Accepts an invitation.
+     *
+     * @param invitation the invitation
+     * @return a {@link CompletableFuture} that completes once the invitation has been accepted.
+     */
     public CompletableFuture<Void> acceptInvitation(FriendshipInvitation invitation) {
-        if (invitation.requester == null || invitation.invited == null) {
+        if (invitation.requester() == null || invitation.invited() == null) {
             return CompletableFuture.completedFuture(null);
         }
         return newId().thenCompose(id -> {
@@ -101,17 +119,27 @@ public class ControllerFriendshipManager {
                 // Written, yeey, now for both players add to the friendships
                 // Remove from data
                 // TODO What if failed?
-                return DefaultDataObjects.addNetworkProfilesFriends(dataManager, gson, invitation.requester, id)
+                return DefaultDataObjects.addNetworkProfilesFriends(dataManager, gson, invitation.requester(), id)
                         .thenCompose(status2 -> {
-                            friendshipIds.synchronous().invalidate(invitation.requester);
-                            return DefaultDataObjects.addNetworkProfilesFriends(dataManager, gson, invitation.invited, id)
-                                    .thenAccept(status3 -> friendshipIds.synchronous().invalidate(invitation.invited));
+                            friendshipIds.synchronous().invalidate(invitation.requester());
+                            return DefaultDataObjects.addNetworkProfilesFriends(dataManager, gson, invitation.invited(), id)
+                                    .thenAccept(status3 -> friendshipIds.synchronous().invalidate(invitation.invited()));
                         });
             }).thenAccept(v -> {
                 invitations.invalidate(invitation);
                 friendships.synchronous().put(id, invitation.convertRecord());
             });
         });
+    }
+
+    /**
+     * Retrieves the friendship identified by the given ID.
+     *
+     * @param friendshipId the ID of the friendship
+     * @return a {@link CompletableFuture} that completes with the friendship record, it is null when the friendship is not present.
+     */
+    public CompletableFuture<RelationshipRecord> getFriendship(long friendshipId) {
+        return friendships.get(friendshipId);
     }
 
     /**
@@ -125,10 +153,10 @@ public class ControllerFriendshipManager {
      * </ol>
      * Any errors caught during the operation are parsed in the CompletableFuture returned.
      *
-     * @param player the uuid of the player
+     * @param player  the player
      * @return a CompletableFuture that has a HashSet with the friendships, the HashSet is empty when the player has no friendships.
      */
-    public CompletableFuture<HashSet<ControllerRelationship>> getFriendships(ControllerPlayer player) {
+    public CompletableFuture<HashSet<RelationshipRecord>> getFriendships(ControllerPlayer player) {
         // Fetch the friendship IDs
         return friendshipIds.get(player.getNetworkProfileUuid()).exceptionally(ex -> {
             if (ex instanceof NullPointerException) {
@@ -142,14 +170,14 @@ public class ControllerFriendshipManager {
 
             // Build requests per friendship
             ConcurrentHashMap.KeySetView<Long, Boolean> removal = ConcurrentHashMap.newKeySet();
-            List<CompletableFuture<ControllerRelationship>> getFriendships = new ArrayList<>();
+            List<CompletableFuture<RelationshipRecord>> getFriendships = new ArrayList<>();
             for (Long friendId : playerFriendshipIds) {
                 getFriendships.add(friendships.get(friendId).handle((friendship, friendshipEx) -> {
                     if (friendshipEx instanceof NullPointerException || friendship == null) {
                         removal.add(friendId);
                         return null;
                     }
-                    return (friendshipEx == null) ? new ControllerRelationship(friendId, friendship.players()) : null;
+                    return (friendshipEx == null) ? new RelationshipRecord(friendId, friendship.players()) : null;
                 }));
             }
 
@@ -171,23 +199,30 @@ public class ControllerFriendshipManager {
         });
     }
 
-    public CompletableFuture<Void> removeFriendship(ControllerRelationship friendship) {
+    /**
+     * Removes a friendship from the system.
+     * This removes the friendship data first, then it removes the ID from both players
+     *
+     * @param friendship the friendship to remove
+     * @return a {@link CompletableFuture} that completes once the friendship has been removed.
+     */
+    public CompletableFuture<Void> removeFriendship(RelationshipRecord friendship) {
         // Remove friendship data first
-        DataObjectId friendshipDataObjectId = new DataObjectId(RelationalId.Friendships(friendship.getId()), "data");
-        return DefaultDataObjects.setFriendshipsData(dataManager, gson, friendship.getId(), null).thenCompose(status -> {
+        DataObjectId friendshipDataObjectId = new DataObjectId(RelationalId.Friendships(friendship.relationshipId()), "data");
+        return DefaultDataObjects.setFriendshipsData(dataManager, gson, friendship.relationshipId(), null).thenCompose(status -> {
             // Removed, remove from cache
-            friendships.synchronous().invalidate(friendship.getId());
+            friendships.synchronous().invalidate(friendship.relationshipId());
             // Now for both players remove it
             UUID player0 = friendship.players().stream().findFirst().orElse(null);
             UUID player1 = friendship.players().stream().filter(item -> !item.equals(player0)).findFirst().orElse(null);
             if (player0 != null) {
                 // Remove from data
-                return DefaultDataObjects.removeNetworkProfilesFriends(dataManager, gson, player0, friendship.getId())
+                return DefaultDataObjects.removeNetworkProfilesFriends(dataManager, gson, player0, friendship.relationshipId())
                         .exceptionally(ex -> null).thenCompose(status2 -> {
                             friendshipIds.synchronous().invalidate(player0);
                             if (player1 != null) {
                                 // Also remove for other player
-                                return DefaultDataObjects.removeNetworkProfilesFriends(dataManager, gson, player1, friendship.getId())
+                                return DefaultDataObjects.removeNetworkProfilesFriends(dataManager, gson, player1, friendship.relationshipId())
                                         .thenAccept(status3 -> friendshipIds.synchronous().invalidate(player1));
                             }
                             // Other player is invalid, then we are done
@@ -211,20 +246,6 @@ public class ControllerFriendshipManager {
             if (val == null) return CompletableFuture.completedFuture(newId);
             return newId();
         });
-    }
-
-    public record FriendshipInvitation(UUID requester, UUID invited) implements RecordConverter<RelationshipRecord> { // TODO Move?
-
-        public FriendshipInvitation {
-            Objects.requireNonNull(requester, "requester cannot be null");
-            Objects.requireNonNull(invited, "invited cannot be null");
-        }
-
-        @Override
-        public RelationshipRecord convertRecord() {
-            return new RelationshipRecord(Set.of(requester, invited));
-        }
-
     }
 
 }

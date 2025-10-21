@@ -8,5 +8,5 @@ import java.util.UUID;
  * @date 19.03.2024
  **/
 
-public record RelationshipRecord(Set<UUID> players) {
+public record RelationshipRecord(Long relationshipId, Set<UUID> players) {
 }

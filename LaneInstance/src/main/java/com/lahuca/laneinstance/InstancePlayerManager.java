@@ -2,12 +2,14 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.packet.GameQuitPacket;
 import com.lahuca.lane.connection.packet.QueueFinishedPacket;
+import com.lahuca.lane.connection.packet.QueueRequestPacket;
 import com.lahuca.lane.connection.packet.RequestInformationPacket;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.queue.QueueRequestParameter;
+import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.ProfileRecord;
@@ -532,6 +534,17 @@ public class InstancePlayerManager implements Slottable {
 
     public void broadcast(Consumer<InstancePlayer> consumer) {
         getInstancePlayers().forEach(consumer);
+    }
+
+    /**
+     * Request the given player to be queued with the given parameters.
+     *
+     * @param playerId          the player's uuid
+     * @param requestParameters the queue request parameters
+     * @return a {@link CompletableFuture} with a void to signify success: the player has been queued
+     */
+    public CompletableFuture<Void> queue(UUID playerId, QueueRequestParameters requestParameters) {
+        return instance.getConnection().<Void>sendRequestPacket(id -> new QueueRequestPacket(id, playerId, requestParameters), null).getResult();
     }
 
     // TODO Set locale in Paper.
