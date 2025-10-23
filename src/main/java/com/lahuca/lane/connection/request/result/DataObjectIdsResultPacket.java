@@ -17,23 +17,23 @@ package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.data.DataObject;
+import com.lahuca.lane.data.DataObjectId;
 
 import java.util.Collection;
 
 /**
  * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
- * Using this result packet fixes that problem, by explicitly sending the result to be an array of {@link DataObject}.
+ * Using this result packet fixes that problem, by explicitly sending the result to be a {@link DataObjectId}.
  * @param requestId the request id of the original request.
  * @param result the result string.
  * @param data the data.
  */
-public record DataObjectsResultPacket(long requestId, String result, Collection<DataObject> data) implements ResponsePacket<Collection<DataObject>> {
+public record DataObjectIdsResultPacket(long requestId, String result, Collection<DataObjectId> data) implements ResponsePacket<Collection<DataObjectId>> {
 
-    public static final String packetId = "dataObjectsResult";
+    public static final String packetId = "dataObjectIdsResult";
 
     static {
-        Packet.registerPacket(packetId, DataObjectsResultPacket.class);
+        Packet.registerPacket(packetId, DataObjectIdsResultPacket.class);
     }
 
     /**
@@ -41,7 +41,7 @@ public record DataObjectsResultPacket(long requestId, String result, Collection<
      * @param requestId the request ID
      * @param data the data
      */
-    public DataObjectsResultPacket(long requestId, Collection<DataObject> data) {
+    public DataObjectIdsResultPacket(long requestId, Collection<DataObjectId> data) {
         this(requestId, ResponsePacket.OK, data);
     }
 
@@ -50,7 +50,7 @@ public record DataObjectsResultPacket(long requestId, String result, Collection<
      * @param requestId the request ID
      * @param result the error
      */
-    public DataObjectsResultPacket(long requestId, String result) {
+    public DataObjectIdsResultPacket(long requestId, String result) {
         this(requestId, result, null);
     }
 
@@ -70,7 +70,7 @@ public record DataObjectsResultPacket(long requestId, String result, Collection<
     }
 
     @Override
-    public Collection<DataObject> getData() {
+    public Collection<DataObjectId> getData() {
         return data;
     }
 }

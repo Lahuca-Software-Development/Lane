@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.lane.data.ordered.OrderedData;
+import com.lahuca.lane.data.ordered.OrderedDataComponents;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import com.lahuca.laneinstance.events.*;
@@ -38,6 +39,9 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -57,6 +61,7 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 //    public static final String ip = "mc.slux.cz";
 //    public static final int port = 776;
     public static final Gson gson = GsonComponentSerializer.builder().editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false)).build().serializer();
+    private static final Logger log = LoggerFactory.getLogger(LaneInstancePaper.class);
 //    public static final boolean joinable = true;
 //    public static final boolean nonPlayable = false;
 
@@ -175,7 +180,7 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         @Override
         public <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event) {
             // Construct the paper event
-            PaperInstanceEvent<?> paperEvent = switch (event) {
+            PaperInstanceEvent<?> paperEvent = switch(event) {
                 case InstanceJoinEvent obj -> new PaperInstanceJoinEvent(obj);
                 case InstanceJoinGameEvent obj -> new PaperInstanceJoinGameEvent(obj);
                 case InstanceQuitEvent obj -> new PaperInstanceQuitEvent(obj);
@@ -201,17 +206,36 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
             Player player = getServer().getPlayer(uuid);
             if(player == null) return;
             getPlayerManager().getInstancePlayer(uuid).ifPresent(instancePlayer -> {
-                Component component = instancePlayer.getPlayerListNameData().asComponent();
+                OrderedDataComponents dataComponents = instancePlayer.getPlayerListNameData();
+
+                Component component = dataComponents.asComponent();
                 player.playerListName(component);
+
                 List<OrderedData<Integer>> sortedPriorities = instancePlayer.getSortPriorityData().sort();
                 if(!sortedPriorities.isEmpty()) player.setPlayerListOrder(sortedPriorities.getFirst().getData());
 
-                Scoreboard scoreboard = player.getScoreboard();
-                Team scoreboardTeam = scoreboard.getTeam("playerListName");
+                for(Player online : Bukkit.getOnlinePlayers()) {
+                    updateScoreboardTeam(player, online);
+                    updateScoreboardTeam(online, player);
+                }
+            });
+        }
+
+        private void updateScoreboardTeam(@NotNull Player player, Player target) {
+            getPlayerManager().getInstancePlayer(player.getUniqueId()).ifPresent(instancePlayer -> {
+                OrderedDataComponents dataComponents = instancePlayer.getPlayerListNameData();
+                Scoreboard scoreboard = target.getScoreboard();
+                String teamName = "playerListName_" + player.getName();
+
+                Team scoreboardTeam = scoreboard.getTeam(teamName);
                 if(scoreboardTeam != null) scoreboardTeam.unregister();
-                scoreboardTeam = scoreboard.registerNewTeam("playerListName");
-                scoreboardTeam.addEntity(player);
-                scoreboardTeam.displayName(component);
+                scoreboardTeam = scoreboard.registerNewTeam(teamName);
+
+                Component suffix = dataComponents.getGroupComponent(data -> data.getPriority() < 0);
+                scoreboardTeam.prefix(dataComponents.getGroupComponent(data -> data.getPriority() > 0));
+                scoreboardTeam.suffix(suffix.equals(Component.empty()) ? suffix : Component.empty().appendSpace().append(suffix));
+
+                scoreboardTeam.addPlayer(player);
             });
         }
     }

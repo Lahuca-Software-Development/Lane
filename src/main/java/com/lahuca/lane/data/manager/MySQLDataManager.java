@@ -1,10 +1,7 @@
 package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
-import com.lahuca.lane.data.DataObject;
-import com.lahuca.lane.data.DataObjectId;
-import com.lahuca.lane.data.DataObjectType;
-import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.*;
 
 import javax.sql.DataSource;
 import java.io.Closeable;
@@ -423,13 +420,13 @@ public class MySQLDataManager implements DataManager {
             if(prefix.isRelational()) {
                 if(prefix.relationalId().id() == null || prefix.relationalId().id().isEmpty()) {
                     if(idFalse) {
-                        statement = connection.prepareStatement("SELECT id FROM " + tableName);
+                        statement = connection.prepareStatement("SELECT id, relational_id FROM " + tableName);
                     } else {
-                        statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
+                        statement = connection.prepareStatement("SELECT id, relational_id FROM " + tableName + " WHERE id LIKE ?");
                         statement.setString(1, prefix.id() + "%");
                     }
                 } else {
-                    statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
+                    statement = connection.prepareStatement("SELECT id, relational_id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
                     statement.setString(1, prefix.relationalId().id());
                     statement.setString(2, prefix.id() + "%");
                 }
@@ -446,7 +443,9 @@ public class MySQLDataManager implements DataManager {
                 ArrayList<DataObjectId> ids = new ArrayList<>();
                 while(resultSet.next()) {
                     String id = resultSet.getString("id");
-                    ids.add(new DataObjectId(prefix.relationalId(), id));
+
+                    if(prefix.isRelational()) ids.add(new DataObjectId(new RelationalId(prefix.relationalId().type(), resultSet.getString("relational_id")), id));
+                    else ids.add(new DataObjectId(prefix.relationalId(), id));
                 }
                 return CompletableFuture.completedFuture(ids);
             }

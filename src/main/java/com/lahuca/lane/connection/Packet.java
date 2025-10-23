@@ -69,6 +69,8 @@ public interface Packet {
 		Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
 		Packet.registerPacket(VoidResultPacket.packetId, VoidResultPacket.class);
 		Packet.registerPacket(LongResultPacket.packetId, LongResultPacket.class);
+        Packet.registerPacket(DataObjectIdsResultPacket.packetId, DataObjectIdsResultPacket.class); //TODO keep it?
+        Packet.registerPacket(DataObjectsResultPacket.packetId, DataObjectsResultPacket.class); //TODO keep it?
 		Packet.registerPacket(DataObjectResultPacket.packetId, DataObjectResultPacket.class);
 		Packet.registerPacket(ProfileRecordResultPacket.packetId, ProfileRecordResultPacket.class);
 
@@ -82,7 +84,7 @@ public interface Packet {
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
         Packet.registerPacket(DataObjectListIdsPacket.packetId, DataObjectListIdsPacket.class);
-        Packet.registerPacket(DataObjectListIdsPacket.packetId, DataObjectsListPacket.class);
+        Packet.registerPacket(DataObjectsListPacket.packetId, DataObjectsListPacket.class);
         Packet.registerPacket(DataObjectCopyPacket.packetId, DataObjectCopyPacket.class);
 		Packet.registerPacket(SavedLocalePacket.Get.packetId, SavedLocalePacket.Get.class);
 		Packet.registerPacket(SavedLocalePacket.Set.packetId, SavedLocalePacket.Set.class);
