@@ -6,7 +6,7 @@ import com.lahuca.lane.connection.packet.FriendshipPacket;
 import com.lahuca.lane.records.RelationshipRecord;
 
 import java.util.Collection;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class InstanceFriendshipManager {
@@ -33,9 +33,8 @@ public class InstanceFriendshipManager {
      *
      * @return a {@link CompletableFuture} with a map of invitations
      */
-    public CompletableFuture<Map<FriendshipInvitation, String>> getInvitations() {
-        // TODO Unknown if map can be parsed!
-        return connection().<Map<FriendshipInvitation, String>>sendRequestPacket(id ->
+    public CompletableFuture<List<FriendshipInvitation>> getInvitations() {
+        return connection().<List<FriendshipInvitation>>sendRequestPacket(id ->
                 new FriendshipPacket.GetInvitations(id, null, null,  null), null).getResult();
     }
 
@@ -47,10 +46,9 @@ public class InstanceFriendshipManager {
      * @param includeInvited   if the player should be invited
      * @return the map
      */
-    public CompletableFuture<Map<FriendshipInvitation, String>> getInvitations(InstancePlayer player, boolean includeRequester, boolean includeInvited) {
-        // TODO Unknown if map can be parsed!
-        return connection().<Map<FriendshipInvitation, String>>sendRequestPacket(id ->
-                new FriendshipPacket.GetInvitations(id, player.getNetworkProfileUuid(), includeRequester, includeInvited), null).getResult();
+    public CompletableFuture<List<FriendshipInvitation>> getInvitations(InstancePlayer player, boolean includeRequester, boolean includeInvited) {
+        return connection().<List<FriendshipInvitation>>sendRequestPacket(id ->
+                new FriendshipPacket.GetInvitations(id, player.getUuid(), includeRequester, includeInvited), null).getResult();
     }
 
     /**
@@ -123,7 +121,7 @@ public class InstanceFriendshipManager {
      */
     public CompletableFuture<Collection<RelationshipRecord>> getFriendships(InstancePlayer player) {
         // Fetch the friendship IDs
-        return connection().<Collection<RelationshipRecord>>sendRequestPacket(id -> new FriendshipPacket.GetFriendships(id, player.getNetworkProfileUuid()), null).getResult();
+        return connection().<Collection<RelationshipRecord>>sendRequestPacket(id -> new FriendshipPacket.GetFriendships(id, player.getUuid()), null).getResult();
     }
 
     /**

@@ -53,6 +53,7 @@ public interface Packet {
 		Packet.registerPacket(ConnectionConnectPacket.packetId, ConnectionConnectPacket.class);
 
 		Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
+        Packet.registerPacket(PartyPacket.Retrieve.RequestPlayerParty.packetId, PartyPacket.Retrieve.RequestPlayerParty.class);
 		Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
 		Packet.registerPacket(PartyPacket.SetInvitationsOnly.packetId, PartyPacket.SetInvitationsOnly.class);
 		Packet.registerPacket(PartyPacket.Invitation.Has.packetId, PartyPacket.Invitation.Has.class);
@@ -116,6 +117,9 @@ public interface Packet {
 		Packet.registerPacket(ProfilePacket.ResetDelete.packetId, ProfilePacket.ResetDelete.class);
 		Packet.registerPacket(ProfilePacket.Copy.packetId, ProfilePacket.Copy.class);
 		Packet.registerPacket(ProfilePacket.SetNetworkProfile.packetId, ProfilePacket.SetNetworkProfile.class);
+
+        Packet.registerPacket(RelationshipRecordsPacket.packetId, RelationshipRecordsPacket.class);//TODO test out
+        Packet.registerPacket(FriendshipInvitationsPacket.packetId, FriendshipInvitationsPacket.class);//TODO test out
 
         FriendshipPacket.register();
 	}

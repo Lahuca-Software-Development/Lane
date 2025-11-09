@@ -30,6 +30,14 @@ class DefaultDataObjects {
                 .thenApply(opt -> opt.flatMap(DataObject::getValue));
     }
 
+    static CompletableFuture<Optional<String>> getNetworkProfilesUsername(DataManager dataManager, UUID networkProfile) {
+        return Controller.getInstance().getDataManager().getProfileData(networkProfile)
+                .thenCompose(profileOpt -> profileOpt
+                        .map(profile -> getPlayersUsername(dataManager, profile.getFirstSuperProfile()))
+                        .orElse(CompletableFuture.completedFuture(Optional.empty()))
+                );
+    }
+
     /**
      * Sets the username of a player.
      *
@@ -126,7 +134,7 @@ class DefaultDataObjects {
      * @return a {@link CompletableFuture} with a void to signify success: it has been updated
      */
     static CompletableFuture<Void> setNetworkProfilesNickname(DataManager dataManager, UUID profile, String nickname) {
-        if (nickname == null) {
+        if(nickname == null) {
             return dataManager.removeDataObject(PermissionKey.CONTROLLER, getNetworkProfilesNicknameId(profile));
         }
         DataObject object = new DataObject(getNetworkProfilesNicknameId(profile), PermissionKey.CONTROLLER, DataObjectType.STRING, nickname);
@@ -159,7 +167,7 @@ class DefaultDataObjects {
      * @return a {@link CompletableFuture} with a void to signify success: it has been updated
      */
     static CompletableFuture<Void> setNetworkProfilesFriends(DataManager dataManager, UUID profile, List<Long> friendshipIds) {
-        if (friendshipIds == null || friendshipIds.isEmpty()) {
+        if(friendshipIds == null || friendshipIds.isEmpty()) {
             return dataManager.removeDataObject(PermissionKey.CONTROLLER, getNetworkProfilesFriendsId(profile));
         }
         DataObject object = new DataObject(getNetworkProfilesFriendsId(profile), PermissionKey.CONTROLLER, DataObjectType.ARRAY, friendshipIds);
@@ -168,18 +176,19 @@ class DefaultDataObjects {
 
     /**
      * Adds a friendship ID to the friends of a network profile.
-     * @param dataManager the data manager
-     * @param gson the gson to use when parsing
-     * @param profile the network profile's UUID
+     *
+     * @param dataManager  the data manager
+     * @param gson         the gson to use when parsing
+     * @param profile      the network profile's UUID
      * @param friendshipId the friendship ID to add
      * @return a {@link CompletableFuture} with a void to signify success: it has been added
      */
     static CompletableFuture<Void> addNetworkProfilesFriends(DataManager dataManager, Gson gson, UUID profile, long friendshipId) {
         return dataManager.updateDataObject(PermissionKey.CONTROLLER, getNetworkProfilesFriendsId(profile), obj -> {
-           List<Long> ids = obj.getValueAsLongArray(gson).orElseGet(ArrayList::new);
-           ids.add(friendshipId);
-           obj.setValue(gson, ids);
-           return true;
+            List<Long> ids = obj.getValueAsLongArray(gson).orElseGet(ArrayList::new);
+            ids.add(friendshipId);
+            obj.setValue(gson, ids);
+            return true;
         }).thenCompose(status -> {
             if(!status) {
                 return dataManager.writeDataObject(PermissionKey.CONTROLLER,
@@ -191,9 +200,10 @@ class DefaultDataObjects {
 
     /**
      * Remove a friendship ID from the friends of a network profile.
-     * @param dataManager the data manager
-     * @param gson the gson to use when parsing
-     * @param profile the network profile's UUID
+     *
+     * @param dataManager  the data manager
+     * @param gson         the gson to use when parsing
+     * @param profile      the network profile's UUID
      * @param friendshipId the friendship ID to remove
      * @return a {@link CompletableFuture} with a void to signify success: it has been removed
      */
@@ -203,7 +213,8 @@ class DefaultDataObjects {
             ids.remove(friendshipId);
             obj.setValue(gson, ids);
             return true;
-        }).thenAccept(status -> {});
+        }).thenAccept(status -> {
+        });
     }
 
     private static DataObjectId getUsernamesUuidId(String username) {

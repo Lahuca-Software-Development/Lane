@@ -375,6 +375,18 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     /**
+     * Retrieves a party from the instance, that belongs to the given player can also create a new one.
+     * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
+     *
+     * @param uuid the player's UUID
+     * @return a {@link CompletableFuture} that completes with the retrieval of the party
+     */
+    public CompletableFuture<InstancePartyRetrieval> getPlayerParty(UUID uuid, boolean createIfNeeded) {
+        return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Retrieve.RequestPlayerParty(id, uuid, createIfNeeded), null).getResult()
+                .thenApply(InstancePartyRetrieval::new);
+    }
+
+    /**
      * Sets the nickname of the given player.
      *
      * @param player the player
@@ -383,7 +395,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      */
     public CompletableFuture<Void> setNickname(@NotNull InstancePlayer player, @NotNull String nickname) {
         // Check if already set
-        if(player.getNickname().equals(nickname)) return CompletableFuture.completedFuture(null);
+        if(Objects.equals(player.getNickname().orElse(null), nickname)) return CompletableFuture.completedFuture(null);
         return connection.<Void>sendRequestPacket(id -> new SetInformationPacket.PlayerSetNickname(id, player.getUuid(), nickname), null).getResult();
     }
 

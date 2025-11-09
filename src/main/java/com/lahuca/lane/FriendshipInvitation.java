@@ -7,6 +7,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * This record is for the Friendship invites, storing the NetworkProfileUUIDs.
+ *
+ * @param requester the requester NetworkProfileUUID
+ * @param invited the invited NetworkProfileUUID
+ */
 public record FriendshipInvitation(UUID requester, UUID invited) implements RecordConverter<RelationshipRecord> {
 
     public FriendshipInvitation {

@@ -37,6 +37,27 @@ public class PartyPacket {
 
         }
 
+
+        public record RequestPlayerParty(long requestId, UUID player, boolean createIfNeeded) implements RequestPacket {
+
+            public static final String packetId = "partyPlayerRetrieveRequest";
+
+            static {
+                Packet.registerPacket(packetId, RequestPlayerParty.class);
+            }
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+            @Override
+            public long getRequestId() {
+                return requestId;
+            }
+
+        }
+
         public record Response(long requestId, String result, PartyRecord partyRecord) implements ResponsePacket<PartyRecord> {
 
             public static final String packetId = "partyRetrieveResponse";

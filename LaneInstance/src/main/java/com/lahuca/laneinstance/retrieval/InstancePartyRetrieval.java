@@ -126,7 +126,7 @@ public class InstancePartyRetrieval implements Retrieval, LaneParty {
      */
     public CompletableFuture<Boolean> denyInvitation(UUID player) {
         Objects.requireNonNull(player, "player is null");
-        return LaneInstance.getInstance().getConnection().<Boolean>sendRequestPacket(id -> new PartyPacket.Invitation.Add(id, partyId, player), null).getResult();
+        return LaneInstance.getInstance().getConnection().<Boolean>sendRequestPacket(id -> new PartyPacket.Invitation.Deny(id, partyId, player), null).getResult();
     }
 
     /**

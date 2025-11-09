@@ -36,6 +36,7 @@ import com.lahuca.lane.queue.QueueRequestReason;
 import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lane.records.RelationshipRecord;
 import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueFinishedEvent;
 import net.kyori.adventure.text.Component;
@@ -182,6 +183,15 @@ public abstract class Controller {
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(
                                 party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertRecord()), input.from()),
                                 () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                case PartyPacket.Retrieve.RequestPlayerParty packet ->
+                        getPlayer(packet.player()).ifPresentOrElse(player -> player.getParty().ifPresentOrElse(party -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, party.convertRecord()), input.from()), () -> {
+                            if(!packet.createIfNeeded()) {
+                                connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from());
+                                return;
+                            }
+                            getPartyManager().createParty(player).ifPresentOrElse(newParty -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, newParty.convertRecord()), input.from()), () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from()));
+                        }), () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+
                 case PartyPacket.SetInvitationsOnly packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> {
                             party.setInvitationsOnly(packet.invitationsOnly());
@@ -486,9 +496,7 @@ public abstract class Controller {
                                     }
                                     connection.sendPacket(new ProfileRecordResultPacket(packet.getRequestId(), ResponsePacket.OK, data.map(ProfileData::convertRecord).orElse(null)), input.from());
                                 });
-                case SendMessagePacket packet -> {
-                    sendMessage(packet.player(), packet.message());
-                }
+                case SendMessagePacket packet -> sendMessage(packet.player(), packet.message());
 
                 case SavedLocalePacket.Get packet -> {
                     getDataManager().getProfileData(packet.networkProfile()).thenApply(opt -> opt.orElse(null))
@@ -510,23 +518,23 @@ public abstract class Controller {
                                 }
                             });
                 }
-                case SavedLocalePacket.Set packet -> {
-                    getDataManager().getProfileData(packet.networkProfile()).thenApply(opt -> opt.orElse(null))
-                            .thenCompose(profile -> getPlayerManager().setSavedLocale(profile, Locale.forLanguageTag(packet.locale())).thenApply(data -> profile))
-                            .whenComplete((profile, ex) -> {
-                                if(ex != null) {
-                                    // TODO Additional instnceof? As write?
-                                    if(ex instanceof IllegalArgumentException) {
-                                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                case SavedLocalePacket.Set packet ->
+                        getDataManager().getProfileData(packet.networkProfile()).thenApply(opt -> opt.orElse(null))
+                                .thenCompose(profile -> getPlayerManager().setSavedLocale(profile, Locale.forLanguageTag(packet.locale())).thenApply(data -> profile))
+                                .whenComplete((profile, ex) -> {
+                                    if(ex != null) {
+                                        // TODO Additional instnceof? As write?
+                                        if(ex instanceof IllegalArgumentException) {
+                                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.ILLEGAL_ARGUMENT), input.from());
+                                            return;
+                                        }
+                                        connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
                                         return;
                                     }
-                                    connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.UNKNOWN), input.from());
-                                    return;
-                                }
-                                setEffectiveLocale(profile.getFirstSuperProfile(), Locale.forLanguageTag(packet.locale())); // TODO On evnet
-                                connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
-                            });
-                }
+                                    setEffectiveLocale(profile.getFirstSuperProfile(), Locale.forLanguageTag(packet.locale())); // TODO On evnet
+                                    connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                                });
+
                 case ProfilePacket profilePacket -> {
                     switch(profilePacket) {
                         case ProfilePacket.GetProfileData packet ->
@@ -682,15 +690,16 @@ public abstract class Controller {
                     }
                 }
                 case FriendshipPacket friendshipPacket -> {
-                    switch (friendshipPacket) {
-                        case FriendshipPacket.GetInvitations(long requestId, UUID uuid, Boolean includeRequester, Boolean includeInvited) -> {
+                    switch(friendshipPacket) {
+                        case FriendshipPacket.GetInvitations(
+                                long requestId, UUID uuid, Boolean includeRequester, Boolean includeInvited) -> {
                             if(uuid == null) {
-                                connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.OK, getFriendshipManager().getInvitations()), input.from());
+                                connection.sendPacket(new FriendshipInvitationsPacket(requestId, getFriendshipManager().getInvitations().keySet().stream().toList()), input.from());
                                 return;
                             }
-                            getPlayer(uuid).ifPresentOrElse(player -> {
-                                connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.OK, getFriendshipManager().getInvitations(player, includeRequester, includeInvited)), input.from());
-                            }, () -> connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.INVALID_PLAYER), input.from()));
+                            getPlayer(uuid).ifPresentOrElse(player ->
+                                            connection.sendPacket(new FriendshipInvitationsPacket(requestId, getFriendshipManager().getInvitations(player, includeRequester, includeInvited).keySet().stream().toList()), input.from()),
+                                    () -> connection.sendPacket(new FriendshipInvitationsPacket(requestId, ResponsePacket.INVALID_PLAYER), input.from()));
                         }
                         case FriendshipPacket.ContainsInvitation(long requestId, FriendshipInvitation invitation) ->
                                 connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.OK, getFriendshipManager().containsInvitation(invitation)), input.from());
@@ -698,15 +707,16 @@ public abstract class Controller {
                             getFriendshipManager().invalidateInvitation(invitation);
                             connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                         }
-                        case FriendshipPacket.Invite(long requestId, FriendshipInvitation invitation, String username) -> {
+                        case FriendshipPacket.Invite(
+                                long requestId, FriendshipInvitation invitation, String username) -> {
                             getFriendshipManager().invite(invitation, username);
                             connection.sendPacket(new VoidResultPacket(requestId, ResponsePacket.OK), input.from());
                         }
                         case FriendshipPacket.AcceptInvitation(long requestId, FriendshipInvitation invitation) ->
                                 getFriendshipManager().acceptInvitation(invitation).whenComplete((result, exception) -> {
                                     String response = ResponsePacket.OK;
-                                    if (exception != null) {
-                                        if (exception instanceof UnsuccessfulResultException ex) {
+                                    if(exception != null) {
+                                        if(exception instanceof UnsuccessfulResultException ex) {
                                             response = ex.getMessage();
                                         } else {
                                             response = ResponsePacket.UNKNOWN;
@@ -717,8 +727,8 @@ public abstract class Controller {
                         case FriendshipPacket.GetFriendship(long requestId, long friendshipId) -> {
                             getFriendshipManager().getFriendship(friendshipId).whenComplete((result, exception) -> {
                                 String response = ResponsePacket.OK;
-                                if (exception != null) {
-                                    if (exception instanceof UnsuccessfulResultException ex) {
+                                if(exception != null) {
+                                    if(exception instanceof UnsuccessfulResultException ex) {
                                         response = ex.getMessage();
                                     } else {
                                         response = ResponsePacket.UNKNOWN;
@@ -728,33 +738,43 @@ public abstract class Controller {
                             });
                         }
                         case FriendshipPacket.GetFriendships(long requestId, UUID uuid) ->
-                                getPlayer(uuid).ifPresentOrElse(player -> {
-                                    getFriendshipManager().getFriendships(player).whenComplete((result, exception) -> {
-                                        String response = ResponsePacket.OK;
-                                        if (exception != null) {
-                                            if (exception instanceof UnsuccessfulResultException ex) {
-                                                response = ex.getMessage();
-                                            } else {
-                                                response = ResponsePacket.UNKNOWN;
-                                            }
+                                getPlayer(uuid).ifPresentOrElse(player -> getFriendshipManager().getFriendships(player).whenComplete((result, exception) -> {
+                                    String response = ResponsePacket.OK;
+                                    if(exception != null) {
+                                        if(exception instanceof UnsuccessfulResultException ex) {
+                                            response = ex.getMessage();
+                                        } else {
+                                            response = ResponsePacket.UNKNOWN;
                                         }
-                                        connection.sendPacket(new SimpleResultPacket<>(requestId, response, result), input.from());
-                                    });
-                                }, () -> connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.INVALID_PLAYER), input.from()));
-                        case FriendshipPacket.RemoveFriendship(long requestId, long friendshipId) -> {
-                            getFriendshipManager().getFriendship(friendshipId).thenApply(friendship -> {
-                                if(friendship == null) throw new IllegalStateException("Friendship does not exist");
-                                return friendship;
-                            }).whenComplete((result, exception) -> {
-                                String response = ResponsePacket.OK;
-                                if (exception != null) {
-                                    if (exception instanceof UnsuccessfulResultException ex) {
-                                        response = ex.getMessage();
-                                    } else {
-                                        response = ResponsePacket.UNKNOWN;
                                     }
+                                    connection.sendPacket(new RelationshipRecordsPacket(requestId, response, result), input.from());
+                                }), () -> connection.sendPacket(new RelationshipRecordsPacket(requestId, ResponsePacket.INVALID_PLAYER), input.from()));
+
+                        case FriendshipPacket.RemoveFriendship(long requestId, long friendshipId) -> {
+                            getFriendshipManager().getFriendship(friendshipId).whenComplete((friendship, ex) -> {
+                                if(ex != null) {
+                                    connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.INVALID_PARAMETERS), input.from());
+                                    ex.printStackTrace();
+                                    return;
                                 }
-                                connection.sendPacket(new SimpleResultPacket<>(requestId, response, result), input.from());
+
+                                if(friendship == null) {
+                                    connection.sendPacket(new SimpleResultPacket<>(requestId, ResponsePacket.INVALID_ID), input.from());
+                                    throw new IllegalStateException("Friendship does not exist");
+                                }
+
+                                //TODO do not create new RelationshipRecord? fix that, however the retrieved friendshipRecord does not contain the ID.
+                                getFriendshipManager().removeFriendship(new RelationshipRecord(friendshipId, friendship.players())).whenComplete((result, exception) -> {
+                                    String response = ResponsePacket.OK;
+                                    if(exception != null) {
+                                        if(exception instanceof UnsuccessfulResultException e) {
+                                            response = e.getMessage();
+                                        } else {
+                                            response = ResponsePacket.UNKNOWN;
+                                        }
+                                    }
+                                    connection.sendPacket(new SimpleResultPacket<>(requestId, response, result), input.from());
+                                });
                             });
                         }
                         default -> throw new IllegalStateException("Unexpected value: " + friendshipPacket);
@@ -807,7 +827,6 @@ public abstract class Controller {
     public Collection<ControllerLaneInstance> getInstances() { // TODO Really public?
         return instances.values();
     }
-
 
 
     public Collection<ControllerGame> getGames() {

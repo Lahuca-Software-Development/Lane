@@ -99,6 +99,7 @@ public class ControllerFriendshipManager {
      * @param username   the username of the requester
      */
     public void invite(FriendshipInvitation invitation, String username) {
+        if(Objects.equals(containsInvitation(invitation), username)) return; // Already invited
         invitations.put(invitation, username); // TODO Additional things? checks?
     }
 
