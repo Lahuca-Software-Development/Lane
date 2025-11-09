@@ -107,11 +107,23 @@ public class InstancePlayerManager implements Slottable {
                 );
     }
 
+    /**
+     * Retrieves player's name based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's name
+     */
     public CompletableFuture<Optional<String>> getNetworkProfilesUsername(UUID networkProfile) {
         return getNetworkProfilesUUID(networkProfile).thenCompose(profileOpt -> profileOpt.map(this::getPlayerUsername)
                 .orElse(CompletableFuture.completedFuture(Optional.empty())));
     }
 
+    /**
+     * Retrieves player's UUID based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's uuid
+     */
     public CompletableFuture<Optional<UUID>> getNetworkProfilesUUID(UUID networkProfile) {
         return LaneInstance.getInstance().getDataManager().getProfileData(networkProfile)
                 .thenApply(profileOpt -> profileOpt.map(InstanceProfileData::getFirstSuperProfile));

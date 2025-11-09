@@ -201,6 +201,27 @@ public class ControllerPlayerManager {
     }
 
     /**
+     * Retrieves player's name based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's name
+     */
+    public CompletableFuture<Optional<String>> getNetworkProfilesUsername(UUID networkProfile) {
+        return DefaultDataObjects.getNetworkProfilesUsername(dataManager, networkProfile);
+    }
+
+    /**
+     * Retrieves player's UUID based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's uuid
+     */
+    public CompletableFuture<Optional<UUID>> getNetworkProfilesUUID(UUID networkProfile) {
+        return DefaultDataObjects.getNetworkProfilesUUID(networkProfile);
+    }
+
+
+    /**
      * Gets the last known username of the player with the given UUID.
      *
      * @param uuid the uuid
