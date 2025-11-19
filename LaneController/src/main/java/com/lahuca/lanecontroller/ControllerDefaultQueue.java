@@ -84,7 +84,6 @@ public class ControllerDefaultQueue {
                         joinTogether = new HashMap<>();
                     }
                     QueueType queueType = parameter.queueType().orElse(QueueType.PLAYING);
-                    System.err.println("DEBUG DefaultQueue: " + parameter.queueType() + ", " + parameter.data() + ", " + queueType);
                     // Find something with this parameter
                     if (parameter.gameId().isPresent()) {
                         Optional<ControllerGame> value = findByGameId(parameter.gameId().get(), excludeInstances, excludeGames, queueType, joinTogether, allowKick);
@@ -108,7 +107,7 @@ public class ControllerDefaultQueue {
                     if (parameter.instanceId().isPresent()) {
                         Optional<ControllerLaneInstance> value = findByInstanceId(parameter.instanceId().get(), excludeInstances, queueType, joinTogether, allowKick);
                         if (value.isPresent()) {
-                            if (joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId(), queueType,parameter);
+                            if (joinTogether.isEmpty()) event.setJoinInstanceResult(value.get().getId(), queueType, parameter);
                             else
                                 event.setJoinInstanceResult(value.get().getId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
                             return true;
