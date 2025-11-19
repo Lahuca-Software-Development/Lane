@@ -91,16 +91,16 @@ public class QueueStageEvent implements ControllerPlayerEvent {
         result = new QueueStageEventResult.Disconnect(message);
     }
 
-    public void setJoinInstanceResult(String instanceId, QueueRequestParameter parameter) {
-        result = new QueueStageEventResult.JoinInstance(instanceId, parameter);
+    public void setJoinInstanceResult(String instanceId, QueueType queueType, QueueRequestParameter parameter) {
+        result = new QueueStageEventResult.JoinInstance(instanceId, queueType, parameter);
     }
 
     public void setJoinInstanceResult(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) {
         result = new QueueStageEventResult.JoinInstance(instanceId, joinTogetherPlayers, queueType, parameter);
     }
 
-    public void setJoinGameResult(long gameId, QueueRequestParameter parameter) {
-        result = new QueueStageEventResult.JoinGame(gameId, parameter);
+    public void setJoinGameResult(long gameId, QueueType queueType, QueueRequestParameter parameter) {
+        result = new QueueStageEventResult.JoinGame(gameId, queueType, parameter);
     }
 
     public void setJoinGameResult(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) {
