@@ -132,10 +132,19 @@ public class ControllerPlayerManager {
     }
 
     public void unregisterPlayer(UUID player) {
+        getPlayer(player).ifPresent(cPlayer -> {
+            cPlayer.getParty().ifPresent(party -> {
+                if(party.getOwner().equals(cPlayer)) {
+                    party.disband();
+                    // TODO Message
+                } else {
+                    party.removePlayer(cPlayer);
+                    // TODO Message
+                }
+            });
+        });
         players.remove(player);
         networkProcessing.invalidate(player);
-        // TODO Remove from party, disband party, etc.?
-        //  or maybe keep it, but then hmm
     } // TODO Redo
 
     public @NotNull Collection<ControllerPlayer> getPlayers() {
