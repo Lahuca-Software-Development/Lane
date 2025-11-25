@@ -200,7 +200,7 @@ public class InstancePlayerManager implements Slottable {
             instance.runOnMainThread(() -> joinInstance(record.uuid()));
         }, () -> {
             reserved.put(record.uuid(), new InstancePlayer(record, registerData));
-            Optional.ofNullable(record.gameId()).flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(record.uuid()));
+            Optional.ofNullable(registerData.gameId()).flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(record.uuid()));
         }); // TODO What happens if the player fails the connect?
     }
 
