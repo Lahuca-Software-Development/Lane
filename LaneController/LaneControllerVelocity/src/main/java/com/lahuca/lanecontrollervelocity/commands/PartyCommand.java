@@ -533,7 +533,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                     executor.getEffectiveLocale());
             Component names = Component.join(JoinConfiguration.separator(nameSeparator), nameComponents);
             executor.sendMessage(Component.translatable("lane.controller.commands.party.list.style",
-                    Component.text(party.getControllerOwner().getUsername()), names));
+                    Component.text(party.getControllerOwner() == null ? "X" : party.getControllerOwner().getUsername()), names)); //TODO probably handle it better than "X" but this occurs.
             return Command.SINGLE_SUCCESS;
         };
     }

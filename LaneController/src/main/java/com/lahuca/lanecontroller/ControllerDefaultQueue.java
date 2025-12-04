@@ -89,8 +89,7 @@ public class ControllerDefaultQueue {
                         Optional<ControllerGame> value = findByGameId(parameter.gameId().get(), excludeInstances, excludeGames, queueType, joinTogether, allowKick);
                         if (value.isPresent()) {
                             if (joinTogether.isEmpty()) event.setJoinGameResult(value.get().getGameId(), queueType, parameter);
-                            else
-                                event.setJoinGameResult(value.get().getGameId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
+                            else event.setJoinGameResult(value.get().getGameId(), new HashSet<>(joinTogether.keySet()), queueType, parameter);
                             return true;
                         }
                     }
