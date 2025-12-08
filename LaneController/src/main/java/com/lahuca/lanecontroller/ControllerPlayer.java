@@ -384,12 +384,25 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * Returns the party of the player.
      * If the player is not in a party, the optional will be empty.
      * Even if this player has a party ID, this will only return the party if it actually exists.
+     * Also results if the party is a solo party: a party with no other party members, but with at least one outgoing invitation.
      *
      * @return the party
      */
     public Optional<ControllerParty> getParty() {
+        return getParty(true);
+    }
+
+    /**
+     * Returns the party of the player.
+     * If the player is not in a party, the optional will be empty.
+     * Even if this player has a party ID, this will only return the party if it actually exists.
+     *
+     * @param includeSoloParty whether to include solo parties: parties with no other party members, but with at least one outgoing invitation
+     * @return the party
+     */
+    public Optional<ControllerParty> getParty(boolean includeSoloParty) {
         if(partyId == null) return Optional.empty();
-        return Controller.getInstance().getPartyManager().getParty(partyId);
+        return Controller.getInstance().getPartyManager().getParty(partyId).filter(party -> includeSoloParty || party.isSoloParty());
     }
 
     @Override
