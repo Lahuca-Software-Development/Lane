@@ -7,6 +7,7 @@ import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.RecordConverter;
+import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -36,7 +37,8 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
         setOwner(owner);
         // TODO we cannot do owner.setPartyId here due to the object not being registered yet
 
-        invitations = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+        invitations = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+                .removalListener((key, value, cause) -> clearSoloParty()).build();
         creationTimestamp = System.currentTimeMillis();
     }
 
@@ -209,11 +211,29 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
     public boolean removePlayer(ControllerPlayer player) {
         if (player == null) throw new IllegalArgumentException("player is null");
         if (!containsPlayer(player)) return false;
-        if (getOwner().equals(player.getUuid())) return false;
         invitations.invalidate(player.getUuid());
+        if (getOwner().equals(player.getUuid())) {
+            if(disband()) {
+                Component message = Component.translatable("lane.controller.party.ownerLeave"); // TODO Add setting to not send message?
+                getPlayers().forEach(uuid -> Controller.getInstance().sendMessage(uuid, message));
+                return true;
+            }
+            return false;
+        }
         players.remove(player.getUuid());
         player.setPartyId(null);
+        clearSoloParty();
         return true;
+    }
+
+    public void clearSoloParty() {
+        if(isSoloParty() && isInvitationsOnly() && getInvitations().estimatedSize() == 0) {
+            // Private and only one person left
+            if(disband()) {
+                Component message = Component.translatable("lane.controller.party.clearSoloParty"); // TODO Add setting to not send message?
+                getPlayers().forEach(uuid -> Controller.getInstance().sendMessage(uuid, message));
+            }
+        }
     }
 
     /**

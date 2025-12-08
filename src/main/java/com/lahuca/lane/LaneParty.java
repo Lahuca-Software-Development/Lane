@@ -34,4 +34,13 @@ public interface LaneParty extends LaneRelationship {
 	 */
 	long getCreationTimestamp();
 
+	/**
+	 * Returns whether the party contains only one player.
+	 * This happens when the party is public or if it as outgoing invitations.
+	 * @return {@code true} if the party is solo, otherwise {@code false}
+	 */
+	default boolean isSoloParty() {
+		return getPlayers().size() == 1;
+	}
+
 }

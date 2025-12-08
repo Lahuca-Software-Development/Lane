@@ -393,6 +393,14 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             // Got players, get party
             Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
             if (partyOpt.isEmpty()) {
+                if(publicCommand) {
+                    // Create new party
+                    controller.getPartyManager().createParty(actors.executor.cPlayer()).ifPresentOrElse(party -> {
+                        executor.sendMessage(Component.translatable("lane.controller.commands.party.createdParty",
+                                Component.text(actors.executor.cPlayer().getUsername()))); // TODO Displayname?
+                    }, () -> executor.sendMessage(Component.translatable("lane.controller.commands.party.public.unknown")));
+                    return Command.SINGLE_SUCCESS;
+                }
                 executor.sendMessage(Component.translatable("lane.controller.commands.party." + subcommand + ".needParty"));
                 return Command.SINGLE_SUCCESS;
             }
