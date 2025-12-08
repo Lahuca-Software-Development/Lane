@@ -2,6 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.connection.packet.RequestInformationPacket;
 import com.lahuca.lane.connection.packet.SendMessagePacket;
 import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
@@ -11,6 +12,7 @@ import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.laneinstance.game.InstanceGame;
+import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import com.lahuca.laneinstance.scoreboard.PlayerScoreboard;
 import net.kyori.adventure.text.Component;
 
@@ -190,6 +192,36 @@ public class InstancePlayer implements LanePlayer {
     @Override
     public Optional<Long> getPartyId() {
         return Optional.ofNullable(partyId);
+    }
+
+    /**
+     * Returns the party of the player.
+     * If the player is not in a party, the optional will be empty.
+     * Even if this player has a party ID, this will only return the party if it actually exists.
+     * Also results if the party is a solo party: a party with no other party members, but with at least one outgoing invitation.
+     *
+     * @return the party as {@link CompletableFuture} of type {@link Optional<InstancePartyRetrieval>}
+     */
+    public CompletableFuture<Optional<InstancePartyRetrieval>> getParty() {
+        return getParty(true);
+    }
+
+    /**
+     * Returns the party of the player.
+     * If the player is not in a party, the optional will be empty.
+     * Even if this player has a party ID, this will only return the party if it actually exists.
+     *
+     * @param includeSoloParty whether to include solo parties: parties with no other party members, but with at least one outgoing invitation
+     * @return the party as {@link CompletableFuture} of type {@link Optional<InstancePartyRetrieval>}
+     */
+    public CompletableFuture<Optional<InstancePartyRetrieval>> getParty(boolean includeSoloParty) {
+        if(partyId == null) return CompletableFuture.completedFuture(Optional.empty());
+        return LaneInstance.getInstance().getParty(partyId).thenApply(partyOpt -> {
+            if(partyOpt.isEmpty()) return Optional.empty();
+            InstancePartyRetrieval party = partyOpt.get();
+            if(includeSoloParty || party.isSoloParty()) return Optional.of(party);
+            return Optional.empty();
+        });
     }
 
     @Override

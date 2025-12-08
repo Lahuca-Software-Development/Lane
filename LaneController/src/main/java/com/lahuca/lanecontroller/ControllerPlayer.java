@@ -69,7 +69,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     /**
      * Internal function to set the network profile UUID.
-     * Use {@link Controller#setNetworkProfile(ControllerPlayer, ControllerProfileData)} to update the network profile.
+     * Use {@link ControllerDataManager#setNetworkProfile(ControllerPlayer, ControllerProfileData)} to update the network profile.
      *
      * @param networkProfileUuid the UUID to set in the object
      */

@@ -367,11 +367,14 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
      *
      * @param partyId the party ID
-     * @return a {@link CompletableFuture} that completes with the retrieval of the party
+     * @return a {@link CompletableFuture} that completes with an optional with the retrieval of the party
      */
-    public CompletableFuture<InstancePartyRetrieval> getParty(long partyId) {
+    public CompletableFuture<Optional<InstancePartyRetrieval>> getParty(long partyId) {
         return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null).getResult()
-                .thenApply(InstancePartyRetrieval::new);
+                .thenApply(data -> {
+                    if(data == null) return Optional.empty();
+                    return Optional.of(new InstancePartyRetrieval(data));
+                });
     }
 
     /**
@@ -379,11 +382,14 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
      *
      * @param uuid the player's UUID
-     * @return a {@link CompletableFuture} that completes with the retrieval of the party
+     * @return a {@link CompletableFuture} that completes with an optional with the retrieval of the party
      */
-    public CompletableFuture<InstancePartyRetrieval> getPlayerParty(UUID uuid, boolean createIfNeeded) {
+    public CompletableFuture<Optional<InstancePartyRetrieval>> getPlayerParty(UUID uuid, boolean createIfNeeded) {
         return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Retrieve.RequestPlayerParty(id, uuid, createIfNeeded), null).getResult()
-                .thenApply(InstancePartyRetrieval::new);
+                .thenApply(data -> {
+                    if(data == null) return Optional.empty();
+                    return Optional.of(new InstancePartyRetrieval(data));
+                });
     }
 
     /**
