@@ -21,7 +21,7 @@ import java.util.function.Function;
 
 /**
  * The queue parameter data. The controller decides what to do with the parameter data provided.
- *
+ * <p>
  * When this parameter is provided, this is the priority of how data is being looked at when multiple values are given:
  * <ol>
  * <li>Game ID</li>
@@ -70,6 +70,16 @@ public record QueueRequestParameter(HashMap<String, String> data) {
                 return null;
             }
         });
+    }
+
+    /**
+     * Instead of taking the party skip value from the parameter, it will use some default value if it is not specifically set.
+     * The party skip's default value is as follows: {@code true} when joining an instance, {@code false} when joining a game.
+     *
+     * @return the party skip value or the default value
+     */
+    public boolean shouldPartySkip() {
+        return partySkip().orElse(data.get(gameId) == null && data.get(gameType) == null && data.get(gameMap) == null && data.get(gameMode) == null);
     }
 
     public Optional<QueueType> queueType() {
@@ -233,6 +243,7 @@ public record QueueRequestParameter(HashMap<String, String> data) {
 
         /**
          * Builds the request parameter.
+         *
          * @return The built object.
          */
         public final QueueRequestParameter build() {
@@ -241,6 +252,7 @@ public record QueueRequestParameter(HashMap<String, String> data) {
 
         /**
          * Build a parameters object where the only parameter is this single object.
+         *
          * @return the queue request parameters
          */
         public final QueueRequestParameters buildParameters() {

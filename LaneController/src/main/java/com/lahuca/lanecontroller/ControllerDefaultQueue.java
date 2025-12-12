@@ -80,7 +80,7 @@ public class ControllerDefaultQueue {
             for (boolean allowKick : List.of(false, true)) {
                 for (QueueRequestParameter parameter : shuffled) {
                     HashMap<UUID, Integer> joinTogether = partyMembers;
-                    if (parameter.partySkip().orElse(false)) {
+                    if (parameter.shouldPartySkip()) {
                         joinTogether = new HashMap<>();
                     }
                     QueueType queueType = parameter.queueType().orElse(QueueType.PLAYING);

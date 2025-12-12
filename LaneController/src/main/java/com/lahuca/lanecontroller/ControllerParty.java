@@ -273,9 +273,9 @@ public class ControllerParty implements LaneParty, RecordConverter<PartyRecord> 
         ControllerPlayer player = ownerOpt.get();
         QueueRequestParameters queue;
         if(player.getGameId().isPresent()) {
-            queue = QueueRequestParameter.create().gameId(player.getGameId().get()).buildParameters();
+            queue = QueueRequestParameter.create().gameId(player.getGameId().get()).partySkip(false).buildParameters();
         } else if(player.getInstanceId().isPresent()) {
-            queue = QueueRequestParameter.create().instanceId(player.getInstanceId().get()).buildParameters();
+            queue = QueueRequestParameter.create().instanceId(player.getInstanceId().get()).partySkip(false).buildParameters();
         } else {
             return false;
         }
