@@ -49,15 +49,15 @@ public class ControllerPlayerManager {
         CompletableFuture<UUID> networkProfileUuidFuture = DefaultDataObjects.getPlayersNetworkProfile(dataManager, uuid).thenCompose(opt -> {
             // If UUID is present, return it; otherwise create new profile
             return opt.<CompletionStage<UUID>>map(CompletableFuture::completedFuture)
-                    .orElseGet(() -> controller.createNewProfile(ProfileType.NETWORK)
+                    .orElseGet(() -> controller.getDataManager().createNewProfile(ProfileType.NETWORK)
                             .thenCompose(profile -> {
                                 // We created and fetched a profile, now set it in the data manager
-                                return controller.setNewNetworkProfile(uuid, profile).thenApply(data -> profile.getId());
+                                return controller.getDataManager().setNewNetworkProfile(uuid, profile).thenApply(data -> profile.getId());
                             }));
             // We have a profile, return its value
         });
         UUID networkProfileUuid = networkProfileUuidFuture.get(); // TODO Blocking
-        Optional<String> nickname = DefaultDataObjects.getNetworkProfilesNickname(dataManager, uuid).get(); // TODO Blocking
+        Optional<String> nickname = DefaultDataObjects.getNetworkProfilesNickname(dataManager, networkProfileUuid).get(); // TODO Blocking
         ControllerPlayer player = new ControllerPlayer(uuid, username, networkProfileUuid, nickname.orElse(null));
         if (players.containsKey(player.getUuid())) return null;
         players.put(player.getUuid(), player);
@@ -65,6 +65,9 @@ public class ControllerPlayerManager {
         DefaultDataObjects.setPlayersUsername(dataManager, player.getUuid(), username);
         DefaultDataObjects.setUsernamesUuid(dataManager, username, player.getUuid());
         applySavedLocale(player.getUuid(), networkProfileUuid, defaultLocale); // TODO Check result?
+        controller.getPartyManager().getParties().forEach(party -> {
+            if(party.containsPlayer(player)) player.setPartyId(party.getId());
+        });
         try {
             // TODO This is blocking, but doing it using whenComplete; is incorrect in the register. As it will not find the player yet
             Optional<Locale> object = DefaultDataObjects.getNetworkProfilesLocale(dataManager, networkProfileUuid).get();
@@ -129,10 +132,19 @@ public class ControllerPlayerManager {
     }
 
     public void unregisterPlayer(UUID player) {
+        getPlayer(player).ifPresent(cPlayer -> {
+            cPlayer.getParty().ifPresent(party -> {
+                if(party.getOwner().equals(cPlayer)) {
+                    party.disband();
+                    // TODO Message
+                } else {
+                    party.removePlayer(cPlayer);
+                    // TODO Message
+                }
+            });
+        });
         players.remove(player);
         networkProcessing.invalidate(player);
-        // TODO Remove from party, disband party, etc.?
-        //  or maybe keep it, but then hmm
     } // TODO Redo
 
     public @NotNull Collection<ControllerPlayer> getPlayers() {
@@ -185,6 +197,40 @@ public class ControllerPlayerManager {
     }
 
     /**
+     * Gets the network profile from the given UUID.
+     * This is done either by taking the network profile from the online player, or by taking it from the data manager.
+     *
+     * @param uuid the player's UUID
+     * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found, the optional is populated with the network profile; otherwise it is empty
+     */
+    public CompletableFuture<Optional<ControllerProfileData>> getPlayerNetworkProfile(UUID uuid) {
+        return getPlayer(uuid).map(ControllerPlayer::getNetworkProfileUuid).map(val -> controller.getDataManager().getProfileData(val))
+                .orElseGet(() -> DefaultDataObjects.getPlayersNetworkProfile(dataManager, uuid).thenCompose(profileIdOpt ->
+                        profileIdOpt.map(val -> controller.getDataManager().getProfileData(val)).orElse(CompletableFuture.completedFuture(Optional.empty()))));
+    }
+
+    /**
+     * Retrieves player's name based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's name
+     */
+    public CompletableFuture<Optional<String>> getNetworkProfilesUsername(UUID networkProfile) {
+        return DefaultDataObjects.getNetworkProfilesUsername(dataManager, networkProfile);
+    }
+
+    /**
+     * Retrieves player's UUID based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's uuid
+     */
+    public CompletableFuture<Optional<UUID>> getNetworkProfilesUUID(UUID networkProfile) {
+        return DefaultDataObjects.getNetworkProfilesUUID(networkProfile);
+    }
+
+
+    /**
      * Gets the last known username of the player with the given UUID.
      *
      * @param uuid the uuid
@@ -225,7 +271,6 @@ public class ControllerPlayerManager {
 
     protected CompletableFuture<Void> setNickname(UUID networkProfile, String nickname) {
         Objects.requireNonNull(networkProfile, "networkProfile cannot be null");
-        Objects.requireNonNull(nickname, "nickname cannot be null");
         return DefaultDataObjects.setNetworkProfilesNickname(dataManager, networkProfile, nickname);
     }
 

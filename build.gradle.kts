@@ -15,6 +15,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     compileOnly("com.google.code.gson:gson:2.10.1")
     implementation("net.kyori:adventure-api:4.24.0")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.0")
 }
 
 tasks.test {

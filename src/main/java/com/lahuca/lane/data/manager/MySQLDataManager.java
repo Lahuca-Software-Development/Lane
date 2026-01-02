@@ -1,10 +1,7 @@
 package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
-import com.lahuca.lane.data.DataObject;
-import com.lahuca.lane.data.DataObjectId;
-import com.lahuca.lane.data.DataObjectType;
-import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.*;
 
 import javax.sql.DataSource;
 import java.io.Closeable;
@@ -59,7 +56,7 @@ public class MySQLDataManager implements DataManager {
         if(dataSource instanceof Closeable closeable) {
             try {
                 closeable.close();
-            } catch (IOException e) {
+            } catch(IOException e) {
                 // Could not close, but we are in a shutdown?
                 e.printStackTrace(); // TODO Probably log?
             }
@@ -67,9 +64,8 @@ public class MySQLDataManager implements DataManager {
     }
 
     private String getTableName(DataObjectId id) {
-        if(id.id().isEmpty() || id.id().length() > 128) return null;
-        if(id.isRelational() && (id.relationalId().type().isEmpty() || id.relationalId().type().length() > 64
-                || id.relationalId().id().isEmpty() || !id.relationalId().type().matches("[a-zA-Z]+"))) return null;
+        if(id == null || (id.isRelational() && (id.relationalId().type() == null || id.relationalId().type().isEmpty() || id.relationalId().type().length() > 64
+                || !id.relationalId().type().matches("[a-zA-Z]+")))) return null;
         return prefix + (id.isRelational() ? "_relational_" + id.relationalId().type() : "_singular");
     }
 
@@ -77,10 +73,10 @@ public class MySQLDataManager implements DataManager {
         return CompletableFuture.completedFuture(Optional.empty());
     }
 
-    @Override
-    public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
+    private CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id, boolean madeTable) {
         String tableName = getTableName(id);
-        if(tableName == null) return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
+        if(tableName == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             PreparedStatement statement;
@@ -122,15 +118,58 @@ public class MySQLDataManager implements DataManager {
                         boolean writeAccess = object.hasWriteAccess(permissionKey, false);
                         object = object.shallowCopy(null, readAccess, writeAccess);
                         return CompletableFuture.completedFuture(Optional.of(object));
-                    } catch (IllegalArgumentException e) {
+                    } catch(IllegalArgumentException e) {
                         return CompletableFuture.failedFuture(e);
                     }
                 }
                 return empty();
             }
-        } catch (SQLException e) {
+        } catch(SQLException e) {
+            if((e.getErrorCode() == 1051 || e.getErrorCode() == 1146) && !madeTable) {
+                // Unknown table, create and retry!
+                try(Connection connection = dataSource.getConnection()) {
+                    connection.setAutoCommit(false);
+                    PreparedStatement statement;
+                    if(id.isRelational()) {
+                        statement = connection.prepareStatement("CREATE TABLE " + tableName + """
+                                 (
+                                    relational_id VARCHAR(128) NOT NULL,
+                                    id VARCHAR(128) NOT NULL,
+                                    read_permission VARCHAR(39) NOT NULL,
+                                    write_permission VARCHAR(39) NOT NULL,
+                                    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                    removal_time BIGINT DEFAULT -1,
+                                    version INT NOT NULL DEFAULT 0,
+                                    `type` VARCHAR(32) NOT NULL,
+                                    `value` JSON NOT NULL,
+                                    PRIMARY KEY (relational_id, id)
+                                );""");
+                    } else {
+                        statement = connection.prepareStatement("CREATE TABLE " + tableName + """
+                                 (
+                                    id VARCHAR(128) NOT NULL PRIMARY KEY,
+                                    read_permission VARCHAR(39) NOT NULL,
+                                    write_permission VARCHAR(39) NOT NULL,
+                                    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                    removal_time BIGINT DEFAULT -1,
+                                    version INT NOT NULL DEFAULT 0,
+                                    `type` VARCHAR(32) NOT NULL,
+                                    `value` JSON NOT NULL
+                                );""");
+                    }
+                    statement.executeUpdate();
+                    return readDataObject(permissionKey, id, true);
+                } catch(SQLException ex2) {
+                    return CompletableFuture.failedFuture(ex2);
+                }
+            }
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id) {
+        return readDataObject(permissionKey, id, false);
     }
 
     /**
@@ -138,18 +177,22 @@ public class MySQLDataManager implements DataManager {
      * The additional boolean value determines whether it should be tried to create the table whenever it does not exist yet.
      * This makes sure that the method is only called once recursively.
      * Be aware that data objects with type {@link DataObjectType#BLOB} might be read incorrectly.
+     *
      * @param permissionKey the permission key to use while writing
-     * @param object the object to write
-     * @param madeTable whether the table has been made
+     * @param object        the object to write
+     * @param madeTable     whether the table has been made
      * @return the status
      * @see #writeDataObject(PermissionKey, DataObject)
      */
     private CompletableFuture<Void> writeDataObject(PermissionKey permissionKey, DataObject object, boolean madeTable) {
-        if(!object.isWriteable()) return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
-        if(!object.hasWriteAccess(permissionKey, false)) return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
+        if(!object.isWriteable())
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Object is not writeable"));
+        if(!object.hasWriteAccess(permissionKey, false))
+            return CompletableFuture.failedFuture(new PermissionFailedException("Permission key does not allow writing given object"));
         DataObjectId id = object.getId();
         String tableName = getTableName(id);
-        if(tableName == null) return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
+        if(tableName == null || id == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("ID is not properly formatted"));
         try(Connection connection = dataSource.getConnection()) {
             // First fetch the permission if it already exists. Make sure to lock it.
             connection.setAutoCommit(false);
@@ -193,7 +236,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(6, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) value = gson.toJson(value);
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
+                        value = gson.toJson(value);
+                    }
                     update.setString(7, value);
                     update.setString(8, id.relationalId().id());
                     update.setString(9, id.id());
@@ -207,7 +252,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(6, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) value = gson.toJson(value);
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
+                        value = gson.toJson(value);
+                    }
                     update.setString(7, value);
                     update.setString(8, id.id());
                 }
@@ -224,7 +271,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(8, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) value = gson.toJson(value);
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
+                        value = gson.toJson(value);
+                    }
                     update.setString(9, value);
                 } else {
                     update = connection.prepareStatement("INSERT INTO " + tableName + " (id, read_permission, write_permission, last_updated, removal_time, version, `type`, `value`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
@@ -237,7 +286,9 @@ public class MySQLDataManager implements DataManager {
                     update.setString(7, object.getType().orElse(DataObjectType.BLOB).toString());
                     String value = object.getValue().orElse(null);
                     DataObjectType type = object.getType().orElse(DataObjectType.BLOB);
-                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) value = gson.toJson(value);
+                    if(value != null && (type == DataObjectType.STRING || type == DataObjectType.BLOB)) {
+                        value = gson.toJson(value);
+                    }
                     update.setString(8, value);
                 }
             }
@@ -251,7 +302,7 @@ public class MySQLDataManager implements DataManager {
                 }
             });
             return CompletableFuture.completedFuture(null);
-        } catch (SQLException e) {
+        } catch(SQLException e) {
             if((e.getErrorCode() == 1051 || e.getErrorCode() == 1146) && !madeTable) {
                 // Unknown table, create and retry!
                 try(Connection connection = dataSource.getConnection()) {
@@ -259,34 +310,34 @@ public class MySQLDataManager implements DataManager {
                     PreparedStatement statement;
                     if(id.isRelational()) {
                         statement = connection.prepareStatement("CREATE TABLE " + tableName + """
-                             (
-                                relational_id VARCHAR(128) NOT NULL,
-                                id VARCHAR(128) NOT NULL,
-                                read_permission VARCHAR(39) NOT NULL,
-                                write_permission VARCHAR(39) NOT NULL,
-                                last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                                removal_time BIGINT DEFAULT -1,
-                                version INT NOT NULL DEFAULT 0,
-                                `type` VARCHAR(32) NOT NULL,
-                                `value` JSON NOT NULL,
-                                PRIMARY KEY (relational_id, id)
-                            );""");
+                                 (
+                                    relational_id VARCHAR(128) NOT NULL,
+                                    id VARCHAR(128) NOT NULL,
+                                    read_permission VARCHAR(39) NOT NULL,
+                                    write_permission VARCHAR(39) NOT NULL,
+                                    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                    removal_time BIGINT DEFAULT -1,
+                                    version INT NOT NULL DEFAULT 0,
+                                    `type` VARCHAR(32) NOT NULL,
+                                    `value` JSON NOT NULL,
+                                    PRIMARY KEY (relational_id, id)
+                                );""");
                     } else {
                         statement = connection.prepareStatement("CREATE TABLE " + tableName + """
-                             (
-                                id VARCHAR(128) NOT NULL PRIMARY KEY,
-                                read_permission VARCHAR(39) NOT NULL,
-                                write_permission VARCHAR(39) NOT NULL,
-                                last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                                removal_time BIGINT DEFAULT -1,
-                                version INT NOT NULL DEFAULT 0,
-                                `type` VARCHAR(32) NOT NULL,
-                                `value` JSON NOT NULL
-                            );""");
+                                 (
+                                    id VARCHAR(128) NOT NULL PRIMARY KEY,
+                                    read_permission VARCHAR(39) NOT NULL,
+                                    write_permission VARCHAR(39) NOT NULL,
+                                    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                    removal_time BIGINT DEFAULT -1,
+                                    version INT NOT NULL DEFAULT 0,
+                                    `type` VARCHAR(32) NOT NULL,
+                                    `value` JSON NOT NULL
+                                );""");
                     }
                     statement.executeUpdate();
                     return writeDataObject(permissionKey, object, true);
-                } catch (SQLException ex2) {
+                } catch(SQLException ex2) {
                     return CompletableFuture.failedFuture(ex2);
                 }
             }
@@ -302,7 +353,7 @@ public class MySQLDataManager implements DataManager {
     @Override
     public CompletableFuture<Void> removeDataObject(PermissionKey permissionKey, DataObjectId id) {
         String tableName = getTableName(id);
-        if(tableName == null) return CompletableFuture.completedFuture(null);
+        if(tableName == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128) return CompletableFuture.completedFuture(null);
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             connection.setAutoCommit(false);
@@ -347,7 +398,10 @@ public class MySQLDataManager implements DataManager {
                     return CompletableFuture.completedFuture(null);
                 }
             }
-        } catch (SQLException e) {
+        } catch(SQLException e) {
+            if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
+                return CompletableFuture.completedFuture(null);
+            }
             return CompletableFuture.failedFuture(e);
         }
     }
@@ -356,28 +410,49 @@ public class MySQLDataManager implements DataManager {
     public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
         Objects.requireNonNull(prefix, "prefix cannot be null");
         String tableName = getTableName(prefix);
-        if(tableName == null) return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
+        if(tableName == null) {
+            return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
+        }
+        boolean idFalse = prefix.id() == null || prefix.id().isEmpty() || prefix.id().length() > 128;
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
             PreparedStatement statement;
             if(prefix.isRelational()) {
-                statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
-                statement.setString(1, prefix.relationalId().id());
-                statement.setString(2, prefix.id() + "%");
+                if(prefix.relationalId().id() == null || prefix.relationalId().id().isEmpty()) {
+                    if(idFalse) {
+                        statement = connection.prepareStatement("SELECT id, relational_id FROM " + tableName);
+                    } else {
+                        statement = connection.prepareStatement("SELECT id, relational_id FROM " + tableName + " WHERE id LIKE ?");
+                        statement.setString(1, prefix.id() + "%");
+                    }
+                } else {
+                    statement = connection.prepareStatement("SELECT id, relational_id FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
+                    statement.setString(1, prefix.relationalId().id());
+                    statement.setString(2, prefix.id() + "%");
+                }
             } else {
-                statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
-                statement.setString(1, prefix.id() + "%");
+                if(idFalse) {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName);
+                } else {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
+                    statement.setString(1, prefix.id() + "%");
+                }
             }
             // Get result of query
             try(ResultSet resultSet = statement.executeQuery()) {
                 ArrayList<DataObjectId> ids = new ArrayList<>();
-                while (resultSet.next()) {
+                while(resultSet.next()) {
                     String id = resultSet.getString("id");
-                    ids.add(new DataObjectId(prefix.relationalId(), id));
+
+                    if(prefix.isRelational()) ids.add(new DataObjectId(new RelationalId(prefix.relationalId().type(), resultSet.getString("relational_id")), id));
+                    else ids.add(new DataObjectId(prefix.relationalId(), id));
                 }
                 return CompletableFuture.completedFuture(ids);
             }
-        } catch (SQLException e) {
+        } catch(SQLException e) {
+            if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
+                return CompletableFuture.completedFuture(new ArrayList<>());
+            }
             return CompletableFuture.failedFuture(e);
         }
     }

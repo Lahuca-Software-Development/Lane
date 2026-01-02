@@ -112,8 +112,8 @@ public sealed interface QueueStageEventResult permits QueueStageEventResult.None
      */
     record JoinInstance(String instanceId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
-        public JoinInstance(String instanceId, QueueRequestParameter parameter) {
-            this(instanceId, null, QueueType.PLAYING, parameter);
+        public JoinInstance(String instanceId, QueueType queueType, QueueRequestParameter parameter) {
+            this(instanceId, null, queueType, parameter);
         }
 
         @Override
@@ -144,8 +144,8 @@ public sealed interface QueueStageEventResult permits QueueStageEventResult.None
      */
     record JoinGame(long gameId, HashSet<UUID> joinTogetherPlayers, QueueType queueType, QueueRequestParameter parameter) implements QueueStageEventResult, QueueStageEventStageableResult, QueueStageEventJoinableResult {
 
-        public JoinGame(long gameId, QueueRequestParameter parameter) {
-            this(gameId, null, QueueType.PLAYING, parameter);
+        public JoinGame(long gameId, QueueType queueType, QueueRequestParameter parameter) {
+            this(gameId, null, queueType, parameter);
         }
 
         @Override

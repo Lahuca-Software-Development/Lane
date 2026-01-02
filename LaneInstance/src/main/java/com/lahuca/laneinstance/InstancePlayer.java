@@ -2,6 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.LanePlayerState;
+import com.lahuca.lane.connection.packet.RequestInformationPacket;
 import com.lahuca.lane.connection.packet.SendMessagePacket;
 import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
@@ -62,6 +63,7 @@ public class InstancePlayer implements LanePlayer {
         public Optional<Long> getGameId() {
             return Optional.ofNullable(gameId);
         }
+
     }
 
     /**
@@ -102,6 +104,7 @@ public class InstancePlayer implements LanePlayer {
 
     /**
      * Retrieves the player list type of the current player on the instance.
+     *
      * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list
      */
     public InstancePlayerListType getInstancePlayerListType() {
@@ -110,6 +113,7 @@ public class InstancePlayer implements LanePlayer {
 
     /**
      * Retrieves the player list type of the current player on the game it is playing on.
+     *
      * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list or not playing a game
      */
 
@@ -164,11 +168,11 @@ public class InstancePlayer implements LanePlayer {
 
     @Override
     public CompletableFuture<InstanceProfileData> getNetworkProfile() {
-        return LaneInstance.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
+        return LaneInstance.getInstance().getDataManager().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
     }
 
     public CompletableFuture<Void> setNetworkProfileUuid(InstanceProfileData profile) {
-        return LaneInstance.getInstance().setNetworkProfile(this, profile);
+        return LaneInstance.getInstance().getDataManager().setNetworkProfile(this, profile);
     }
 
     @Override
@@ -176,6 +180,7 @@ public class InstancePlayer implements LanePlayer {
         return Optional.ofNullable(nickname);
     }
 
+    @Override
     public CompletableFuture<Void> setNickname(String nickname) {
         return LaneInstance.getInstance().setNickname(this, nickname);
     }
@@ -188,6 +193,36 @@ public class InstancePlayer implements LanePlayer {
     @Override
     public Optional<Long> getPartyId() {
         return Optional.ofNullable(partyId);
+    }
+
+    /**
+     * Returns the party of the player.
+     * If the player is not in a party, the optional will be empty.
+     * Even if this player has a party ID, this will only return the party if it actually exists.
+     * Also results if the party is a solo party: a party with no other party members, but with at least one outgoing invitation.
+     *
+     * @return the party as {@link CompletableFuture} of type {@link Optional<InstanceParty>}
+     */
+    public CompletableFuture<Optional<InstanceParty>> getParty() {
+        return getParty(true);
+    }
+
+    /**
+     * Returns the party of the player.
+     * If the player is not in a party, the optional will be empty.
+     * Even if this player has a party ID, this will only return the party if it actually exists.
+     *
+     * @param includeSoloParty whether to include solo parties: parties with no other party members, but with at least one outgoing invitation
+     * @return the party as {@link CompletableFuture} of type {@link Optional<InstanceParty>}
+     */
+    public CompletableFuture<Optional<InstanceParty>> getParty(boolean includeSoloParty) {
+        if (partyId == null) return CompletableFuture.completedFuture(Optional.empty());
+        return LaneInstance.getInstance().getParty(partyId).thenApply(partyOpt -> {
+            if (partyOpt.isEmpty()) return Optional.empty();
+            InstanceParty party = partyOpt.get();
+            if (includeSoloParty || party.isSoloParty()) return Optional.of(party);
+            return Optional.empty();
+        });
     }
 
     @Override
@@ -252,7 +287,7 @@ public class InstancePlayer implements LanePlayer {
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
-        if(state == null) state = new InstancePlayerState();
+        if (state == null) state = new InstancePlayerState();
         state.applyRecord(record.state());
         partyId = record.partyId();
         queuePriority = record.queuePriority();

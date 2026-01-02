@@ -51,6 +51,19 @@ public interface LanePlayer extends RecordConverterApplier<PlayerRecord> {
 	}
 
 	Optional<String> getNickname();
+    default boolean isNicked() {
+        return getNickname().isPresent();
+    }
+    CompletableFuture<Void> setNickname(String nickname);
+
+    /**
+     * Returns the public name to display to other players.
+     * If the player has a nickname, it will be returned, otherwise the username will be returned.
+     * @return the public name
+     */
+    default String getPublicName() {
+        return getNickname().orElse(getUsername());
+    }
 	Optional<QueueRequest> getQueueRequest();
 	Optional<String> getInstanceId();
 	Optional<Long> getGameId();

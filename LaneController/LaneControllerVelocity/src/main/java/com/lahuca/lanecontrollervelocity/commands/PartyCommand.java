@@ -19,8 +19,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.translation.GlobalTranslator;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -66,10 +66,13 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             });
             return builder.buildFuture();
         };
+
+        LiteralCommandNode<CommandSource> addCommand = BrigadierCommand.literalArgumentBuilder("add").executes(needArguments)
+                .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(addCommand())).build();
         LiteralCommandNode<CommandSource> node = BrigadierCommand.literalArgumentBuilder("party")
                 .requires(source -> source instanceof Player)
-                .then(BrigadierCommand.literalArgumentBuilder("add").executes(needArguments)
-                        .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(addCommand())))
+                .then(addCommand)
+                .then(BrigadierCommand.literalArgumentBuilder("invite").redirect(addCommand))
                 .then(BrigadierCommand.literalArgumentBuilder("accept").executes(needArguments)
                         .then(BrigadierCommand.requiredArgumentBuilder("player", StringArgumentType.word()).executes(acceptCommand())))
                 .then(BrigadierCommand.literalArgumentBuilder("deny").executes(needArguments)
@@ -329,7 +332,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.notOwner"));
                 return Command.SINGLE_SUCCESS;
             }
-            HashSet<UUID> partyMembers = party.getPlayers();
+            Set<UUID> partyMembers = party.getPlayers();
             if (!party.disband()) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.unknown"));
                 return Command.SINGLE_SUCCESS;
@@ -390,6 +393,14 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             // Got players, get party
             Optional<ControllerParty> partyOpt = actors.executor.cPlayer().getParty();
             if (partyOpt.isEmpty()) {
+                if(publicCommand) {
+                    // Create new party
+                    controller.getPartyManager().createParty(actors.executor.cPlayer()).ifPresentOrElse(party -> {
+                        executor.sendMessage(Component.translatable("lane.controller.commands.party.createdParty",
+                                Component.text(actors.executor.cPlayer().getUsername()))); // TODO Displayname?
+                    }, () -> executor.sendMessage(Component.translatable("lane.controller.commands.party.public.unknown")));
+                    return Command.SINGLE_SUCCESS;
+                }
                 executor.sendMessage(Component.translatable("lane.controller.commands.party." + subcommand + ".needParty"));
                 return Command.SINGLE_SUCCESS;
             }
@@ -530,7 +541,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                     executor.getEffectiveLocale());
             Component names = Component.join(JoinConfiguration.separator(nameSeparator), nameComponents);
             executor.sendMessage(Component.translatable("lane.controller.commands.party.list.style",
-                    Component.text(party.getControllerOwner().getUsername()), names));
+                    Component.text(party.getControllerOwner() == null ? "X" : party.getControllerOwner().getUsername()), names)); //TODO probably handle it better than "X" but this occurs. This should not even happen
             return Command.SINGLE_SUCCESS;
         };
     }

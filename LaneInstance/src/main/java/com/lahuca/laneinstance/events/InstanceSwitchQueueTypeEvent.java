@@ -1,5 +1,6 @@
 package com.lahuca.laneinstance.events;
 
+import com.lahuca.lane.events.LanePlayerEvent;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.laneinstance.InstancePlayer;
 import com.lahuca.laneinstance.InstancePlayerListType;
@@ -13,7 +14,7 @@ import com.lahuca.laneinstance.InstancePlayerListType;
  * @param newQueueType      the new queue type
  */
 public record InstanceSwitchQueueTypeEvent(InstancePlayer player, InstancePlayerListType oldPlayerListType,
-                                           QueueType newQueueType) implements InstancePlayerEvent {
+                                           QueueType newQueueType) implements LanePlayerEvent<InstancePlayer> {
 
     @Override
     public InstancePlayer getPlayer() {

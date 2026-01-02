@@ -27,15 +27,16 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
 import com.lahuca.lane.data.manager.MySQLDataManager;
+import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerGame;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import com.lahuca.lanecontroller.ControllerPlayerState;
-import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
+import com.lahuca.lanecontrollervelocity.commands.HubCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
 import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.command.CommandManager;
@@ -161,7 +162,7 @@ public class VelocityController {
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
         initializeConfig();
-        MessagesResourceBundle messages = new MessagesResourceBundle(new File(dataDirectory.toFile(), "lang"), "messages", Locale.ENGLISH, "messages.properties");
+        MessagesResourceBundle messages = new MessagesResourceBundle(new File(dataDirectory.toFile(), "lang"), "messages", Locale.ENGLISH, "messages.properties", this.getClass());
         messages.initialize(); // Initializes default resource bundle TODO Load state
         try {
             messages.loadResourceBundles(MiniMessageTranslationStore.create(Key.key("lane:controller"))); // Load them
@@ -227,6 +228,10 @@ public class VelocityController {
         if(configuration.getCommands().isParty()) {
             commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand(this, controller).createBrigadierCommand());
         }
+        if(configuration.getCommands().isHub()) {
+            commandManager.register(commandManager.metaBuilder("hub").aliases("lobby", "leave").plugin(this).build(), new HubCommand(this, controller).createBrigadierCommand());
+        }
+
     }
 
     private void initializeConfig() {
@@ -583,7 +588,7 @@ public class VelocityController {
 
 
         @Override
-        public <E extends ControllerEvent> CompletableFuture<E> handleControllerEvent(E event) {
+        public <E extends LaneEvent> CompletableFuture<E> handleControllerEvent(E event) {
             return server.getEventManager().fire(event);
         }
 

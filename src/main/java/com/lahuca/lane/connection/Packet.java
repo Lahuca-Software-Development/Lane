@@ -28,6 +28,8 @@ import java.util.Optional;
 
 public interface Packet {
 
+	// TODO Split into ControllerPacket and InstancePacket
+
 	HashMap<String, Class<? extends Packet>> packetTypes = new HashMap<>();
 
 	static void registerPacket(String typeId, Class<? extends Packet> classType) {
@@ -52,23 +54,11 @@ public interface Packet {
 		Packet.registerPacket(QueueRequestPacket.packetId, QueueRequestPacket.class);
 		Packet.registerPacket(ConnectionConnectPacket.packetId, ConnectionConnectPacket.class);
 
-		Packet.registerPacket(PartyPacket.Retrieve.Request.packetId, PartyPacket.Retrieve.Request.class);
-		Packet.registerPacket(PartyPacket.Retrieve.Response.packetId, PartyPacket.Retrieve.Response.class);
-		Packet.registerPacket(PartyPacket.SetInvitationsOnly.packetId, PartyPacket.SetInvitationsOnly.class);
-		Packet.registerPacket(PartyPacket.Invitation.Has.packetId, PartyPacket.Invitation.Has.class);
-		Packet.registerPacket(PartyPacket.Invitation.Add.packetId, PartyPacket.Invitation.Add.class);
-		Packet.registerPacket(PartyPacket.Invitation.Accept.packetId, PartyPacket.Invitation.Accept.class);
-		Packet.registerPacket(PartyPacket.Invitation.Deny.packetId, PartyPacket.Invitation.Deny.class);
-		Packet.registerPacket(PartyPacket.JoinPlayer.packetId, PartyPacket.JoinPlayer.class);
-		Packet.registerPacket(PartyPacket.RemovePlayer.packetId, PartyPacket.RemovePlayer.class);
-		Packet.registerPacket(PartyPacket.Disband.packetId, PartyPacket.Disband.class);
-		Packet.registerPacket(PartyPacket.SetOwner.packetId, PartyPacket.SetOwner.class);
-		Packet.registerPacket(PartyPacket.Warp.packetId, PartyPacket.Warp.class);
-
-
 		Packet.registerPacket(SimpleResultPacket.packetId, SimpleResultPacket.class);
 		Packet.registerPacket(VoidResultPacket.packetId, VoidResultPacket.class);
 		Packet.registerPacket(LongResultPacket.packetId, LongResultPacket.class);
+        Packet.registerPacket(DataObjectIdsResultPacket.packetId, DataObjectIdsResultPacket.class); //TODO keep it?
+        Packet.registerPacket(DataObjectsResultPacket.packetId, DataObjectsResultPacket.class); //TODO keep it?
 		Packet.registerPacket(DataObjectResultPacket.packetId, DataObjectResultPacket.class);
 		Packet.registerPacket(ProfileRecordResultPacket.packetId, ProfileRecordResultPacket.class);
 
@@ -82,6 +72,7 @@ public interface Packet {
 		Packet.registerPacket(DataObjectWritePacket.packetId, DataObjectWritePacket.class);
 		Packet.registerPacket(DataObjectRemovePacket.packetId, DataObjectRemovePacket.class);
         Packet.registerPacket(DataObjectListIdsPacket.packetId, DataObjectListIdsPacket.class);
+        Packet.registerPacket(DataObjectsListPacket.packetId, DataObjectsListPacket.class);
         Packet.registerPacket(DataObjectCopyPacket.packetId, DataObjectCopyPacket.class);
 		Packet.registerPacket(SavedLocalePacket.Get.packetId, SavedLocalePacket.Get.class);
 		Packet.registerPacket(SavedLocalePacket.Set.packetId, SavedLocalePacket.Set.class);
@@ -98,6 +89,10 @@ public interface Packet {
 		Packet.registerPacket(RequestInformationPacket.InstanceResponse.packetId, RequestInformationPacket.InstanceResponse.class);
 		Packet.registerPacket(RequestInformationPacket.Instances.packetId, RequestInformationPacket.Instances.class);
 		Packet.registerPacket(RequestInformationPacket.InstancesResponse.packetId, RequestInformationPacket.InstancesResponse.class);
+        Packet.registerPacket(RequestInformationPacket.PlayerUsername.packetId, RequestInformationPacket.PlayerUsername.class);
+        Packet.registerPacket(RequestInformationPacket.PlayerUuid.packetId, RequestInformationPacket.PlayerUuid.class);
+        Packet.registerPacket(RequestInformationPacket.PlayerNetworkProfile.packetId, RequestInformationPacket.PlayerNetworkProfile.class);
+        Packet.registerPacket(SetInformationPacket.PlayerSetNickname.packetId, SetInformationPacket.PlayerSetNickname.class);
 
 		Packet.registerPacket(SendMessagePacket.packetId, SendMessagePacket.class);
 
@@ -109,6 +104,12 @@ public interface Packet {
 		Packet.registerPacket(ProfilePacket.ResetDelete.packetId, ProfilePacket.ResetDelete.class);
 		Packet.registerPacket(ProfilePacket.Copy.packetId, ProfilePacket.Copy.class);
 		Packet.registerPacket(ProfilePacket.SetNetworkProfile.packetId, ProfilePacket.SetNetworkProfile.class);
+
+        Packet.registerPacket(RelationshipRecordsPacket.packetId, RelationshipRecordsPacket.class);//TODO test out
+        Packet.registerPacket(FriendshipInvitationsPacket.packetId, FriendshipInvitationsPacket.class);//TODO test out
+
+		PartyPacket.register();
+        FriendshipPacket.register();
 	}
 
 	String getPacketId();

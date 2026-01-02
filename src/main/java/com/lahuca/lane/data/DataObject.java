@@ -83,6 +83,10 @@ public class DataObject {
         this.value = value.toString();
     }
 
+    public DataObject(DataObjectId id, PermissionKey readPermission, PermissionKey writePermission, DataObjectType type, Object value) {
+        this(id, readPermission, writePermission, -1L, 0, type, value);
+    }
+
     public DataObject(DataObjectId id, PermissionKey permission, Long removalTime, int version, DataObjectType type, Object value) {
         this(id, permission, permission, removalTime, version, type, value);
     }
@@ -147,6 +151,10 @@ public class DataObject {
         this.removalTime = removalTime;
         this.version = version;
         setValue(gson, value);
+    }
+
+    public DataObject(DataObjectId id, PermissionKey readPermission, PermissionKey writePermission, Gson gson, Object value) {
+        this(id, readPermission, writePermission, -1, 0, gson, value);
     }
 
     public DataObject(DataObjectId id, PermissionKey permission, long removalTime, int version, Gson gson, Object value) {

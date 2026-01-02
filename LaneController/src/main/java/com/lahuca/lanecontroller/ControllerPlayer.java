@@ -69,7 +69,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     /**
      * Internal function to set the network profile UUID.
-     * Use {@link Controller#setNetworkProfile(ControllerPlayer, ControllerProfileData)} to update the network profile.
+     * Use {@link ControllerDataManager#setNetworkProfile(ControllerPlayer, ControllerProfileData)} to update the network profile.
      *
      * @param networkProfileUuid the UUID to set in the object
      */
@@ -85,7 +85,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
 
     @Override
     public CompletableFuture<ControllerProfileData> getNetworkProfile() {
-        return Controller.getInstance().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
+        return Controller.getInstance().getDataManager().getProfileData(networkProfileUuid).thenApply(opt -> opt.orElse(null));
     }
 
     @Override
@@ -131,6 +131,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      *
      * @param nickname The new nickname to be set.
      */
+    @Override
     public CompletableFuture<Void> setNickname(@NotNull String nickname) {
         return Controller.getInstance().getPlayerManager().setNickname(networkProfileUuid, nickname).thenApply(success -> {
             this.nickname = nickname;
@@ -233,10 +234,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 Long resultGameId;
 
                 HashSet<UUID> playTogetherPlayers = joinable.getJoinTogetherPlayers();
-                playTogetherPlayers.add(stageEvent.getPlayer().getUuid()); // Add player it self
-                HashMap<UUID, Integer> playTogetherPlayersMap = new HashMap<>();
-                playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(current -> playTogetherPlayersMap.put(uuid, current.getQueuePriority())));
-
+                if(playTogetherPlayers == null) playTogetherPlayers = new HashSet<>();
+                HashMap<UUID, Integer> slots = new HashMap<>();
+                playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(current -> slots.put(uuid, current.getQueuePriority())));
+                Controller.getPlayer(stageEvent.getPlayer().getUuid()).ifPresent(player -> slots.put(player.getUuid(), player.getQueuePriority()));
 
                 if (joinable instanceof QueueStageEventResult.JoinInstance joinInstance) {
                     // Set the IDs, and try to fetch
@@ -249,7 +250,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
-                    if(!ControllerDefaultQueue.canJoinInstance(playTogetherPlayersMap, resultInstance, joinable.getQueueType(), null, true)) {
+                    if(!ControllerDefaultQueue.canJoinInstance(slots, resultInstance, joinable.getQueueType(), null, true)) {
                         // Run the stage event again to find a joinable instance.
                         request.stages().add(joinInstance.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
                         yield handleQueueStage(stageEvent, handleResult, allowNone);
@@ -274,8 +275,8 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     }
                     resultInstance = instanceOptional.get();
                     // Do availability check
-                    if (!ControllerDefaultQueue.canJoinInstance(playTogetherPlayersMap, resultInstance, joinable.getQueueType(), null, true)
-                            || !ControllerDefaultQueue.canJoinGame(playTogetherPlayersMap, game, joinable.getQueueType(), null, true)) {
+                    if (!ControllerDefaultQueue.canJoinInstance(slots, resultInstance, joinable.getQueueType(), null, true)
+                            || !ControllerDefaultQueue.canJoinGame(slots, game, joinable.getQueueType(), null, true)) {
                         // Run the stage event again to find a joinable game.
                         request.stages().add(joinGame.constructStage(QueueStageResult.NOT_JOINABLE, joinable.getQueueType()));
                         yield handleQueueStage(stageEvent, handleResult, allowNone);
@@ -293,6 +294,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 // Make the reservation
                 setQueueRequest(request);
                 CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), joinable.getQueueType(), joinable.getParameter(), resultGameId), resultInstance.getId()).getFutureResult();
+                HashSet<UUID> finalPlayTogetherPlayers = playTogetherPlayers;
                 future.exceptionallyCompose(exception -> {
                     if (exception instanceof UnsuccessfulResultException ex) {
                         // We are not allowing to join at this instance.
@@ -316,7 +318,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     return handleQueueStage(finalStageEvent, handleResult, allowNone);
                 }).thenAccept(aVoid -> {
                     // If handleResult is true: we have joined, send over any party members
-                    if (playTogetherPlayers != null && !playTogetherPlayers.isEmpty()) {
+                    if (finalPlayTogetherPlayers != null && !finalPlayTogetherPlayers.isEmpty()) {
                         QueueRequestParameter partyJoinParameter;
                         if (resultGameId != null) {
                             partyJoinParameter = QueueRequestParameter.create().gameId(resultGameId).instanceId(resultInstance.getId()).build();
@@ -324,7 +326,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                             partyJoinParameter = QueueRequestParameter.create().instanceId(resultInstance.getId()).build();
                         }
                         QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                        playTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest, true)));
+                        finalPlayTogetherPlayers.forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest, true)));
                     }
                 });
                 yield future;
@@ -382,11 +384,25 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
      * Returns the party of the player.
      * If the player is not in a party, the optional will be empty.
      * Even if this player has a party ID, this will only return the party if it actually exists.
+     * Also results if the party is a solo party: a party with no other party members, but with at least one outgoing invitation.
      *
      * @return the party
      */
     public Optional<ControllerParty> getParty() {
-        return Controller.getInstance().getPartyManager().getParty(partyId);
+        return getParty(true);
+    }
+
+    /**
+     * Returns the party of the player.
+     * If the player is not in a party, the optional will be empty.
+     * Even if this player has a party ID, this will only return the party if it actually exists.
+     *
+     * @param includeSoloParty whether to include solo parties: parties with no other party members, but with at least one outgoing invitation
+     * @return the party
+     */
+    public Optional<ControllerParty> getParty(boolean includeSoloParty) {
+        if(partyId == null) return Optional.empty();
+        return Controller.getInstance().getPartyManager().getParty(partyId).filter(party -> includeSoloParty || party.isSoloParty());
     }
 
     @Override

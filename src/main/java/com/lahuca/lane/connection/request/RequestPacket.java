@@ -19,6 +19,10 @@ import com.lahuca.lane.connection.Packet;
 
 public interface RequestPacket extends Packet {
 
-    long getRequestId();
+    long requestId();
+
+    default long getRequestId() {
+        return requestId();
+    }
 
 }

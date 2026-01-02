@@ -66,7 +66,7 @@ public class InstanceProfileData extends ProfileData {
 
     @Override
     public CompletableFuture<InstanceProfileData> createSubProfile(ProfileType type, String name, boolean active) {
-        return LaneInstance.getInstance().createSubProfile(this, type, name, active);
+        return LaneInstance.getInstance().getDataManager().createSubProfile(this, type, name, active);
     }
 
     @Override
@@ -74,7 +74,7 @@ public class InstanceProfileData extends ProfileData {
         if(!(subProfile instanceof InstanceProfileData subProfileInstance)) {
             throw new IllegalArgumentException("subProfile is not a InstanceProfileData");
         }
-        return LaneInstance.getInstance().addSubProfile(this, subProfileInstance, name, active);
+        return LaneInstance.getInstance().getDataManager().addSubProfile(this, subProfileInstance, name, active);
     }
 
     @Override
@@ -82,22 +82,22 @@ public class InstanceProfileData extends ProfileData {
         if(!(subProfile instanceof InstanceProfileData subProfileInstance)) {
             throw new IllegalArgumentException("subProfile is not a InstanceProfileData");
         }
-        return LaneInstance.getInstance().removeSubProfile(this, subProfileInstance, name);
+        return LaneInstance.getInstance().getDataManager().removeSubProfile(this, subProfileInstance, name);
     }
 
     @Override
     public CompletableFuture<Void> resetProfile() {
-        return LaneInstance.getInstance().resetDeleteProfile(this, false);
+        return LaneInstance.getInstance().getDataManager().resetDeleteProfile(this, false);
     }
 
     @Override
     public CompletableFuture<Void> deleteProfile() {
-        return LaneInstance.getInstance().resetDeleteProfile(this, true);
+        return LaneInstance.getInstance().getDataManager().resetDeleteProfile(this, true);
     }
 
     @Override
     public CompletableFuture<Void> copyProfile(ProfileData from) {
-        return LaneInstance.getInstance().copyProfile(this, from);
+        return LaneInstance.getInstance().getDataManager().copyProfile(this, from);
     }
 
 }

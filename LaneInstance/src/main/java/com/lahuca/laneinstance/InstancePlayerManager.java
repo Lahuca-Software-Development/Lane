@@ -1,15 +1,15 @@
 package com.lahuca.laneinstance;
 
-import com.lahuca.lane.connection.packet.GameQuitPacket;
-import com.lahuca.lane.connection.packet.QueueFinishedPacket;
-import com.lahuca.lane.connection.packet.RequestInformationPacket;
+import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.queue.QueueRequestParameter;
+import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.lane.records.ProfileRecord;
 import com.lahuca.laneinstance.events.*;
 import com.lahuca.laneinstance.game.InstanceGame;
 import net.kyori.adventure.text.Component;
@@ -89,6 +89,47 @@ public class InstancePlayerManager implements Slottable {
     }
 
     /**
+     * Retrieves the player record of the player with the given NetworkProfileUUID on the controller.
+     *
+     * @param networkProfile the NetworkProfileUUID of the player
+     * @return a {@link CompletableFuture} with the optional of the player record
+     */
+    public CompletableFuture<Optional<PlayerRecord>> getNetworkProfilesPlayerRecord(UUID networkProfile) {
+        Objects.requireNonNull(networkProfile, "networkProfile must not be null");
+
+        return getNetworkProfilesUUID(networkProfile)
+                .thenCompose(playerOpt -> playerOpt
+                        .map(player ->
+                                instance.getConnection().<PlayerRecord>sendRequestPacket(id ->
+                                        new RequestInformationPacket.Player(id, player), null).getResult().thenApply(Optional::ofNullable)
+                        )
+                        .orElse(CompletableFuture.completedFuture(Optional.empty()))
+                );
+    }
+
+    /**
+     * Retrieves player's name based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's name
+     */
+    public CompletableFuture<Optional<String>> getNetworkProfilesUsername(UUID networkProfile) {
+        return getNetworkProfilesUUID(networkProfile).thenCompose(profileOpt -> profileOpt.map(this::getPlayerUsername)
+                .orElse(CompletableFuture.completedFuture(Optional.empty())));
+    }
+
+    /**
+     * Retrieves player's UUID based on the given NetworkProfileUUID
+     *
+     * @param networkProfile The NetworkProfile UUID
+     * @return a {@link CompletableFuture} with the optional of the player's uuid
+     */
+    public CompletableFuture<Optional<UUID>> getNetworkProfilesUUID(UUID networkProfile) {
+        return LaneInstance.getInstance().getDataManager().getProfileData(networkProfile)
+                .thenApply(profileOpt -> profileOpt.map(InstanceProfileData::getFirstSuperProfile));
+    }
+
+    /**
      * Retrieves a collection of immutable records of all players on the controller.
      *
      * @return a {@link CompletableFuture} with the player records
@@ -119,8 +160,21 @@ public class InstancePlayerManager implements Slottable {
      */
     public CompletableFuture<Optional<UUID>> getPlayerUuid(String username) {
         Objects.requireNonNull(username, "username cannot be null");
-        return instance.getConnection().<UUID>sendRequestPacket(id -> new RequestInformationPacket.PlayerUuid(id, username), null)
-                .getResult().thenApply(Optional::ofNullable);
+        return instance.getConnection().<String>sendRequestPacket(id -> new RequestInformationPacket.PlayerUuid(id, username), null)
+                .getResult().thenApply(val -> val == null ? Optional.empty() : Optional.of(UUID.fromString(val)));
+    }
+
+    /**
+     * Gets the network profile from the given UUID.
+     * This is done either by taking the network profile from the online player, or by taking it from the data manager.
+     *
+     * @param uuid the player's UUID
+     * @return a {@link CompletableFuture} with an {@link Optional}, if data has been found, the optional is populated with the network profile; otherwise it is empty
+     */
+    public CompletableFuture<Optional<InstanceProfileData>> getPlayerNetworkProfile(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid cannot be null");
+        return instance.getConnection().<ProfileRecord>sendRequestPacket(id -> new RequestInformationPacket.PlayerNetworkProfile(id, uuid), null)
+                .getResult().thenApply(val -> val == null ? Optional.empty() : Optional.of(new InstanceProfileData(val)));
     }
 
     private void disconnectPlayer(UUID uuid, Component message) {
@@ -146,7 +200,7 @@ public class InstancePlayerManager implements Slottable {
             instance.runOnMainThread(() -> joinInstance(record.uuid()));
         }, () -> {
             reserved.put(record.uuid(), new InstancePlayer(record, registerData));
-            Optional.ofNullable(record.gameId()).flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(record.uuid()));
+            Optional.ofNullable(registerData.gameId()).flatMap(instance::getInstanceGame).ifPresent(game -> game.addReserved(record.uuid()));
         }); // TODO What happens if the player fails the connect?
     }
 
@@ -162,7 +216,7 @@ public class InstancePlayerManager implements Slottable {
     private void applyQueueType(UUID uuid, InstanceGame game, QueueType queueType) {
         Objects.requireNonNull(uuid, "uuid must not be null");
         Objects.requireNonNull(queueType, "queueType must not be null");
-        switch (queueType) {
+        switch(queueType) {
             case ONLINE -> {
                 online.add(uuid);
                 players.remove(uuid);
@@ -179,7 +233,7 @@ public class InstancePlayerManager implements Slottable {
                 playing.add(uuid);
             }
         }
-        if (game != null) game.applyQueueType(uuid, queueType);
+        if(game != null) game.applyQueueType(uuid, queueType);
         sendInstanceStatus.run();
     }
 
@@ -195,7 +249,7 @@ public class InstancePlayerManager implements Slottable {
             Optional<InstanceGame> game = player.getRegisterData().getGameId().flatMap(instance::getInstanceGame);
             // When game is present, then the player tries to join a game, otherwise this instance.
             // First check whether if it has a reservation
-            if (!containsReserved(uuid) || (game.isPresent() && !game.get().containsReserved(uuid))) {
+            if(!containsReserved(uuid) || (game.isPresent() && !game.get().containsReserved(uuid))) {
                 disconnectPlayer(uuid, Component.text("Got no reservation")); // TODO Translate
                 return;
             }
@@ -206,30 +260,30 @@ public class InstancePlayerManager implements Slottable {
             boolean gameSwitched = player.getGame().map(obj -> player.getRegisterData().getGameId().map(id -> obj.getGameId() != id).orElse(true)).orElse(true);
             Optional<InstanceGame> oldGame = player.getGame();
             InstancePlayerListType oldInstanceListType = getInstancePlayerListType(player.getUuid());
-            InstancePlayerListType oldGameListType = player.getGame().map(obj -> obj.getGamePlayerListType(player.getUuid())).orElse(InstancePlayerListType.NONE);
+            InstancePlayerListType oldGameListType = oldGame.map(obj -> obj.getGamePlayerListType(player.getUuid())).orElse(InstancePlayerListType.NONE);
             InstancePlayerListType newListType = InstancePlayerListType.fromQueueType(queueType);
             try {
                 instance.getConnection().<Void>sendRequestPacket(id -> new QueueFinishedPacket(id, uuid, game.map(InstanceGame::getGameId).orElse(null)), null).getFutureResult().get();
                 // Now apply the queue type
                 applyQueueType(uuid, game.orElse(null), queueType);
                 // First check if we are joining a game or not
-                if (game.isPresent()) {
+                if(game.isPresent()) {
                     // We try to join a game
-                    if (!instanceSwitched) {
+                    if(!instanceSwitched) {
                         // We were already on this instance
-                        if (oldGame.isPresent() && gameSwitched) {
+                        if(oldGame.isPresent() && gameSwitched) {
                             // We switched game, but we were already playing on one. Quit first
                             oldGame.get().onQuit(player);
                             oldGame.get().removeReserved(uuid);
                             instance.handleInstanceEvent(new InstanceQuitGameEvent(player, oldGame.get()));
                         }
-                        if (oldInstanceListType != newListType) {
+                        if(oldInstanceListType != newListType) {
                             // Okay so we switched queue type of the instance
                             instance.handleInstanceEvent(new InstanceSwitchQueueTypeEvent(player, oldInstanceListType, queueType));
                         }
-                        if (!gameSwitched) {
+                        if(!gameSwitched) {
                             // We were already on the same game
-                            if (oldGameListType != newListType) {
+                            if(oldGameListType != newListType) {
                                 // Okay so we switched queue type of the game
                                 game.get().onSwitchQueueType(player, oldGameListType, queueType, parameter);
                                 instance.handleInstanceEvent(new InstanceSwitchGameQueueTypeEvent(player, game.get(), oldGameListType, queueType));
@@ -249,15 +303,15 @@ public class InstancePlayerManager implements Slottable {
                     }
                 } else {
                     // We try to join the instance only, check whether we just joined new
-                    if (!instanceSwitched) {
+                    if(!instanceSwitched) {
                         // Ahh, so we were already on here
                         // If we were in a game, go out of it
-                        if (oldGame.isPresent()) {
+                        if(oldGame.isPresent()) {
                             oldGame.get().onQuit(player);
                             oldGame.get().removeReserved(uuid);
                             instance.handleInstanceEvent(new InstanceQuitGameEvent(player, oldGame.get()));
                         }
-                        if (oldInstanceListType != newListType) {
+                        if(oldInstanceListType != newListType) {
                             // Different queue type
                             instance.handleInstanceEvent(new InstanceSwitchQueueTypeEvent(player, oldInstanceListType, queueType));
                             return;
@@ -268,9 +322,9 @@ public class InstancePlayerManager implements Slottable {
                     // We switched, normal join
                     instance.handleInstanceEvent(new InstanceJoinEvent(player, queueType));
                 }
-            } catch (UnsuccessfulResultException e) {
+            } catch(UnsuccessfulResultException e) {
                 disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
-            } catch (InterruptedException | ExecutionException | CancellationException e) {
+            } catch(InterruptedException | ExecutionException | CancellationException e) {
                 disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate
             }
         }, () -> {
@@ -306,10 +360,12 @@ public class InstancePlayerManager implements Slottable {
      */
     public CompletableFuture<Void> quitGame(UUID uuid) {
         Optional<InstancePlayer> playerOpt = getInstancePlayer(uuid);
-        if(playerOpt.isEmpty()) return CompletableFuture.failedFuture(new IllegalArgumentException("Player does not exist"));
+        if(playerOpt.isEmpty())
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Player does not exist"));
         InstancePlayer player = playerOpt.get();
         Optional<InstanceGame> gameOpt = player.getGame();
-        if(gameOpt.isEmpty()) return CompletableFuture.failedFuture(new IllegalArgumentException("Player is not in a game"));
+        if(gameOpt.isEmpty())
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Player is not in a game"));
         InstanceGame game = gameOpt.get();
         game.onQuit(player);
         game.removeReserved(uuid);
@@ -326,11 +382,12 @@ public class InstancePlayerManager implements Slottable {
      */
     public CompletableFuture<Optional<Locale>> getSavedLocale(InstanceProfileData networkProfile) {
         Objects.requireNonNull(networkProfile, "networkProfile cannot be null");
-        if(networkProfile.getType() != ProfileType.NETWORK) throw new IllegalArgumentException("networkProfile must be a network profile");
+        if(networkProfile.getType() != ProfileType.NETWORK)
+            throw new IllegalArgumentException("networkProfile must be a network profile");
         return instance.getConnection().<String>sendRequestPacket(id -> new SavedLocalePacket.Get(id, networkProfile.getId()), null)
                 .getResult().handle((data, ex) -> {
-                   if(ex != null) return Optional.empty(); // TODO This is not really good to do!
-                   return Optional.ofNullable(data).map(Locale::forLanguageTag);
+                    if(ex != null) return Optional.empty(); // TODO This is not really good to do!
+                    return Optional.ofNullable(data).map(Locale::forLanguageTag);
                 });
     }
 
@@ -338,14 +395,25 @@ public class InstancePlayerManager implements Slottable {
      * Updates the saved locale for a given network profile in the data system with the provided locale.
      *
      * @param networkProfile the network profile. Must not be null.
-     * @param locale the new locale to be saved for the network profile. Must not be null.
+     * @param locale         the new locale to be saved for the network profile. Must not be null.
      * @return a {@link CompletableFuture} that completes once the locale is successfully saved, or completes exceptionally if an error occurs.
      */
     public CompletableFuture<Void> setSavedLocale(InstanceProfileData networkProfile, Locale locale) {
         Objects.requireNonNull(networkProfile, "networkProfile cannot be null");
         Objects.requireNonNull(locale, "locale cannot be null");
-        if(networkProfile.getType() != ProfileType.NETWORK) throw new IllegalArgumentException("networkProfile must be a network profile");
+        if(networkProfile.getType() != ProfileType.NETWORK)
+            throw new IllegalArgumentException("networkProfile must be a network profile");
         return instance.getConnection().<Void>sendRequestPacket(id -> new SavedLocalePacket.Set(id, networkProfile.getId(), locale.toLanguageTag()), null).getResult();
+    }
+
+    /**
+     * Sends message to the given player.
+     *
+     * @param uuid    the player's uuid
+     * @param message the Component message
+     */
+    public void sendMessage(UUID uuid, Component message) {
+        LaneInstance.getInstance().sendController(new SendMessagePacket(uuid, message));
     }
 
     @Override
@@ -509,15 +577,26 @@ public class InstancePlayerManager implements Slottable {
      * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list
      */
     public InstancePlayerListType getInstancePlayerListType(UUID player) {
-        if (playing.contains(player)) return InstancePlayerListType.PLAYING;
-        if (players.contains(player)) return InstancePlayerListType.PLAYERS;
-        if (online.contains(player)) return InstancePlayerListType.ONLINE;
-        if (reserved.contains(player)) return InstancePlayerListType.RESERVED;
+        if(playing.contains(player)) return InstancePlayerListType.PLAYING;
+        if(players.contains(player)) return InstancePlayerListType.PLAYERS;
+        if(online.contains(player)) return InstancePlayerListType.ONLINE;
+        if(reserved.containsKey(player)) return InstancePlayerListType.RESERVED;
         return InstancePlayerListType.NONE;
     }
 
     public void broadcast(Consumer<InstancePlayer> consumer) {
         getInstancePlayers().forEach(consumer);
+    }
+
+    /**
+     * Request the given player to be queued with the given parameters.
+     *
+     * @param playerId          the player's uuid
+     * @param requestParameters the queue request parameters
+     * @return a {@link CompletableFuture} with a void to signify success: the player has been queued
+     */
+    public CompletableFuture<Void> queue(UUID playerId, QueueRequestParameters requestParameters) {
+        return instance.getConnection().<Void>sendRequestPacket(id -> new QueueRequestPacket(id, playerId, requestParameters), null).getResult();
     }
 
     // TODO Set locale in Paper.

@@ -1,6 +1,7 @@
 package com.lahuca.lane.records;
 
 import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -9,5 +10,6 @@ import java.util.UUID;
  **/
 
 public record PartyRecord(long partyId, UUID owner, HashSet<UUID> players, boolean invitationsOnly,
-                          long creationTimestamp) {
+                          long creationTimestamp, Set<UUID> unmodifiableInvitations) {
+
 }

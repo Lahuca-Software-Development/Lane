@@ -3,8 +3,10 @@ package com.lahuca.lane.data.manager;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -84,17 +86,47 @@ public interface DataManager {
      *     <li>players.Laurenshup.myPrefix.value2.subKey</li>
      *     <li>players.Laurenshup.myPrefixSuffix</li>
      * </ul>
+     *
      * @param prefix the prefix ID. This cannot be null, its values can be null.
      * @return a {@link CompletableFuture} with the array of IDs with matching prefix
      */
     CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix);
 
     /**
+     * Retrieves a list of DataObjects from the given table that match the version.
+     *
+     * @param prefix        the prefix ID. This cannot be null, its values can be null.
+     * @param permissionKey the permission key to use while reading and writing
+     * @param version       the version to match, null if no version is required
+     * @return a {@link CompletableFuture} with the array of DataObjects matching the version
+     */
+    default CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, Integer version) {
+        Objects.requireNonNull(prefix, "prefix cannot be null");
+        return listDataObjectIds(prefix).thenCompose(ids -> {
+            if (ids.isEmpty()) return CompletableFuture.completedFuture(new ArrayList<>());
+            CompletableFuture[] futures = new CompletableFuture[ids.size()];
+            ArrayList<DataObject> dataObjects = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i++) {
+                DataObjectId id = ids.get(i);
+                futures[i] = readDataObject(permissionKey, id).thenAccept(dataObjectOpt -> dataObjectOpt.ifPresent(dataObject -> {
+                    if (version != null) {
+                        if (dataObject.getVersion().isPresent() && !dataObject.getVersion().get().equals(version))
+                            return;
+                    }
+                    dataObjects.add(dataObject);
+                }));
+            }
+            return CompletableFuture.allOf(futures).thenApply(val -> dataObjects);
+        });
+    }
+
+    /**
      * Copies a data object from one place to another.
      * This completely copies the data object, but replaces the ID.
+     *
      * @param permissionKey the permission key to use while reading and writing
-     * @param sourceId the source data object ID
-     * @param targetId the target data object ID
+     * @param sourceId      the source data object ID
+     * @param targetId      the target data object ID
      * @return a {@link CompletableFuture} with the void type to signify success: it has been copied
      */
     default CompletableFuture<Void> copyDataObject(PermissionKey permissionKey, DataObjectId sourceId, DataObjectId targetId) {
