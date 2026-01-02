@@ -229,7 +229,7 @@ public class VelocityController {
             commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand(this, controller).createBrigadierCommand());
         }
         if(configuration.getCommands().isHub()) {
-            commandManager.register(commandManager.metaBuilder("hub").aliases("lobby", "leave").plugin(this).build(), new HubCommand(this, controller).createBrigadierCommand());
+            commandManager.register(commandManager.metaBuilder("hub").aliases("lobby", "leave", "l").plugin(this).build(), new HubCommand(this, controller).createBrigadierCommand());
         }
 
     }
@@ -376,19 +376,6 @@ public class VelocityController {
                             // We can join, set the initial server and call network processor
                             event.setInitialServer(instanceServer.get());
                             controller.getPlayerManager().doNetworkProcessing(player);
-
-                            // Let party members also join
-                            // TODO This below, should we do that really? OR AFTER PROCESSING?!?!?!?
-                            if (joinable.getJoinTogetherPlayers() != null && !joinable.getJoinTogetherPlayers().isEmpty()) {
-                                QueueRequestParameter partyJoinParameter;
-                                if (gameId != null) {
-                                    partyJoinParameter = QueueRequestParameter.create().gameId(gameId).instanceId(instanceId).build();
-                                } else {
-                                    partyJoinParameter = QueueRequestParameter.create().instanceId(instanceId).build();
-                                }
-                                QueueRequest partyRequest = new QueueRequest(QueueRequestReason.PARTY_JOIN, QueueRequestParameters.create().add(partyJoinParameter).build());
-                                joinable.getJoinTogetherPlayers().forEach(uuid -> Controller.getPlayer(uuid).ifPresent(controllerPlayer -> controllerPlayer.queue(partyRequest, true)));
-                            }
                         }
                         default -> {
                             // Very unfortunate, got strange state.

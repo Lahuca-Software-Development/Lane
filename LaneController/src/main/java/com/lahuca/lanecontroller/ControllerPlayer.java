@@ -201,6 +201,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
         try {
             stageEvent = controller.handleControllerEvent(stageEvent).get();
         } catch (InterruptedException | ExecutionException ignored) {
+            ignored.printStackTrace(); // TODO change
         }
 
         QueueStageEventResult result = stageEvent.getResult();
