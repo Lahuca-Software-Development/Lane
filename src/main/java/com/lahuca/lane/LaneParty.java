@@ -15,32 +15,54 @@
  */
 package com.lahuca.lane;
 
+import com.lahuca.lane.data.replicated.ReplicatedObject;
+
+import java.util.Set;
 import java.util.UUID;
 
-public interface LaneParty extends LaneRelationship {
+public interface LaneParty extends LaneRelationship, ReplicatedObject<Long> {
 
+    @Override
+    default Long getReplicationId() {
+        return getId();
+    }
 
-	/**
-	 * Gets owner of this party.
-	 *
-	 * @return The owner's uuid of this party
-	 */
-	UUID getOwner();
+    /**
+     * Gets owner of this party.
+     *
+     * @return The owner's uuid of this party
+     */
+    UUID getOwner();
 
-	/**
-	 * Gets a time stamp when this party was created
-	 *
-	 * @return The time stamp where was this party created
-	 */
-	long getCreationTimestamp();
+    /**
+     * Returns whether this party is public or not.
+     *
+     * @return {@code false} if the party is public, otherwise {@code true}
+     */
+    boolean isInvitationsOnly();
 
-	/**
-	 * Returns whether the party contains only one player.
-	 * This happens when the party is public or if it as outgoing invitations.
-	 * @return {@code true} if the party is solo, otherwise {@code false}
-	 */
-	default boolean isSoloParty() {
-		return getPlayers().size() == 1;
-	}
+    /**
+     * Gets a time stamp when this party was created
+     *
+     * @return The time stamp where was this party created
+     */
+    long getCreationTimestamp();
+
+    /**
+     * Returns whether the party contains only one player.
+     * This happens when the party is public or if it as outgoing invitations.
+     *
+     * @return {@code true} if the party is solo, otherwise {@code false}
+     */
+    default boolean isSoloParty() {
+        return getPlayers().size() == 1;
+    }
+
+    /**
+     * Retrieves the set of outgoing invitations.
+     * This set is unmodifiable due to the high caching requirements on it.
+     * @return the set
+     */
+    Set<UUID> getUnmodifiableInvitations();
 
 }

@@ -12,7 +12,6 @@ import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.laneinstance.game.InstanceGame;
-import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import com.lahuca.laneinstance.scoreboard.PlayerScoreboard;
 import net.kyori.adventure.text.Component;
 
@@ -105,6 +104,7 @@ public class InstancePlayer implements LanePlayer {
 
     /**
      * Retrieves the player list type of the current player on the instance.
+     *
      * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list
      */
     public InstancePlayerListType getInstancePlayerListType() {
@@ -113,6 +113,7 @@ public class InstancePlayer implements LanePlayer {
 
     /**
      * Retrieves the player list type of the current player on the game it is playing on.
+     *
      * @return the player list type, {@link InstancePlayerListType#NONE} if not in a list or not playing a game
      */
 
@@ -200,9 +201,9 @@ public class InstancePlayer implements LanePlayer {
      * Even if this player has a party ID, this will only return the party if it actually exists.
      * Also results if the party is a solo party: a party with no other party members, but with at least one outgoing invitation.
      *
-     * @return the party as {@link CompletableFuture} of type {@link Optional<InstancePartyRetrieval>}
+     * @return the party as {@link CompletableFuture} of type {@link Optional<InstanceParty>}
      */
-    public CompletableFuture<Optional<InstancePartyRetrieval>> getParty() {
+    public CompletableFuture<Optional<InstanceParty>> getParty() {
         return getParty(true);
     }
 
@@ -212,14 +213,14 @@ public class InstancePlayer implements LanePlayer {
      * Even if this player has a party ID, this will only return the party if it actually exists.
      *
      * @param includeSoloParty whether to include solo parties: parties with no other party members, but with at least one outgoing invitation
-     * @return the party as {@link CompletableFuture} of type {@link Optional<InstancePartyRetrieval>}
+     * @return the party as {@link CompletableFuture} of type {@link Optional<InstanceParty>}
      */
-    public CompletableFuture<Optional<InstancePartyRetrieval>> getParty(boolean includeSoloParty) {
-        if(partyId == null) return CompletableFuture.completedFuture(Optional.empty());
+    public CompletableFuture<Optional<InstanceParty>> getParty(boolean includeSoloParty) {
+        if (partyId == null) return CompletableFuture.completedFuture(Optional.empty());
         return LaneInstance.getInstance().getParty(partyId).thenApply(partyOpt -> {
-            if(partyOpt.isEmpty()) return Optional.empty();
-            InstancePartyRetrieval party = partyOpt.get();
-            if(includeSoloParty || party.isSoloParty()) return Optional.of(party);
+            if (partyOpt.isEmpty()) return Optional.empty();
+            InstanceParty party = partyOpt.get();
+            if (includeSoloParty || party.isSoloParty()) return Optional.of(party);
             return Optional.empty();
         });
     }
@@ -286,7 +287,7 @@ public class InstancePlayer implements LanePlayer {
         queueRequest = record.queueRequest();
         instanceId = record.instanceId();
         gameId = record.gameId();
-        if(state == null) state = new InstancePlayerState();
+        if (state == null) state = new InstancePlayerState();
         state.applyRecord(record.state());
         partyId = record.partyId();
         queuePriority = record.queuePriority();

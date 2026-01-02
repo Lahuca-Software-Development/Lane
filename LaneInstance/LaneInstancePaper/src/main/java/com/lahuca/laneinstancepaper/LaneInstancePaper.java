@@ -20,10 +20,13 @@ import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
+import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import com.lahuca.laneinstance.events.*;
+import com.lahuca.laneinstance.events.party.*;
 import com.lahuca.laneinstancepaper.events.*;
+import com.lahuca.laneinstancepaper.events.party.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.json.JSONOptions;
@@ -178,7 +181,7 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         }
 
         @Override
-        public <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event) {
+        public <E extends LaneEvent> CompletableFuture<E> handleInstanceEvent(E event) {
             // Construct the paper event
             PaperInstanceEvent<?> paperEvent = switch(event) {
                 case InstanceJoinEvent obj -> new PaperInstanceJoinEvent(obj);
@@ -189,6 +192,16 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
                 case InstanceSwitchQueueTypeEvent obj -> new PaperInstanceSwitchQueueTypeEvent(obj);
                 case InstanceStartupGameEvent obj -> new PaperInstanceStartupGameEvent(obj);
                 case InstanceShutdownGameEvent obj -> new PaperInstanceShutdownGameEvent(obj);
+                case PartyAcceptInvitationEvent obj -> new PaperPartyAcceptInvitationEvent(obj);
+                case PartyAddInvitationEvent obj -> new PaperPartyAddInvitationEvent(obj);
+                case PartyCreateEvent obj -> new PaperPartyCreateEvent(obj);
+                case PartyDenyInvitationEvent obj -> new PaperPartyDenyInvitationEvent(obj);
+                case PartyDisbandEvent obj -> new PaperPartyDisbandEvent(obj);
+                case PartyJoinPlayerEvent obj -> new PaperPartyJoinPlayerEvent(obj);
+                case PartyRemovePlayerEvent obj -> new PaperPartyRemovePlayerEvent(obj);
+                case PartySetInvitationsOnlyEvent obj -> new PaperPartySetInvitationsOnlyEvent(obj);
+                case PartySetOwnerEvent obj -> new PaperPartySetOwnerEvent(obj);
+                case PartyWarpEvent obj -> new PaperPartyWarpEvent(obj);
                 default -> new PaperInstanceGenericEvent(event);
             };
             // Call the event, this will also update our parameter here

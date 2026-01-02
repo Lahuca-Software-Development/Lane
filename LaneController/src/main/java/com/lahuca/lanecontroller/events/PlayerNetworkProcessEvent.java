@@ -1,5 +1,6 @@
 package com.lahuca.lanecontroller.events;
 
+import com.lahuca.lane.events.LanePlayerEvent;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import net.kyori.adventure.text.Component;
 
@@ -9,7 +10,7 @@ import net.kyori.adventure.text.Component;
  * There is a maximum timeframe until a plugin needs to be done.
  * A plugin can mark that is it done with processing using {@link ControllerPlayer#process(boolean, Component)}.
  */
-public class PlayerNetworkProcessEvent implements ControllerPlayerEvent {
+public class PlayerNetworkProcessEvent implements LanePlayerEvent<ControllerPlayer> {
 
     private final ControllerPlayer player;
     private boolean needProcessing = false;

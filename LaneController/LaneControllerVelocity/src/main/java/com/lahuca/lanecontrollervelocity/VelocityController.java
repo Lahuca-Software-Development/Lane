@@ -27,12 +27,12 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
 import com.lahuca.lane.data.manager.MySQLDataManager;
+import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerGame;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import com.lahuca.lanecontroller.ControllerPlayerState;
-import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
@@ -588,7 +588,7 @@ public class VelocityController {
 
 
         @Override
-        public <E extends ControllerEvent> CompletableFuture<E> handleControllerEvent(E event) {
+        public <E extends LaneEvent> CompletableFuture<E> handleControllerEvent(E event) {
             return server.getEventManager().fire(event);
         }
 

@@ -1,5 +1,6 @@
 package com.lahuca.laneinstance.events;
 
+import com.lahuca.lane.events.LaneGameEvent;
 import com.lahuca.laneinstance.game.InstanceGame;
 
 /**
@@ -7,7 +8,7 @@ import com.lahuca.laneinstance.game.InstanceGame;
  *
  * @param game    the game
  */
-public record InstanceStartupGameEvent(InstanceGame game) implements InstanceGameEvent {
+public record InstanceStartupGameEvent(InstanceGame game) implements LaneGameEvent<InstanceGame> {
 
     @Override
     public InstanceGame getGame() {

@@ -15,6 +15,10 @@
  */
 package com.lahuca.laneinstance;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.Packet;
@@ -24,12 +28,12 @@ import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.UnsuccessfulResultException;
 import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.data.manager.PermissionFailedException;
+import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.lane.records.*;
-import com.lahuca.laneinstance.events.InstanceEvent;
 import com.lahuca.laneinstance.events.InstanceShutdownGameEvent;
 import com.lahuca.laneinstance.events.InstanceStartupGameEvent;
+import com.lahuca.laneinstance.events.party.*;
 import com.lahuca.laneinstance.game.InstanceGame;
-import com.lahuca.laneinstance.retrieval.InstancePartyRetrieval;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
@@ -60,6 +64,15 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     private final HashMap<Long, InstanceGame> games = new HashMap<>();
 
+    private final Cache<Long, InstanceParty> partyReplicas = Caffeine.newBuilder()
+            .weakValues()
+            .removalListener((RemovalListener<Long, InstanceParty>) (key, value, cause) -> {
+                if (cause != RemovalCause.REPLACED && value != null) {
+                    value.unsubscribeReplicated();
+                }
+            })
+            .build();
+
     public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
         Objects.requireNonNull(id, "id cannot be null");
@@ -86,16 +99,16 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                     HashSet<LanePlayer> kickable = null;
                     Map<UUID, Integer> playerMap = Map.of(packet.player().uuid(), packet.player().queuePriority());
                     Set<UUID> playerSet = Set.of(packet.player().uuid());
-                    if(!getPlayerManager().hasQueueSlots(playerSet, packet.queueType())) {
+                    if (!getPlayerManager().hasQueueSlots(playerSet, packet.queueType())) {
                         // Cannot grant slot yet, check if we even can join
-                        if(!getPlayerManager().isQueueJoinable(packet.queueType())) {
+                        if (!getPlayerManager().isQueueJoinable(packet.queueType())) {
                             // We cannot join the queue type
                             sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                             return;
                         }
                         // Okay, check if we can kick someone
                         kickable = getPlayerManager().findKickableLanePlayers(playerMap, packet.queueType(), packet.gameId(), getPlayerManager()::getInstancePlayer);
-                        if(kickable == null) {
+                        if (kickable == null) {
                             // We could not find a slot
                             sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                             return;
@@ -111,18 +124,18 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                         }
                         InstanceGame game = instanceGame.get();
                         // Check if we can even join that queue type
-                        if(!game.hasQueueSlots(playerSet, packet.queueType())) {
+                        if (!game.hasQueueSlots(playerSet, packet.queueType())) {
                             // Cannot grant slot yet, check if we even can join
-                            if(!game.isQueueJoinable(packet.queueType())) {
+                            if (!game.isQueueJoinable(packet.queueType())) {
                                 // We cannot join the queue type
                                 sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                                 return;
                             }
                             // Okay, so we need to kick someone
-                            if(kickable == null) {
+                            if (kickable == null) {
                                 // So we kick someone
                                 kickable = getPlayerManager().findKickableLanePlayers(playerMap, packet.queueType(), packet.gameId(), getPlayerManager()::getInstancePlayer);
-                                if(kickable == null) {
+                                if (kickable == null) {
                                     // We could not find a slot
                                     sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
                                     return;
@@ -131,7 +144,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                             // So if there was already someone found, they will be kicked
                         }
                     }
-                    if(kickable != null) {
+                    if (kickable != null) {
                         // Kick the player, we can proceed basically
                         kickable.forEach(kick -> {
                             disconnectPlayer(kick.getUuid(), Component.translatable("queue.kick.lowPriority")); // TODO Translate!!
@@ -159,6 +172,91 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                                 sendSimpleResult(requestId, ResponsePacket.OK);
                             }
                         });
+                case PartyPacket.Event packet -> {
+                    InstanceParty party = partyReplicas.getIfPresent(packet.partyId());
+                    if (party != null) {
+                        switch (packet) {
+                            case PartyPacket.Event.AcceptInvitation(
+                                    long partyId, UUID player, PartyRecord value
+                            ) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                    handleInstanceEvent(new PartyAcceptInvitationEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.AddInvitation(
+                                    long partyId, UUID invited, PartyRecord value
+                            ) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(invited).ifPresent(current -> {
+                                    handleInstanceEvent(new PartyAddInvitationEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.Create(long partyId, UUID player, PartyRecord value) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                    handleInstanceEvent(new PartyCreateEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.DenyInvitation(
+                                    long partyId, UUID player, PartyRecord value
+                            ) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                    handleInstanceEvent(new PartyDenyInvitationEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.Disband(long partyId) -> {
+                                party.removeReplicated();
+                                partyReplicas.invalidate(partyId);
+                                handleInstanceEvent(new PartyDisbandEvent(party));
+                            }
+                            case PartyPacket.Event.JoinPlayer(long partyId, UUID player, PartyRecord value) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                    handleInstanceEvent(new PartyJoinPlayerEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.RemovePlayer(
+                                    long partyId, UUID player, PartyRecord value
+                            ) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                    handleInstanceEvent(new PartyRemovePlayerEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.SetInvitationsOnly(
+                                    long partyId, boolean invitationsOnly, PartyRecord value
+                            ) -> {
+                                party.applyRecord(value);
+                                handleInstanceEvent(new PartySetInvitationsOnlyEvent(party, invitationsOnly));
+
+                            }
+                            case PartyPacket.Event.SetOwner(long partyId, UUID player, PartyRecord value) -> {
+                                party.applyRecord(value);
+                                getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                    handleInstanceEvent(new PartySetOwnerEvent(party, current)); // TODO Only when player is online?
+                                });
+                            }
+                            case PartyPacket.Event.Warp(long partyId) -> {
+                                handleInstanceEvent(new PartyWarpEvent(party));
+                            }
+
+                            default -> throw new IllegalStateException("Unexpected value: " + packet);
+                        }
+                        ;
+                    } else {
+                        if (packet instanceof PartyPacket.Event.Create(
+                                long partyId, UUID player, PartyRecord value
+                        )) {
+                            InstanceParty newParty = new InstanceParty(value);
+                            partyReplicas.put(partyId, newParty);
+                            getPlayerManager().getInstancePlayer(player).ifPresent(current -> {
+                                handleInstanceEvent(new PartyCreateEvent(newParty, current)); // TODO Only when player is online?
+                            });
+                        }
+                    }
+                }
                 case ResponsePacket<?> response -> {
                     if (!connection.retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
                         // TODO Handle output: failed response
@@ -271,12 +369,13 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * Unregisters the given game.
      * Calls the {@link InstanceGame#onShutdown()} function following by calling a {@link InstanceShutdownGameEvent}.
      * The controller will queue all players if they are not yet in a queue.
+     *
      * @param gameId the game's ID
      * @return a {@link CompletableFuture} with a void to signify success: it has been unregistered
      */
     public CompletableFuture<Void> unregisterGame(long gameId) {
         InstanceGame game = games.get(gameId);
-        if(game == null) {
+        if (game == null) {
             throw new IllegalStateException("No game with the given game ID found on this instance");
         }
         try {
@@ -288,7 +387,6 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         games.remove(gameId);
         return connection.<Void>sendRequestPacket(id -> new GameShutdownPacket(id, gameId), null).getResult(); // TODO What if failed??
     }
-
 
 
     // TODO Maybe still delagate getInstancePLayer()?
@@ -364,44 +462,70 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
 
     /**
      * Retrieves a party from the instance, identified by the given party ID.
-     * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
      *
      * @param partyId the party ID
-     * @return a {@link CompletableFuture} that completes with an optional with the retrieval of the party
+     * @return a {@link CompletableFuture} that completes with an optional with the party
      */
-    public CompletableFuture<Optional<InstancePartyRetrieval>> getParty(long partyId) {
+    public CompletableFuture<Optional<InstanceParty>> getParty(long partyId) {
+        InstanceParty cached = partyReplicas.getIfPresent(partyId);
+        if (cached != null) return CompletableFuture.completedFuture(Optional.of(cached));
         return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Retrieve.Request(id, partyId), null).getResult()
                 .thenApply(data -> {
-                    if(data == null) return Optional.empty();
-                    return Optional.of(new InstancePartyRetrieval(data));
+                    if (data == null) return Optional.empty();
+                    InstanceParty party = new InstanceParty(data);
+                    partyReplicas.put(party.getId(), party);
+                    return Optional.of(party);
                 });
     }
 
     /**
      * Retrieves a party from the instance, that belongs to the given player can also create a new one.
-     * This retrieval object is not necessary up to date, it is recommended to not store its output for too long.
      *
      * @param uuid the player's UUID
-     * @return a {@link CompletableFuture} that completes with an optional with the retrieval of the party
+     * @return a {@link CompletableFuture} that completes with an optional with the party
      */
-    public CompletableFuture<Optional<InstancePartyRetrieval>> getPlayerParty(UUID uuid, boolean createIfNeeded) {
+    public CompletableFuture<Optional<InstanceParty>> getPlayerParty(UUID uuid, boolean createIfNeeded) {
+        Long partyId = getPlayerManager().getInstancePlayer(uuid).flatMap(InstancePlayer::getPartyId).orElse(null);
+        if (partyId != null) return getParty(partyId);
         return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Retrieve.RequestPlayerParty(id, uuid, createIfNeeded), null).getResult()
                 .thenApply(data -> {
-                    if(data == null) return Optional.empty();
-                    return Optional.of(new InstancePartyRetrieval(data));
+                    if (data == null) return Optional.empty();
+                    InstanceParty party = new InstanceParty(data);
+                    partyReplicas.put(party.getId(), party);
+                    return Optional.of(party);
+                });
+    }
+
+    /**
+     * Creates a party with the given owner.
+     * This can only be done with the given owner is not yet in a party.
+     *
+     * @param owner the owner
+     * @return a {@link CompletableFuture} with the party, the {@link Optional} is null when the party could not be made or if the player was already in one
+     * @throws IllegalArgumentException when {@code owner} is null
+     */
+    public CompletableFuture<Optional<InstanceParty>> createParty(InstancePlayer owner) {
+        if (owner == null) throw new IllegalArgumentException("owner cannot be null");
+        if (owner.getPartyId().isPresent()) return CompletableFuture.completedFuture(Optional.empty());
+        return connection.<PartyRecord>sendRequestPacket(id -> new PartyPacket.Operations.Create(id, owner.getUuid()), null).getResult()
+                .thenApply(data -> {
+                    if (data == null) return Optional.empty();
+                    InstanceParty party = new InstanceParty(data);
+                    partyReplicas.put(party.getId(), party);
+                    return Optional.of(party);
                 });
     }
 
     /**
      * Sets the nickname of the given player.
      *
-     * @param player the player
+     * @param player   the player
      * @param nickname the nickname
      * @return a {@link CompletableFuture} to signify success: the nickname has been set
      */
     public CompletableFuture<Void> setNickname(@NotNull InstancePlayer player, @NotNull String nickname) {
         // Check if already set
-        if(Objects.equals(player.getNickname().orElse(null), nickname)) return CompletableFuture.completedFuture(null);
+        if (Objects.equals(player.getNickname().orElse(null), nickname)) return CompletableFuture.completedFuture(null);
         return connection.<Void>sendRequestPacket(id -> new SetInformationPacket.PlayerSetNickname(id, player.getUuid(), nickname), null).getResult();
     }
 
@@ -414,10 +538,11 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @param <E>   the Lane instance event type
      * @return the CompletableFuture with the modified event
      */
-    public abstract <E extends InstanceEvent> CompletableFuture<E> handleInstanceEvent(E event);
+    public abstract <E extends LaneEvent> CompletableFuture<E> handleInstanceEvent(E event);
 
     /**
      * Lets the implemented instance run the given runnable on the main thread.
+     *
      * @param runnable the runnable
      */
     public abstract void runOnMainThread(Runnable runnable);

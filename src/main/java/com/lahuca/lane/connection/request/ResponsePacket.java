@@ -38,8 +38,8 @@ public interface ResponsePacket<T> extends RequestPacket {
             }
 
             @Override
-            public long getRequestId() {
-                return ResponsePacket.this.getRequestId();
+            public long requestId() {
+                return ResponsePacket.this.requestId();
             }
 
             @Override

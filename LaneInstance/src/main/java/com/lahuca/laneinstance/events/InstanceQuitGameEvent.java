@@ -1,5 +1,7 @@
 package com.lahuca.laneinstance.events;
 
+import com.lahuca.lane.events.LaneGameEvent;
+import com.lahuca.lane.events.LanePlayerEvent;
 import com.lahuca.laneinstance.InstancePlayer;
 import com.lahuca.laneinstance.game.InstanceGame;
 
@@ -10,7 +12,7 @@ import com.lahuca.laneinstance.game.InstanceGame;
  * @param player    the player
  * @param game      the game
  */
-public record InstanceQuitGameEvent(InstancePlayer player, InstanceGame game) implements InstancePlayerEvent, InstanceGameEvent {
+public record InstanceQuitGameEvent(InstancePlayer player, InstanceGame game) implements LanePlayerEvent<InstancePlayer>, LaneGameEvent<InstanceGame> {
 
     @Override
     public InstancePlayer getPlayer() {

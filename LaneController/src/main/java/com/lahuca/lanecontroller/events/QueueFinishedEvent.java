@@ -1,5 +1,6 @@
 package com.lahuca.lanecontroller.events;
 
+import com.lahuca.lane.events.LanePlayerEvent;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lanecontroller.ControllerPlayer;
 
@@ -12,7 +13,7 @@ import java.util.Optional;
  * @param instanceId the instance ID of the instance or game the player joined
  * @param gameId the optional game ID
  */
-public record QueueFinishedEvent(ControllerPlayer player, QueueRequest queue, String instanceId, Long gameId) implements ControllerPlayerEvent {
+public record QueueFinishedEvent(ControllerPlayer player, QueueRequest queue, String instanceId, Long gameId) implements LanePlayerEvent<ControllerPlayer> {
 
     @Override
     public ControllerPlayer getPlayer() {

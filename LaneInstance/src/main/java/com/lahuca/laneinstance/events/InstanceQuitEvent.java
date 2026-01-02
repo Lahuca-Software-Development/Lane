@@ -1,5 +1,6 @@
 package com.lahuca.laneinstance.events;
 
+import com.lahuca.lane.events.LanePlayerEvent;
 import com.lahuca.laneinstance.InstancePlayer;
 
 /**
@@ -7,7 +8,7 @@ import com.lahuca.laneinstance.InstancePlayer;
  *
  * @param player the player
  */
-public record InstanceQuitEvent(InstancePlayer player) implements InstancePlayerEvent {
+public record InstanceQuitEvent(InstancePlayer player) implements LanePlayerEvent<InstancePlayer> {
 
     @Override
     public InstancePlayer getPlayer() {

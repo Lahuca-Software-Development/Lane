@@ -19,8 +19,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.translation.GlobalTranslator;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -332,7 +332,7 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.notOwner"));
                 return Command.SINGLE_SUCCESS;
             }
-            HashSet<UUID> partyMembers = party.getPlayers();
+            Set<UUID> partyMembers = party.getPlayers();
             if (!party.disband()) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.disband.unknown"));
                 return Command.SINGLE_SUCCESS;

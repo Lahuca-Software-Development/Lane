@@ -15,6 +15,7 @@
  */
 package com.lahuca.lanecontroller.events;
 
+import com.lahuca.lane.events.LanePlayerEvent;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
@@ -30,7 +31,7 @@ import java.util.UUID;
  * Or when a previous {@link com.lahuca.lane.queue.QueueStage} has failed.
  * The event also retrieves the type of action to do next.
  */
-public class QueueStageEvent implements ControllerPlayerEvent {
+public class QueueStageEvent implements LanePlayerEvent<ControllerPlayer> {
 
     private final ControllerPlayer player;
     private final QueueRequest queueRequest;

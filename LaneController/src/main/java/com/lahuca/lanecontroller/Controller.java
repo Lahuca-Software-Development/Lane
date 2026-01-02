@@ -30,6 +30,7 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.data.profile.ProfileData;
+import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.queue.QueueRequestParameters;
 import com.lahuca.lane.queue.QueueRequestReason;
@@ -37,7 +38,6 @@ import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
-import com.lahuca.lanecontroller.events.ControllerEvent;
 import com.lahuca.lanecontroller.events.QueueFinishedEvent;
 import net.kyori.adventure.text.Component;
 
@@ -52,6 +52,9 @@ public abstract class Controller {
 
     // TODO For player objects, check wheher sendMessage works properly.
     //  We might want to add Audience to ControllerPlayer and InstancePlayer!
+    // TODO Allow players to rejoin
+    // TODO RDF for data objects?
+    // TODO Add values to Party events!
 
     private static Controller instance;
 
@@ -194,58 +197,65 @@ public abstract class Controller {
                             }
                             getPartyManager().createParty(player).ifPresentOrElse(newParty -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.OK, newParty.convertRecord()), input.from()), () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_PARAMETERS), input.from()));
                         }), () -> connection.sendPacket(new PartyPacket.Retrieve.Response(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-
-                case PartyPacket.SetInvitationsOnly packet ->
-                        getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> {
-                            party.setInvitationsOnly(packet.invitationsOnly());
-                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
-                        }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.Invitation.Has packet ->
-                        getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
-                                        getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
-                                                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.hasInvitation(player)), input.from()),
-                                                () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
-                                () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.Invitation.Add packet ->
-                        getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
-                                        getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
-                                                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.addInvitation(player)), input.from()),
-                                                () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
-                                () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.Invitation.Accept packet ->
+                case PartyPacket.Retrieve.Subscribe packet -> getPartyManager().getParty(packet.partyId()).ifPresent(
+                        party -> party.subscribeReplicated(input.from()));
+                case PartyPacket.Retrieve.Unsubscribe packet -> getPartyManager().getParty(packet.partyId()).ifPresent(
+                        party -> party.unsubscribeReplicated(input.from()));
+                case PartyPacket.Operations.AcceptInvitation packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                         getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
                                                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.acceptInvitation(player)), input.from()),
                                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.Invitation.Deny packet ->
+                case PartyPacket.Operations.AddInvitation packet ->
+                        getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
+                                        getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
+                                                        connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.addInvitation(player)), input.from()),
+                                                () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
+                                () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                case PartyPacket.Operations.Create packet ->
+                        getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player -> {
+                            if(player.getParty().isPresent()) {
+                                connection.sendPacket(new SimpleResultPacket<Boolean>(packet.requestId(), ResponsePacket.ILLEGAL_STATE), input.from());
+                                return;
+                            }
+                            getPartyManager().createParty(player).ifPresentOrElse(party ->
+                                    connection.sendPacket(new SimpleResultPacket<>(packet.requestId(), ResponsePacket.OK, party.convertRecord()), input.from()),
+                                    () -> connection.sendPacket(new SimpleResultPacket<>(packet.requestId(), ResponsePacket.ILLEGAL_STATE), input.from()));
+                        }, () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from()));
+                case PartyPacket.Operations.DenyInvitation packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                         getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
                                                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.denyInvitation(player)), input.from()),
                                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.JoinPlayer packet ->
+                case PartyPacket.Operations.Disband packet -> getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
+                                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), party.disband()), input.from()),
+                        () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                case PartyPacket.Operations.JoinPlayer packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                         getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
                                                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.joinPlayer(player)), input.from()),
                                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.RemovePlayer packet ->
+                case PartyPacket.Operations.RemovePlayer packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                         getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
                                                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.removePlayer(player)), input.from()),
                                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.Disband packet -> getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
-                                connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), party.disband()), input.from()),
-                        () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.SetOwner packet ->
+                case PartyPacket.Operations.SetInvitationsOnly packet ->
+                        getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> {
+                            party.setInvitationsOnly(packet.invitationsOnly());
+                            connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.OK), input.from());
+                        }, () -> connection.sendPacket(new VoidResultPacket(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
+                case PartyPacket.Operations.SetOwner packet ->
                         getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                         getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->
                                                         connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), ResponsePacket.OK, party.setOwner(player)), input.from()),
                                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_PLAYER), input.from())),
                                 () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
-                case PartyPacket.Warp packet -> getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
+                case PartyPacket.Operations.Warp packet -> getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                 connection.sendPacket(new SimpleResultPacket<>(packet.getRequestId(), party.warpParty()), input.from()),
                         () -> connection.sendPacket(new SimpleResultPacket<Boolean>(packet.getRequestId(), ResponsePacket.INVALID_ID), input.from()));
 
@@ -871,7 +881,7 @@ public abstract class Controller {
      * @param <E>   the Lane controller event type
      * @return the CompletableFuture with the modified event
      */
-    public abstract <E extends ControllerEvent> CompletableFuture<E> handleControllerEvent(E event);
+    public abstract <E extends LaneEvent> CompletableFuture<E> handleControllerEvent(E event);
 
 
     // TODO These implementation dependent functions could technically also use ControllerPlayer instead of UUID?
