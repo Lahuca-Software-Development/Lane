@@ -1,6 +1,7 @@
 plugins {
     id("java")
     `java-library`
+    id("com.gradleup.shadow") version "9.0.0-beta11"
 }
 
 group = "com.lahuca.laneinstancepaper"
@@ -30,4 +31,13 @@ tasks.test {
 tasks.jar {
     from(project(":").sourceSets["main"].output)
     from(project(":LaneInstance").sourceSets["main"].output)
+}
+
+
+tasks.shadowJar {
+    dependencies {
+        include(dependency(":"))
+        include(dependency(":LaneInstance"))
+        include(dependency("com.github.ben-manes.caffeine:caffeine:3.2.0"))
+    }
 }
