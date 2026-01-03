@@ -1,4 +1,6 @@
 id: "Test"
+gameAddress: "localhost"
+gameAddressPort: -1 # A negative value will be replaced by the game port of the server. This can be used when outgoing ports are different from internal ones.
 type: "Test"
 onlineJoinable: true
 playersJoinable: true

@@ -19,11 +19,13 @@ import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.RecordConverterApplier;
 
+import java.net.InetSocketAddress;
 import java.util.*;
 
 public final class ControllerLaneInstance implements RecordConverterApplier<InstanceRecord>, Slottable {
 
     private final String id;
+    private final InetSocketAddress gameAddress;
     private String type;
 
     private final HashSet<UUID> reserved = new HashSet<>();
@@ -43,11 +45,16 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
 
     ControllerLaneInstance(InstanceRecord record) {
         this.id = record.id();
+        this.gameAddress = new InetSocketAddress(record.gameAddress() == null ? "localhost" : record.gameAddress(), record.gameAddressPort());
         applyRecord(record);
     }
 
     public String getId() {
         return id;
+    }
+
+    public InetSocketAddress getGameAddress() {
+        return gameAddress;
     }
 
     public Optional<String> getType() {
@@ -126,7 +133,7 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
 
     @Override
     public InstanceRecord convertRecord() {
-        return new InstanceRecord(id, type, reserved, online, players, playing, onlineJoinable, playersJoinable,
+        return new InstanceRecord(id, gameAddress.getHostString(), gameAddress.getPort(), type, reserved, online, players, playing, onlineJoinable, playersJoinable,
                 playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable,
                 playingKickable,isPrivate);
     }
@@ -158,6 +165,7 @@ public final class ControllerLaneInstance implements RecordConverterApplier<Inst
     public String toString() {
         return new StringJoiner(", ", ControllerLaneInstance.class.getSimpleName() + "[", "]")
                 .add("id='" + id + "'")
+                .add("gameAddress=" + gameAddress)
                 .add("type='" + type + "'")
                 .add("reserved=" + reserved)
                 .add("online=" + online)

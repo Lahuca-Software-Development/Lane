@@ -38,6 +38,8 @@ import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lane.records.RelationshipRecord;
+import com.lahuca.lanecontroller.events.InstanceRegisterEvent;
+import com.lahuca.lanecontroller.events.InstanceUnregisterEvent;
 import com.lahuca.lanecontroller.events.QueueFinishedEvent;
 import net.kyori.adventure.text.Component;
 
@@ -104,7 +106,8 @@ public abstract class Controller {
         if (connection instanceof ServerSocketConnection serverSocketConnection) {
             // TODO Definitely change the type!
             serverSocketConnection.setOnClientRemove(id -> {
-                instances.remove(id);
+                ControllerLaneInstance old = instances.remove(id);
+                handleControllerEvent(new InstanceUnregisterEvent(old));
                 // Kick players.
                 // TODO Maybe run some other stuff when it is done? Like kicking players. Remove the instance!
             });
@@ -180,6 +183,7 @@ public abstract class Controller {
                     }
                     if (!instances.containsKey(record.id())) {
                         instances.put(record.id(), new ControllerLaneInstance(record));
+                        handleControllerEvent(new InstanceRegisterEvent(instances.get(record.id())));
                         return;
                     }
                     instances.get(record.id()).applyRecord(record);

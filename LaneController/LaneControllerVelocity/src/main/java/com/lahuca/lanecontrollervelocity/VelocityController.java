@@ -33,6 +33,8 @@ import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerGame;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import com.lahuca.lanecontroller.ControllerPlayerState;
+import com.lahuca.lanecontroller.events.InstanceRegisterEvent;
+import com.lahuca.lanecontroller.events.InstanceUnregisterEvent;
 import com.lahuca.lanecontroller.events.QueueStageEvent;
 import com.lahuca.lanecontroller.events.QueueStageEventResult;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
@@ -55,6 +57,7 @@ import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import com.velocitypowered.api.proxy.server.ServerInfo;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.kyori.adventure.key.Key;
@@ -68,6 +71,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -286,6 +290,16 @@ public class VelocityController {
         if(controller != null) controller.shutdown();
     }
 
+    @Subscribe
+    public void onInstanceRegister(InstanceRegisterEvent event) {
+        server.registerServer(new ServerInfo(event.instance().getId(), event.instance().getGameAddress()));
+    }
+
+    @Subscribe
+    public void onInstanceUnregister(InstanceUnregisterEvent event) {
+        server.getServer(event.instance().getId()).ifPresent(info -> server.unregisterServer(info.getServerInfo()));
+    }
+
     /**
      * When a proxy player is correctly authenticated, we first register the player to the controller.
      * @param event the login event
@@ -417,6 +431,7 @@ public class VelocityController {
 
     @Subscribe
     public void onKickedFromServer(KickedFromServerEvent event) {
+        System.err.println("Kicked: " + event.getServerKickReason());
         // TODO, if the player is still on a lobby, we should revert the state to the lobby instead.
         // TODO, if the player was trying to join a game, we should retry it
         // TODO Maybe use event.getServerKickReason

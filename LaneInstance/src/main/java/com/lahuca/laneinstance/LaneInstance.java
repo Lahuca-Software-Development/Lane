@@ -38,6 +38,7 @@ import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -55,6 +56,8 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     }
 
     private final String id;
+    private final String gameAddress;
+    private final int gameAddressPort;
     private final ReconnectConnection connection;
     private String type;
 
@@ -73,13 +76,15 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
             })
             .build();
 
-    public LaneInstance(String id, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) throws IOException, InstanceInstantiationException {
+    public LaneInstance(String id, String gameAddress, int gameAddressPort, ReconnectConnection connection, String type, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate) throws IOException, InstanceInstantiationException {
         if (instance != null) throw new InstanceInstantiationException();
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(connection, "connection cannot be null");
         Objects.requireNonNull(type, "type cannot be null");
         instance = this;
         this.id = id;
+        this.gameAddress = gameAddress;
+        this.gameAddressPort = gameAddressPort;
         this.type = type;
 
         Packet.registerPackets();
@@ -272,6 +277,14 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         return id;
     }
 
+    public String getGameAddress() {
+        return gameAddress;
+    }
+
+    public int getGameAddressPort() {
+        return gameAddressPort;
+    }
+
     public void shutdown() {
         ArrayList<CompletableFuture<Void>> futures = new ArrayList<>();
         HashSet<Long> gamesSet = new HashSet<>(games.keySet());
@@ -454,7 +467,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
     @Override
     public InstanceRecord convertRecord() {
         InstancePlayerManager pm = getPlayerManager();
-        return new InstanceRecord(id, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(),
+        return new InstanceRecord(id, gameAddress, gameAddressPort, type, pm.getReserved(), pm.getOnline(), pm.getPlayers(), pm.getPlaying(),
                 pm.isOnlineJoinable(), pm.isPlayersJoinable(), pm.isPlayingJoinable(),
                 pm.getMaxOnlineSlots(), pm.getMaxPlayersSlots(), pm.getMaxPlayingSlots(),
                 pm.isOnlineKickable(), pm.isPlayersKickable(), pm.isPlayingKickable(), pm.isPrivate());
