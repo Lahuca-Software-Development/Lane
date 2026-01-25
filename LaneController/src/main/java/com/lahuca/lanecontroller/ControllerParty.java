@@ -37,13 +37,12 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
         Objects.requireNonNull(owner, "owner is null");
         if (owner.getParty().isPresent()) throw new IllegalStateException("owner is already in a party");
         this.partyId = partyId;
-        players.add(owner.getUuid());
-        setOwner(owner);
-        // TODO we cannot do owner.setPartyId here due to the object not being registered yet
-
         invitations = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
                 .removalListener((key, value, cause) -> clearSoloParty()).build(); // TODO Expire event and packet?
         creationTimestamp = System.currentTimeMillis();
+        players.add(owner.getUuid());
+        // TODO we cannot do owner.setPartyId here due to the object not being registered yet
+        setOwner(owner);
     }
 
     @Override
