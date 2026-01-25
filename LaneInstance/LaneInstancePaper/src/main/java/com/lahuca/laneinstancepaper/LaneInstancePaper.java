@@ -95,6 +95,9 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         String gameAddress = configuration.getString("gameAddress");
         Runnable onFinalClose = () -> {
             onClose.run();
+            implementation().ifPresent((instance) -> {
+                instance.getInstanceGames().forEach(game -> instance.unregisterGame(game.getGameId()));
+            });
             // More work
         };
         // TODO Maybe onReconnect?
