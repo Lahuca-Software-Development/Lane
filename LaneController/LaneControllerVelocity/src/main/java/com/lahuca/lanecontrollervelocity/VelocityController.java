@@ -292,7 +292,9 @@ public class VelocityController {
 
     @Subscribe
     public void onInstanceRegister(InstanceRegisterEvent event) {
-        server.registerServer(new ServerInfo(event.instance().getId(), event.instance().getGameAddress()));
+        if(server.getServer(event.instance().getId()).isEmpty()) {
+            server.registerServer(new ServerInfo(event.instance().getId(), event.instance().getGameAddress()));
+        }
     }
 
     @Subscribe

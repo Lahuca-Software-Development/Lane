@@ -107,7 +107,7 @@ public abstract class Controller {
             // TODO Definitely change the type!
             serverSocketConnection.setOnClientRemove(id -> {
                 ControllerLaneInstance old = instances.remove(id);
-                handleControllerEvent(new InstanceUnregisterEvent(old));
+                if(old != null) handleControllerEvent(new InstanceUnregisterEvent(old));
                 // Kick players.
                 // TODO Maybe run some other stuff when it is done? Like kicking players. Remove the instance!
             });
