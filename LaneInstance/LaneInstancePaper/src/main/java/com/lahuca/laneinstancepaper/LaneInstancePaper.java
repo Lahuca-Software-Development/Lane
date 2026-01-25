@@ -25,6 +25,7 @@ import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
 import com.lahuca.laneinstance.events.*;
 import com.lahuca.laneinstance.events.party.*;
+import com.lahuca.laneinstance.game.InstanceGame;
 import com.lahuca.laneinstancepaper.events.*;
 import com.lahuca.laneinstancepaper.events.party.*;
 import net.kyori.adventure.text.Component;
@@ -48,9 +49,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -96,7 +95,8 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
         Runnable onFinalClose = () -> {
             onClose.run();
             implementation().ifPresent((instance) -> {
-                instance.getInstanceGames().forEach(game -> instance.unregisterGame(game.getGameId()));
+                Collection<InstanceGame> games = new ArrayList<>(instance.getInstanceGames());
+                games.forEach(game -> instance.unregisterGame(game.getGameId()));
             });
             // More work
         };

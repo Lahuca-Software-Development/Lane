@@ -95,7 +95,21 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         playerManager = new InstancePlayerManager(this, this::sendInstanceStatus, onlineJoinable, playersJoinable, playingJoinable, maxOnlineSlots, maxPlayersSlots, maxPlayingSlots, onlineKickable, playersKickable, playingKickable, isPrivate);
         friendshipManager = new InstanceFriendshipManager(this);
 
-        connection.setOnReconnect(this::sendInstanceStatus);
+        connection.setOnReconnect(() -> {
+            sendInstanceStatus();
+            Collection<InstanceGame> gamesCopy = new ArrayList<>(getInstanceGames());
+            gamesCopy.forEach(game -> {
+                // Try to update the game to the controller
+                connection.<Void>sendRequestPacket(requestId -> new GameStatusUpdatePacket(requestId, game.convertRecord()), null).getResult().whenComplete((data, ex) -> {
+                    if (ex != null) {
+                        // Oh, the update isn't sent, remove the game
+                        unregisterGame(game.getGameId());
+                        return;
+                    }
+                    // Update sent, we are done
+                }).join(); // TODO sync?
+            });
+        });
         connection.initialise(input -> {
             switch (input.packet()) {
                 case InstanceJoinPacket packet -> {
