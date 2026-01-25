@@ -12,7 +12,7 @@ public class PaperPartySetOwnerEvent extends PaperInstanceEvent<PartySetOwnerEve
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperPartySetOwnerEvent(PartySetOwnerEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {

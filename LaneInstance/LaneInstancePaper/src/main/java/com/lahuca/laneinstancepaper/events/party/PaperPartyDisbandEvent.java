@@ -12,7 +12,7 @@ public class PaperPartyDisbandEvent extends PaperInstanceEvent<PartyDisbandEvent
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperPartyDisbandEvent(PartyDisbandEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {

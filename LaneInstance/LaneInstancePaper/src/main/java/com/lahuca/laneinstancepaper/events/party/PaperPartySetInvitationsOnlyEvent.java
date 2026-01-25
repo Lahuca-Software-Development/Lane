@@ -12,7 +12,7 @@ public class PaperPartySetInvitationsOnlyEvent extends PaperInstanceEvent<PartyS
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperPartySetInvitationsOnlyEvent(PartySetInvitationsOnlyEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {

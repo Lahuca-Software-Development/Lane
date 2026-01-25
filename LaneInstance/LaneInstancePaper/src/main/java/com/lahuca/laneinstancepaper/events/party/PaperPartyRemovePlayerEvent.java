@@ -12,7 +12,7 @@ public class PaperPartyRemovePlayerEvent extends PaperInstanceEvent<PartyRemoveP
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperPartyRemovePlayerEvent(PartyRemovePlayerEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {

@@ -12,7 +12,7 @@ public class PaperPartyWarpEvent extends PaperInstanceEvent<PartyWarpEvent> {
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperPartyWarpEvent(PartyWarpEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {
