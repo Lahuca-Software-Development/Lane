@@ -29,6 +29,8 @@ import com.lahuca.laneinstance.game.InstanceGame;
 import com.lahuca.laneinstancepaper.events.*;
 import com.lahuca.laneinstancepaper.events.party.*;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.json.JSONOptions;
 import org.bukkit.Bukkit;
@@ -48,7 +50,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -255,8 +256,24 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
                 scoreboardTeam.prefix(dataComponents.getGroupComponent(data -> data.getPriority() > 0));
                 scoreboardTeam.suffix(suffix.equals(Component.empty()) ? suffix : Component.empty().appendSpace().append(suffix));
 
+                TextColor nameColor = findFirstColor(dataComponents.getGroupComponent(data -> data.getPriority() == 0));
+                if(nameColor != null) scoreboardTeam.color(NamedTextColor.nearestTo(nameColor));
+
                 scoreboardTeam.addPlayer(player);
             });
+        }
+
+        private TextColor findFirstColor(Component component) {//TODO probably move somewhere else? as Utils?
+            if(component == null) return null;
+
+            TextColor color = component.style().color();
+            if(color != null) return color;
+
+            for(Component child : component.children()) {
+                TextColor childColor = findFirstColor(child);
+                if(childColor != null) return childColor;
+            }
+            return null;
         }
     }
 }
