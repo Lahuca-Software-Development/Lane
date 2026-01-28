@@ -16,9 +16,10 @@
 package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 
-public record VoidResultPacket(long requestId, String result) implements ResponsePacket<Void> {
+public record VoidResultPacket(long requestId, ResponseError error) implements ResponsePacket<Void> {
 
     public static final String packetId = "voidResult";
 
@@ -28,7 +29,7 @@ public record VoidResultPacket(long requestId, String result) implements Respons
      * @param requestId the request ID
      */
     public VoidResultPacket(long requestId) {
-        this(requestId, ResponsePacket.OK);
+        this(requestId, null);
     }
 
     static {
@@ -46,8 +47,8 @@ public record VoidResultPacket(long requestId, String result) implements Respons
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

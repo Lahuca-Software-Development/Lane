@@ -16,6 +16,7 @@
 package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.data.DataObjectId;
 
@@ -25,10 +26,10 @@ import java.util.Collection;
  * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
  * Using this result packet fixes that problem, by explicitly sending the result to be a {@link DataObjectId}.
  * @param requestId the request id of the original request.
- * @param result the result string.
+ * @param error the error.
  * @param data the data.
  */
-public record DataObjectIdsResultPacket(long requestId, String result, Collection<DataObjectId> data) implements ResponsePacket<Collection<DataObjectId>> {
+public record DataObjectIdsResultPacket(long requestId, ResponseError error, Collection<DataObjectId> data) implements ResponsePacket<Collection<DataObjectId>> {
 
     public static final String packetId = "dataObjectIdsResult";
 
@@ -42,16 +43,16 @@ public record DataObjectIdsResultPacket(long requestId, String result, Collectio
      * @param data the data
      */
     public DataObjectIdsResultPacket(long requestId, Collection<DataObjectId> data) {
-        this(requestId, ResponsePacket.OK, data);
+        this(requestId, null, data);
     }
 
     /**
      * Constructor for a result that is unsuccessful.
      * @param requestId the request ID
-     * @param result the error
+     * @param error the error
      */
-    public DataObjectIdsResultPacket(long requestId, String result) {
-        this(requestId, result, null);
+    public DataObjectIdsResultPacket(long requestId, ResponseError error) {
+        this(requestId, error, null);
     }
 
     @Override
@@ -65,8 +66,8 @@ public record DataObjectIdsResultPacket(long requestId, String result, Collectio
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

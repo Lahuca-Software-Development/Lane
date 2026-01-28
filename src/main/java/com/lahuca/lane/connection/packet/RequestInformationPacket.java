@@ -2,6 +2,7 @@ package com.lahuca.lane.connection.packet;
 
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.GameRecord;
 import com.lahuca.lane.records.InstanceRecord;
@@ -38,7 +39,7 @@ public class RequestInformationPacket {
 
     }
 
-    public record PlayerResponse(long requestId, String result, PlayerRecord data) implements ResponsePacket<PlayerRecord> {
+    public record PlayerResponse(long requestId, ResponseError error, PlayerRecord data) implements ResponsePacket<PlayerRecord> {
 
         public static final String packetId = "requestInformationPacket.playerResponse";
 
@@ -57,8 +58,8 @@ public class RequestInformationPacket {
         }
 
         @Override
-        public String getResult() {
-            return result;
+        public ResponseError getError() {
+            return error;
         }
 
         @Override
@@ -88,7 +89,7 @@ public class RequestInformationPacket {
 
     }
 
-    public record PlayersResponse(long requestId, String result, ArrayList<PlayerRecord> data) implements ResponsePacket<ArrayList<PlayerRecord>> {
+    public record PlayersResponse(long requestId, ResponseError error, ArrayList<PlayerRecord> data) implements ResponsePacket<ArrayList<PlayerRecord>> {
 
         public static final String packetId = "requestInformationPacket.playersResponse";
 
@@ -107,8 +108,8 @@ public class RequestInformationPacket {
         }
 
         @Override
-        public String getResult() {
-            return result;
+        public ResponseError getError() {
+            return error;
         }
 
         @Override
@@ -138,7 +139,7 @@ public class RequestInformationPacket {
 
     }
 
-    public record GameResponse(long requestId, String result, GameRecord data) implements ResponsePacket<GameRecord> {
+    public record GameResponse(long requestId, ResponseError error, GameRecord data) implements ResponsePacket<GameRecord> {
 
         public static final String packetId = "requestInformationPacket.gameResponse";
 
@@ -157,8 +158,8 @@ public class RequestInformationPacket {
         }
 
         @Override
-        public String getResult() {
-            return result;
+        public ResponseError getError() {
+            return error;
         }
 
         @Override
@@ -188,7 +189,7 @@ public class RequestInformationPacket {
 
     }
 
-    public record GamesResponse(long requestId, String result, ArrayList<GameRecord> data) implements ResponsePacket<ArrayList<GameRecord>> {
+    public record GamesResponse(long requestId, ResponseError error, ArrayList<GameRecord> data) implements ResponsePacket<ArrayList<GameRecord>> {
 
         public static final String packetId = "requestInformationPacket.gamesResponse";
 
@@ -207,8 +208,8 @@ public class RequestInformationPacket {
         }
 
         @Override
-        public String getResult() {
-            return result;
+        public ResponseError getError() {
+            return error;
         }
 
         @Override
@@ -238,7 +239,7 @@ public class RequestInformationPacket {
 
     }
 
-    public record InstanceResponse(long requestId, String result, InstanceRecord data) implements ResponsePacket<InstanceRecord> {
+    public record InstanceResponse(long requestId, ResponseError error, InstanceRecord data) implements ResponsePacket<InstanceRecord> {
 
         public static final String packetId = "requestInformationPacket.instanceResponse";
 
@@ -257,8 +258,8 @@ public class RequestInformationPacket {
         }
 
         @Override
-        public String getResult() {
-            return result;
+        public ResponseError getError() {
+            return error;
         }
 
         @Override
@@ -288,7 +289,7 @@ public class RequestInformationPacket {
 
     }
 
-    public record InstancesResponse(long requestId, String result, ArrayList<InstanceRecord> data) implements ResponsePacket<ArrayList<InstanceRecord>> {
+    public record InstancesResponse(long requestId, ResponseError error, ArrayList<InstanceRecord> data) implements ResponsePacket<ArrayList<InstanceRecord>> {
 
         public static final String packetId = "requestInformationPacket.instancesResponse";
 
@@ -307,8 +308,8 @@ public class RequestInformationPacket {
         }
 
         @Override
-        public String getResult() {
-            return result;
+        public ResponseError getError() {
+            return error;
         }
 
         @Override

@@ -16,14 +16,15 @@
 package com.lahuca.lane.connection.packet.connection;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 
-public record ConnectionKeepAliveResultPacket(long requestId, long requestTime, long retrievedAt, String result) implements ResponsePacket<Void>, ConnectionPacket {
+public record ConnectionKeepAliveResultPacket(long requestId, long requestTime, long retrievedAt, ResponseError error) implements ResponsePacket<Void>, ConnectionPacket {
 
     public static final String packetId = "connectionKeepAliveResult";
 
     public static ConnectionKeepAliveResultPacket ok(ConnectionKeepAlivePacket original) {
-        return new ConnectionKeepAliveResultPacket(original.requestId(), original.requestTime(), System.currentTimeMillis(), ResponsePacket.OK);
+        return new ConnectionKeepAliveResultPacket(original.requestId(), original.requestTime(), System.currentTimeMillis(), null);
     }
 
     static {
@@ -41,8 +42,8 @@ public record ConnectionKeepAliveResultPacket(long requestId, long requestTime, 
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

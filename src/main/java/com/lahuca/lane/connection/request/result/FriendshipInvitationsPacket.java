@@ -17,6 +17,7 @@ package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.FriendshipInvitation;
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 
 import java.util.List;
@@ -25,10 +26,10 @@ import java.util.List;
  * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
  * Using this result packet fixes that problem, by explicitly sending the result to be a {@link FriendshipInvitation}.
  * @param requestId the request id of the original request.
- * @param result the result string.
+ * @param error the error.
  * @param data the data.
  */
-public record FriendshipInvitationsPacket(long requestId, String result, List<FriendshipInvitation> data) implements ResponsePacket<List<FriendshipInvitation>> {
+public record FriendshipInvitationsPacket(long requestId, ResponseError error, List<FriendshipInvitation> data) implements ResponsePacket<List<FriendshipInvitation>> {
 
     public static final String packetId = "friendshipInvitations";
 
@@ -42,16 +43,16 @@ public record FriendshipInvitationsPacket(long requestId, String result, List<Fr
      * @param data the data
      */
     public FriendshipInvitationsPacket(long requestId, List<FriendshipInvitation> data) {
-        this(requestId, ResponsePacket.OK, data);
+        this(requestId, null, data);
     }
 
     /**
      * Constructor for a result that is unsuccessful.
      * @param requestId the request ID
-     * @param result the error
+     * @param error the error
      */
-    public FriendshipInvitationsPacket(long requestId, String result) {
-        this(requestId, result, null);
+    public FriendshipInvitationsPacket(long requestId, ResponseError error) {
+        this(requestId, error, null);
     }
 
     @Override
@@ -65,8 +66,8 @@ public record FriendshipInvitationsPacket(long requestId, String result, List<Fr
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

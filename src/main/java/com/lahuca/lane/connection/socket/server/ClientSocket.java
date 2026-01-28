@@ -64,7 +64,6 @@ public class ClientSocket {
 
 	public ClientSocket(ServerSocketConnection connection, Socket socket, Consumer<InputPacket> input,
 						Gson gson, BiFunction<String, ClientSocket, Boolean> assignId, Consumer<ClientSocket> onClose, int maximumKeepAliveFails, int secondsBetweenKeepAliveChecks) throws IOException {
-		System.out.println("Created Clientsocket");
 		this.connection = connection;
 		started = true;
 		out = new PrintWriter(socket.getOutputStream(), true);
@@ -87,7 +86,6 @@ public class ClientSocket {
 		do {
 			try {
 				inputLine = in.readLine();
-				System.out.println(inputLine);
 				if(inputLine == null) {
 					// End of stream, closed
 					close();
@@ -104,7 +102,6 @@ public class ClientSocket {
 	}
 
 	private void readInput(String line) {
-		System.out.println("Got: " + line);
 		ConnectionTransfer transfer = gson.fromJson(line, ConnectionTransfer.class);
 		Packet.getPacket(transfer.typeId()).ifPresentOrElse(packetClass -> {
 			// Known packet type received.
@@ -163,9 +160,6 @@ public class ClientSocket {
 	public void sendPacket(Packet packet) {
 		if(id == null || !isConnected()) return; // TODO Wait for id announcement first
 		String packetString = gson.toJson(packet);
-		if(!(packet instanceof ConnectionPacket) && !(packet instanceof InstanceUpdatePlayerPacket)) {
-			System.out.println("Send to " + id + ": " + packetString);
-		}
 		ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, null,
 				id, System.currentTimeMillis());
 		out.println(gson.toJson(outputPacket));

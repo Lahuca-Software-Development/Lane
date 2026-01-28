@@ -16,9 +16,10 @@
 package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 
-public record SimpleResultPacket<T>(long requestId, String result, T data) implements ResponsePacket<T> {
+public record SimpleResultPacket<T>(long requestId, ResponseError error, T data) implements ResponsePacket<T> {
 
     public static final String packetId = "simpleResult";
 
@@ -32,16 +33,16 @@ public record SimpleResultPacket<T>(long requestId, String result, T data) imple
      * @param data the data
      */
     public SimpleResultPacket(long requestId, T data) {
-        this(requestId, ResponsePacket.OK, data);
+        this(requestId, null, data);
     }
 
     /**
      * Constructor for a result that is unsuccessful.
      * @param requestId the request ID
-     * @param result the error
+     * @param error the error
      */
-    public SimpleResultPacket(long requestId, String result) {
-        this(requestId, result, null);
+    public SimpleResultPacket(long requestId, ResponseError error) {
+        this(requestId, error, null);
     }
 
     @Override
@@ -55,8 +56,8 @@ public record SimpleResultPacket<T>(long requestId, String result, T data) imple
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

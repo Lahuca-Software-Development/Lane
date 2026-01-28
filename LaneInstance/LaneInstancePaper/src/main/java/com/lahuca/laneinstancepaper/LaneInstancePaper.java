@@ -17,6 +17,7 @@ package com.lahuca.laneinstancepaper;
 
 import com.google.gson.Gson;
 import com.lahuca.lane.ReconnectConnection;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
@@ -48,7 +49,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 

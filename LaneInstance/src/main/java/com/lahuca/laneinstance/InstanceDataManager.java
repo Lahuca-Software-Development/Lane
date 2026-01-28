@@ -3,8 +3,9 @@ package com.lahuca.laneinstance;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.ProfilePacket;
 import com.lahuca.lane.connection.packet.data.*;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.UnsuccessfulResultException;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
@@ -37,10 +38,6 @@ public class InstanceDataManager {
         return instance.getConnection();
     }
 
-    private static <T> CompletableFuture<T> simpleException(String result) { // TODO Move
-        return CompletableFuture.failedFuture(new UnsuccessfulResultException(result));
-    }
-
     /**
      * Reads a data object at the given id with the provided permission key.
      *
@@ -50,7 +47,7 @@ public class InstanceDataManager {
      */
     public CompletableFuture<Optional<DataObject>> readDataObject(DataObjectId id, PermissionKey permissionKey) {
         if (id() == null || id == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
-            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+            return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<DataObject>sendRequestPacket(requestId -> new DataObjectReadPacket(requestId, id, permissionKey), null).getResult().thenApply(Optional::ofNullable);
     }
 
@@ -64,7 +61,7 @@ public class InstanceDataManager {
      */
     public CompletableFuture<Void> writeDataObject(DataObject object, PermissionKey permissionKey) {
         if (id() == null || object == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
-            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+            return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<Void>sendRequestPacket(requestId -> new DataObjectWritePacket(requestId, object, permissionKey), null).getResult();
     }
 
@@ -77,7 +74,7 @@ public class InstanceDataManager {
      */
     public CompletableFuture<Void> removeDataObject(DataObjectId id, PermissionKey permissionKey) {
         if (id() == null || id == null || permissionKey == null || !permissionKey.isFormattedCorrectly())
-            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+            return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<Void>sendRequestPacket(requestId -> new DataObjectRemovePacket(requestId, id, permissionKey), null).getResult();
     }
 
@@ -95,7 +92,7 @@ public class InstanceDataManager {
      * @return a {@link CompletableFuture} with the array of IDs with matching prefix
      */
     public @NotNull CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
-        if(id() == null || prefix == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        if(id() == null || prefix == null) return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<ArrayList<DataObjectId>>sendRequestPacket(requestId -> new DataObjectListIdsPacket(requestId, prefix), null).getResult();
     }
 
@@ -108,7 +105,7 @@ public class InstanceDataManager {
      * @return a {@link CompletableFuture} with the array of DataObjects matching the version
      */
     public @NotNull CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, Integer version) {
-        if(id() == null || prefix == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        if(id() == null || prefix == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<ArrayList<DataObject>>sendRequestPacket(requestId -> new DataObjectsListPacket(requestId, prefix, permissionKey, version), null).getResult();
     }
 
@@ -122,7 +119,7 @@ public class InstanceDataManager {
      */
     CompletableFuture<Void> copyDataObject(PermissionKey permissionKey, DataObjectId sourceId, DataObjectId targetId) {
         if (id() == null || permissionKey == null || !permissionKey.isFormattedCorrectly() || sourceId == null || targetId == null) {
-            return simpleException(ResponsePacket.INVALID_PARAMETERS);
+            return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         }
         return connection().<Void>sendRequestPacket(requestId -> new DataObjectCopyPacket(requestId, permissionKey, sourceId, targetId), null).getResult();
     }

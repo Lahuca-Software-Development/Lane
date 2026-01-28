@@ -21,7 +21,6 @@ import com.lahuca.lane.connection.ConnectionTransfer;
 import com.lahuca.lane.connection.InputPacket;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.RawPacket;
-import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.connection.packet.connection.*;
 import com.lahuca.lane.connection.request.*;
 
@@ -157,9 +156,6 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
                 readConnectionPacket(cPacket, iPacket);
                 return;
             }
-            if(!(packet instanceof InstanceUpdatePlayerPacket)) {
-                System.out.println("Got: " + line);
-            }
             input.accept(iPacket);
         }, () -> {
             // Unknown packet type received
@@ -198,12 +194,11 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
         String packetString = gson.toJson(packet);
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        System.out.println("Send to " + id + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
     }
 
     private static <T> Request<T> disconnectedRequest() {
-        return new Request<>(new UnsuccessfulResultException(ResponsePacket.CONTROLLER_DISCONNECTED));
+        return new Request<>(ResponseError.CONTROLLER_DISCONNECTED.exception());
     }
 
     /**
@@ -226,7 +221,6 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -252,7 +246,6 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -278,7 +271,6 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }
@@ -305,7 +297,6 @@ public class ClientSocketConnection extends RequestHandler implements ReconnectC
 
         ConnectionTransfer outputPacket = new ConnectionTransfer(packet.getPacketId(), packetString, id,
                 destination, System.currentTimeMillis());
-        System.out.println("Send to " + destination + ": " + gson.toJson(outputPacket));
         out.println(gson.toJson(outputPacket));
         return request;
     }

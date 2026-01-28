@@ -3,6 +3,7 @@ package com.lahuca.lane.connection.packet;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.replicated.*;
 import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.PartyRecord;
 
@@ -238,10 +239,10 @@ public interface PartyPacket {
          * Packet for retrieving a party.
          * From controller: response to retrieve.
          * @param requestId the request ID
-         * @param result the result of the operation
+         * @param error the error of the operation
          * @param value the party record
          */
-        record Response(long requestId, String result,
+        record Response(long requestId, ResponseError error,
                         PartyRecord value) implements ResponsePacket<PartyRecord>, Retrieve, PartyUpdatePacket {
 
             public static final String packetId = "partyRetrieveResponse";
@@ -250,8 +251,8 @@ public interface PartyPacket {
                 Packet.registerPacket(packetId, Response.class);
             }
 
-            public Response(long requestId, String result) {
-                this(requestId, result, null);
+            public Response(long requestId, ResponseError error) {
+                this(requestId, error, null);
             }
 
             @Override
@@ -265,8 +266,8 @@ public interface PartyPacket {
             }
 
             @Override
-            public String getResult() {
-                return result;
+            public ResponseError getError() {
+                return error;
             }
 
             @Override

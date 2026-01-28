@@ -16,6 +16,7 @@
 package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.records.RelationshipRecord;
 
@@ -25,10 +26,10 @@ import java.util.Set;
  * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
  * Using this result packet fixes that problem, by explicitly sending the result to be a {@link RelationshipRecord}.
  * @param requestId the request id of the original request.
- * @param result the result string.
+ * @param error the error.
  * @param data the data.
  */
-public record RelationshipRecordsPacket(long requestId, String result, Set<RelationshipRecord> data) implements ResponsePacket<Set<RelationshipRecord>> {
+public record RelationshipRecordsPacket(long requestId, ResponseError error, Set<RelationshipRecord> data) implements ResponsePacket<Set<RelationshipRecord>> {
 
     public static final String packetId = "relationshipRecord";
 
@@ -42,16 +43,16 @@ public record RelationshipRecordsPacket(long requestId, String result, Set<Relat
      * @param data the data
      */
     public RelationshipRecordsPacket(long requestId, Set<RelationshipRecord> data) {
-        this(requestId, ResponsePacket.OK, data);
+        this(requestId, null, data);
     }
 
     /**
      * Constructor for a result that is unsuccessful.
      * @param requestId the request ID
-     * @param result the error
+     * @param error the error
      */
-    public RelationshipRecordsPacket(long requestId, String result) {
-        this(requestId, result, null);
+    public RelationshipRecordsPacket(long requestId, ResponseError error) {
+        this(requestId, error, null);
     }
 
     @Override
@@ -65,8 +66,8 @@ public record RelationshipRecordsPacket(long requestId, String result, Set<Relat
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

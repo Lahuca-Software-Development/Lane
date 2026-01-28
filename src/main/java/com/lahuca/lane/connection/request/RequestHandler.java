@@ -144,11 +144,6 @@ public class RequestHandler {
      * to transition to a completed state, else {@code false}.
      */
     protected boolean response(long requestId, ResponsePacket<Object> response) {
-        try {
-            System.out.println("Response: " + requestId + " " + requests.containsKey(requestId) + " " + response);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
         Request<?> request = requests.remove(requestId);
         if(request == null) return false;
         return request.parsedComplete(response);

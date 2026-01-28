@@ -1,7 +1,7 @@
 package com.lahuca.lanecontroller;
 
 import com.google.gson.Gson;
-import com.lahuca.lane.connection.request.UnsuccessfulResultException;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
@@ -378,7 +378,7 @@ public class ControllerDataManager {
                                 });
                             });
                 }
-                return CompletableFuture.failedFuture(new UnsuccessfulResultException("Could not set super profile to new profile"));
+                return CompletableFuture.failedFuture(new ResponseErrorException("Could not set super profile to new profile"));
             });
         });
     }
@@ -410,7 +410,7 @@ public class ControllerDataManager {
                 // We added the super profile. Now replace the network profile
                 return DefaultDataObjects.setPlayersNetworkProfile(dataManager, player, profile.getId());
             }
-            return CompletableFuture.failedFuture(new UnsuccessfulResultException("Could not set super profile to new profile"));
+            return CompletableFuture.failedFuture(new ResponseErrorException("Could not set super profile to new profile"));
         });
     }
 

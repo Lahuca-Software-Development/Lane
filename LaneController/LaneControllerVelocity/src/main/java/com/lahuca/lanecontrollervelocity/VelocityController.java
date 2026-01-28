@@ -22,7 +22,7 @@ import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.MessagesResourceBundle;
 import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.UnsuccessfulResultException;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
@@ -71,7 +71,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -567,19 +566,42 @@ public class VelocityController {
                         if(result.getStatus() == ConnectionRequestBuilder.Status.SUCCESS
                                 || result.getStatus() == ConnectionRequestBuilder.Status.ALREADY_CONNECTED) {
                             future.complete(null);
-                        } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_IN_PROGRESS) {
-                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.CONNECTION_IN_PROGRESS));
-                        } else if(result.getStatus() == ConnectionRequestBuilder.Status.CONNECTION_CANCELLED) {
-                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.CONNECTION_CANCELLED));
-                        } else if(result.getStatus() == ConnectionRequestBuilder.Status.SERVER_DISCONNECTED) {
-                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.CONNECTION_DISCONNECTED));
                         } else {
-                            future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.UNKNOWN));
+                            future.completeExceptionally(new VelocityConnectionRequestException(player, instance, result.getStatus()));
                         }
                     });
-                }, () -> future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.INVALID_ID)));
-            }, () -> future.completeExceptionally(new UnsuccessfulResultException(ResponsePacket.INVALID_PLAYER)));
+                }, () -> future.completeExceptionally(new VelocityConnectionRequestException(player)));
+            }, () -> future.completeExceptionally(new VelocityConnectionRequestException()));
             return future;
+        }
+
+        private static class VelocityConnectionRequestException extends Exception {
+
+            private final Player player;
+            private final RegisteredServer server;
+            private final ConnectionRequestBuilder.Status status;
+
+            public VelocityConnectionRequestException(Player player, RegisteredServer server, ConnectionRequestBuilder.Status status) {
+                super("Failed to connect to server " + server.getServerInfo().getName() + " for player " + player.getUsername() + ": " + status);
+                this.player = player;
+                this.server = server;
+                this.status = status;
+            }
+
+            public VelocityConnectionRequestException(Player player) {
+                super("Failed to connect for player " + player.getUsername() + ": invalid server");
+                this.player = player;
+                this.server = null;
+                this.status = null;
+            }
+
+            public VelocityConnectionRequestException() {
+                super("Failed to connect: invalid player");
+                this.player = null;
+                this.server = null;
+                this.status = null;
+            }
+
         }
 
         /*public static MapLaneMessage translator = new MapLaneMessage(Map.ofEntries( TODO

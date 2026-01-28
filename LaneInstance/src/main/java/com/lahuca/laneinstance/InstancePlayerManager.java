@@ -2,7 +2,7 @@ package com.lahuca.laneinstance;
 
 import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.packet.data.SavedLocalePacket;
-import com.lahuca.lane.connection.request.UnsuccessfulResultException;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.data.profile.ProfileType;
 import com.lahuca.lane.game.Slottable;
 import com.lahuca.lane.queue.QueueRequestParameter;
@@ -322,7 +322,7 @@ public class InstancePlayerManager implements Slottable {
                     // We switched, normal join
                     instance.handleInstanceEvent(new InstanceJoinEvent(player, queueType));
                 }
-            } catch(UnsuccessfulResultException e) {
+            } catch(ResponseErrorException e) {
                 disconnectPlayer(uuid, Component.text("Queue not finished")); // TODO Translate
             } catch(InterruptedException | ExecutionException | CancellationException e) {
                 disconnectPlayer(uuid, Component.text("Could not process queue")); // TODO Translate

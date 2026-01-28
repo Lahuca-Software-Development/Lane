@@ -16,6 +16,7 @@
 package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.data.DataObject;
 
@@ -23,10 +24,10 @@ import com.lahuca.lane.data.DataObject;
  * Due to encoding/decoding of the used parser, generic types are parsed to {@link com.google.gson.internal.LinkedTreeMap}.
  * Using this result packet fixes that problem, by explicitly sending the result to be a {@link com.lahuca.lane.data.DataObject}.
  * @param requestId the request id of the original request.
- * @param result the result string.
+ * @param error the error.
  * @param data the data.
  */
-public record DataObjectResultPacket(long requestId, String result, DataObject data) implements ResponsePacket<DataObject> {
+public record DataObjectResultPacket(long requestId, ResponseError error, DataObject data) implements ResponsePacket<DataObject> {
 
     public static final String packetId = "dataObjectResult";
 
@@ -40,16 +41,16 @@ public record DataObjectResultPacket(long requestId, String result, DataObject d
      * @param data the data
      */
     public DataObjectResultPacket(long requestId, DataObject data) {
-        this(requestId, ResponsePacket.OK, data);
+        this(requestId, null, data);
     }
 
     /**
      * Constructor for a result that is unsuccessful.
      * @param requestId the request ID
-     * @param result the error
+     * @param error the error
      */
-    public DataObjectResultPacket(long requestId, String result) {
-        this(requestId, result, null);
+    public DataObjectResultPacket(long requestId, ResponseError error) {
+        this(requestId, error, null);
     }
 
     @Override
@@ -63,8 +64,8 @@ public record DataObjectResultPacket(long requestId, String result, DataObject d
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

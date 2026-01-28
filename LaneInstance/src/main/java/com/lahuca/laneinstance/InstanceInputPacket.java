@@ -9,6 +9,7 @@ import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
 import com.lahuca.lane.connection.packet.PartyPacket;
 import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.data.manager.PermissionFailedException;
@@ -41,12 +42,12 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
         return instance.getInstanceGame(gameId);
     }
 
-    private void sendSimpleResult(long requestId, String result) {
-        instance.sendController(new VoidResultPacket(requestId, result));
+    private void sendSimpleResult(long requestId, ResponseError error) {
+        instance.sendController(new VoidResultPacket(requestId, error));
     }
 
-    private void sendSimpleResult(RequestPacket request, String result) {
-        sendSimpleResult(request.getRequestId(), result);
+    private void sendSimpleResult(RequestPacket request, ResponseError error) {
+        sendSimpleResult(request.getRequestId(), error);
     }
 
     public CompletableFuture<Void> unregisterGame(long gameId) {
@@ -78,14 +79,14 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                     // Cannot grant slot yet, check if we even can join
                     if (!getPlayerManager().isQueueJoinable(packet.queueType())) {
                         // We cannot join the queue type
-                        sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                        sendSimpleResult(packet, ResponseError.NO_FREE_SLOTS);
                         return;
                     }
                     // Okay, check if we can kick someone
                     kickable = getPlayerManager().findKickableLanePlayers(playerMap, packet.queueType(), packet.gameId(), getPlayerManager()::getInstancePlayer);
                     if (kickable == null) {
                         // We could not find a slot
-                        sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                        sendSimpleResult(packet, ResponseError.NO_FREE_SLOTS);
                         return;
                     }
                     // Okay so we can kick the given player to join the instance (and game if present). First wait for game checks.
@@ -94,7 +95,7 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                     // Do the same for the game
                     Optional<InstanceGame> instanceGame = getInstanceGame(packet.gameId());
                     if (instanceGame.isEmpty()) {
-                        sendSimpleResult(packet, ResponsePacket.INVALID_ID);
+                        sendSimpleResult(packet, ResponseError.INVALID_ID);
                         return;
                     }
                     InstanceGame game = instanceGame.get();
@@ -103,7 +104,7 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                         // Cannot grant slot yet, check if we even can join
                         if (!game.isQueueJoinable(packet.queueType())) {
                             // We cannot join the queue type
-                            sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                            sendSimpleResult(packet, ResponseError.NO_FREE_SLOTS);
                             return;
                         }
                         // Okay, so we need to kick someone
@@ -112,7 +113,7 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                             kickable = getPlayerManager().findKickableLanePlayers(playerMap, packet.queueType(), packet.gameId(), getPlayerManager()::getInstancePlayer);
                             if (kickable == null) {
                                 // We could not find a slot
-                                sendSimpleResult(packet, ResponsePacket.NO_FREE_SLOTS);
+                                sendSimpleResult(packet, ResponseError.NO_FREE_SLOTS);
                                 return;
                             }
                         }
@@ -127,7 +128,7 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                 }
                 // We are here, so we can apply it.
                 getPlayerManager().registerPlayer(packet.player(), new InstancePlayer.RegisterData(packet.queueType(), packet.parameter(), packet.gameId()));
-                sendSimpleResult(packet, ResponsePacket.OK);
+                sendSimpleResult(packet, null);
             }
             case InstanceUpdatePlayerPacket packet -> {
                 PlayerRecord record = packet.playerRecord();
@@ -136,15 +137,9 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
             case GameShutdownRequestPacket(long requestId, long gameId) ->
                     unregisterGame(gameId).whenComplete((data, ex) -> {
                         if (ex != null) {
-                            // TODO Add more exceptions. To write and remove as well!
-                            String result = switch (ex) {
-                                case PermissionFailedException ignored -> ResponsePacket.INSUFFICIENT_RIGHTS;
-                                case IllegalArgumentException ignored -> ResponsePacket.ILLEGAL_ARGUMENT;
-                                default -> ResponsePacket.UNKNOWN;
-                            };
-                            sendSimpleResult(requestId, result);
+                            sendSimpleResult(requestId, new ResponseError(ex));
                         } else {
-                            sendSimpleResult(requestId, ResponsePacket.OK);
+                            sendSimpleResult(requestId, null);
                         }
                     });
             case PartyPacket.Event packet -> {

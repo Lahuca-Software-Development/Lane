@@ -16,16 +16,17 @@
 package com.lahuca.lane.connection.request.result;
 
 import com.lahuca.lane.connection.Packet;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 
 /**
  * Due to encoding/decoding of the used parser, generic types are parsed to Doubles.
  * Using this result packet fixes that problem, by explicitly sending the result to be a Long.
  * @param requestId the request id of the original request.
- * @param result the result string.
+ * @param error the error.
  * @param data the data.
  */
-public record LongResultPacket(long requestId, String result, Long data) implements ResponsePacket<Long> {
+public record LongResultPacket(long requestId, ResponseError error, Long data) implements ResponsePacket<Long> {
 
     public static final String packetId = "longResult";
 
@@ -39,16 +40,16 @@ public record LongResultPacket(long requestId, String result, Long data) impleme
      * @param data the data
      */
     public LongResultPacket(long requestId, Long data) {
-        this(requestId, ResponsePacket.OK, data);
+        this(requestId, null, data);
     }
 
     /**
      * Constructor for a result that is unsuccessful.
      * @param requestId the request ID
-     * @param result the error
+     * @param error the error
      */
-    public LongResultPacket(long requestId, String result) {
-        this(requestId, result, null);
+    public LongResultPacket(long requestId, ResponseError error) {
+        this(requestId, error, null);
     }
 
     @Override
@@ -62,8 +63,8 @@ public record LongResultPacket(long requestId, String result, Long data) impleme
     }
 
     @Override
-    public String getResult() {
-        return result;
+    public ResponseError getError() {
+        return error;
     }
 
     @Override

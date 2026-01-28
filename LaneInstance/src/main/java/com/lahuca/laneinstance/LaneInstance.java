@@ -19,26 +19,21 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.RemovalListener;
-import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.Packet;
 import com.lahuca.lane.connection.packet.*;
-import com.lahuca.lane.connection.request.RequestPacket;
+import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.UnsuccessfulResultException;
-import com.lahuca.lane.connection.request.result.VoidResultPacket;
-import com.lahuca.lane.data.manager.PermissionFailedException;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.lane.records.*;
 import com.lahuca.laneinstance.events.InstanceShutdownGameEvent;
 import com.lahuca.laneinstance.events.InstanceStartupGameEvent;
-import com.lahuca.laneinstance.events.party.*;
 import com.lahuca.laneinstance.game.InstanceGame;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -168,16 +163,12 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
         connection.sendPacket(packet, null);
     }
 
-    private static <T> CompletableFuture<T> simpleException(String result) { // TODO Move
-        return CompletableFuture.failedFuture(new UnsuccessfulResultException(result));
-    }
-
     private void sendInstanceStatus() {
         sendController(new InstanceStatusUpdatePacket(convertRecord()));
     }
 
     private CompletableFuture<Long> requestId(RequestIdPacket.Type idType) {
-        if (idType == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        if (idType == null) return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection.<Long>sendRequestPacket(id -> new RequestIdPacket(id, idType), null).getResult();
     }
 
@@ -188,13 +179,13 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
      * @return a {@link CompletableFuture} of the registering, it completes successfully with the game when it is successfully registered.
      */
     public <T extends InstanceGame> CompletableFuture<T> registerGame(Function<Long, T> gameConstructor) {
-        if (gameConstructor == null) return simpleException(ResponsePacket.INVALID_PARAMETERS);
+        if (gameConstructor == null) return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         // First request new ID
         return requestId(RequestIdPacket.Type.GAME).thenCompose(gameId -> {
             // We got a new ID, construct game
             T game = gameConstructor.apply(gameId);
             if (game.getGameId() != gameId || games.containsKey(game.getGameId()) && !game.getInstanceId().equals(id)) {
-                throw new UnsuccessfulResultException(ResponsePacket.INVALID_ID);
+                throw ResponseError.INVALID_ID.exception();
             }
             // Include the game and send the update packet
             games.put(game.getGameId(), game);

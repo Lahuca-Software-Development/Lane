@@ -20,7 +20,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
-import com.lahuca.lane.connection.request.UnsuccessfulResultException;
+import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.PlayerRecord;
 import com.lahuca.lanecontroller.events.PlayerNetworkProcessEvent;
@@ -297,7 +297,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 CompletableFuture<Void> future = controller.getConnection().<Void>sendRequestPacket((id) -> new InstanceJoinPacket(id, convertRecord(), joinable.getQueueType(), joinable.getParameter(), resultGameId), resultInstance.getId()).getFutureResult();
                 HashSet<UUID> finalPlayTogetherPlayers = playTogetherPlayers;
                 future.exceptionallyCompose(exception -> {
-                    if (exception instanceof UnsuccessfulResultException ex) {
+                    if (exception instanceof ResponseErrorException ex) {
                         // We are not allowing to join at this instance.
                         request.stages().add(new QueueStage(QueueStageResult.JOIN_DENIED, joinable.getQueueType(), resultInstance.getId(), resultGameId));
                         return handleQueueStage(finalStageEvent, handleResult, allowNone);
@@ -310,7 +310,7 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                     return controller.joinServer(getUuid(), resultInstance.getId());
                 }).exceptionallyCompose(exception -> {
                     // If handleResult is true, then we got an error
-                    if (exception instanceof UnsuccessfulResultException ex) {
+                    if (exception instanceof ResponseErrorException ex) {
                         // TODO Should we let the Instance know that the player is not joining? Maybe they claimed a spot in the queue.
                         request.stages().add(new QueueStage(QueueStageResult.SERVER_UNAVAILABLE, joinable.getQueueType(), resultInstance.getId(), resultGameId));
                         return handleQueueStage(finalStageEvent, handleResult, allowNone);

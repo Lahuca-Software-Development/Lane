@@ -22,7 +22,7 @@ import java.util.function.Function;
  * A request is defined by a packet that is expected for which a response is needed.
  * A request and its response are combined using request IDs.
  * When a request is sent over a connection, its response is to be expected to be cast to the expected type.
- * This is only the case when the returned result is {@link ResponsePacket#OK}, otherwise a {@link UnsuccessfulResultException} is thrown with the error.
+ * This is only the case when the returned result is {@link ResponsePacket#OK}, otherwise a {@link ResponseErrorException} is thrown with the error.
  * The {@link CompletableFuture} handles the asynchronous response.
  * This {@link CompletableFuture} is canceled when no response is received within a set timeframe: the timeout.
  * As results are frequent of the generic unknown type ?, the result parser is to be used to properly parse the result before sending the future.
@@ -56,7 +56,7 @@ public class Request<T> {
      * The CompletableFuture is immediately failed.
      * @param result the result of the request
      */
-    public Request(UnsuccessfulResultException result) {
+    public Request(ResponseErrorException result) {
         this(-1, System.currentTimeMillis(), CompletableFuture.failedFuture(result));
     }
 
@@ -157,7 +157,7 @@ public class Request<T> {
      * to transition to a completed state, else {@code false}
      */
     public <U> boolean parsedComplete(ResponsePacket<U> response) {
-        if(response.getResult().equals(ResponsePacket.OK)) { // TODO Maybe somewhere else
+        if(response.getError() == null) {
             try {
                 T parsedResult = resultParser.apply(response.getData());
                 return futureResult.complete(parsedResult);
@@ -165,7 +165,7 @@ public class Request<T> {
                 return futureResult.completeExceptionally(e);
             }
         }
-        return futureResult.completeExceptionally(new UnsuccessfulResultException(response.getResult()));
+        return futureResult.completeExceptionally(new ResponseErrorException(response.getError()));
     }
 
     /**
