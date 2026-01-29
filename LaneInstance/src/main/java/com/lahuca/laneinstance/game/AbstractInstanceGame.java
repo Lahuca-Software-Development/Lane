@@ -22,23 +22,45 @@ public abstract class AbstractInstanceGame implements InstanceGame {
     private final HashSet<UUID> online = new HashSet<>();
     private final HashSet<UUID> players = new HashSet<>();
     private final HashSet<UUID> playing = new HashSet<>();
-    private boolean onlineJoinable = true;
-    private boolean playersJoinable = true;
-    private boolean playingJoinable = true;
-    private int maxOnlineSlots = -1;
-    private int maxPlayersSlots = -1;
-    private int maxPlayingSlots = -1;
-    private boolean onlineKickable = false;
-    private boolean playersKickable = false;
-    private boolean playingKickable = false;
-    private boolean isPrivate = false;
+    private boolean onlineJoinable;
+    private boolean playersJoinable;
+    private boolean playingJoinable;
+    private int maxOnlineSlots;
+    private int maxPlayersSlots;
+    private int maxPlayingSlots;
+    private boolean onlineKickable;
+    private boolean playersKickable;
+    private boolean playingKickable;
+    private boolean isPrivate;
 
     private String state;
     private final HashMap<String, InstanceStateProperty> properties = new HashMap<>();
 
-    public AbstractInstanceGame(long gameId, String instanceId) {
+    public AbstractInstanceGame(long gameId, String instanceId, String gameType, String gameMode, String gameMap, boolean onlineJoinable, boolean playersJoinable, boolean playingJoinable, int maxOnlineSlots, int maxPlayersSlots, int maxPlayingSlots, boolean onlineKickable, boolean playersKickable, boolean playingKickable, boolean isPrivate, String state) {
         this.gameId = gameId;
         this.instanceId = instanceId;
+        this.gameType = gameType;
+        this.gameMode = gameMode;
+        this.gameMap = gameMap;
+        this.onlineJoinable = onlineJoinable;
+        this.playersJoinable = playersJoinable;
+        this.playingJoinable = playingJoinable;
+        this.maxOnlineSlots = maxOnlineSlots;
+        this.maxPlayersSlots = maxPlayersSlots;
+        this.maxPlayingSlots = maxPlayingSlots;
+        this.onlineKickable = onlineKickable;
+        this.playersKickable = playersKickable;
+        this.playingKickable = playingKickable;
+        this.isPrivate = isPrivate;
+        this.state = state;
+    }
+
+    public AbstractInstanceGame(long gameId, String instanceId, String gameType, String gameMode, String gameMap, boolean isPrivate, String state, int maxPlayingSlots) {
+        this(gameId, instanceId, gameType, gameMode, gameMap, true, true, true, -1, -1, maxPlayingSlots, true, true, true, isPrivate, state);
+    }
+
+    public AbstractInstanceGame(long gameId, String instanceId, String gameType, String gameMode, String gameMap, boolean isPrivate, String state) {
+        this(gameId, instanceId, gameType, gameMode, gameMap, isPrivate, state, -1);
     }
 
     @Override
