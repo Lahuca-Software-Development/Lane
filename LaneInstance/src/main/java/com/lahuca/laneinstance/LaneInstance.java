@@ -105,8 +105,7 @@ public abstract class LaneInstance implements RecordConverter<InstanceRecord> {
                 }).join(); // TODO sync?
             });
         });
-        connection.initialise(input -> {
-        });
+        connection.initialise(new InstanceInputPacket(this, partyReplicas));
         sendInstanceStatus();
     }
 
