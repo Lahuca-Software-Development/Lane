@@ -20,13 +20,12 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.connection.packet.InstanceJoinPacket;
 import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
+import com.lahuca.lane.connection.packet.QueueCancelledPacket;
 import com.lahuca.lane.connection.request.ResponseErrorException;
+import com.lahuca.lane.connection.request.result.VoidResultPacket;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lane.records.PlayerRecord;
-import com.lahuca.lanecontroller.events.PlayerNetworkProcessEvent;
-import com.lahuca.lanecontroller.events.PlayerNetworkProcessedEvent;
-import com.lahuca.lanecontroller.events.QueueStageEvent;
-import com.lahuca.lanecontroller.events.QueueStageEventResult;
+import com.lahuca.lanecontroller.events.*;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
@@ -213,10 +212,14 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
                 // We got a simple none
                 if (handleResult && none.getMessage().isPresent()) {
                     if(allowNone) {
+                        controller.handleControllerEvent(new QueueCancelledEvent(this, request, false));
+                        getInstanceId().ifPresent(id -> controller.getConnection().sendPacket(new QueueCancelledPacket(getUuid(), request, false), id));
                         controller.sendMessage(getUuid(), none.getMessage().get());
                     } else {
+                        controller.handleControllerEvent(new QueueCancelledEvent(this, request, true));
+                        getInstanceId().ifPresent(id -> controller.getConnection().sendPacket(new QueueCancelledPacket(getUuid(), request, true), id));
                         controller.disconnectPlayer(getUuid(), none.getMessage().orElse(null));
-                    }
+                     }
                 }
                 setQueueRequest(null);
                 yield CompletableFuture.completedFuture(null);
@@ -224,8 +227,10 @@ public class ControllerPlayer implements LanePlayer { // TODO Maybe make generic
             case QueueStageEventResult.Disconnect disconnect -> {
                 // We got a disconnect
                 if (handleResult) {
+                    controller.handleControllerEvent(new QueueCancelledEvent(this, request, true));
+                    getInstanceId().ifPresent(id -> controller.getConnection().sendPacket(new QueueCancelledPacket(getUuid(), request, true), id));
                     controller.disconnectPlayer(getUuid(), disconnect.getMessage().orElse(null));
-                }
+                  }
                 setQueueRequest(null);
                 yield CompletableFuture.completedFuture(null);
             }

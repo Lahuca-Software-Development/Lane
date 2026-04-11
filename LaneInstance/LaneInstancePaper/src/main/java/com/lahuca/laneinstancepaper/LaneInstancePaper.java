@@ -17,7 +17,6 @@ package com.lahuca.laneinstancepaper;
 
 import com.google.gson.Gson;
 import com.lahuca.lane.ReconnectConnection;
-import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
@@ -201,6 +200,7 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
                 case InstanceSwitchQueueTypeEvent obj -> new PaperInstanceSwitchQueueTypeEvent(obj);
                 case InstanceStartupGameEvent obj -> new PaperInstanceStartupGameEvent(obj);
                 case InstanceShutdownGameEvent obj -> new PaperInstanceShutdownGameEvent(obj);
+                case QueueCancelledEvent obj -> new PaperQueueCancelledEvent(obj);
                 case PartyAcceptInvitationEvent obj -> new PaperPartyAcceptInvitationEvent(obj);
                 case PartyAddInvitationEvent obj -> new PaperPartyAddInvitationEvent(obj);
                 case PartyCreateEvent obj -> new PaperPartyCreateEvent(obj);

@@ -63,6 +63,7 @@ public interface Packet {
 		Packet.registerPacket(ProfileRecordResultPacket.packetId, ProfileRecordResultPacket.class);
 
 		Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
+		Packet.registerPacket(QueueCancelledPacket.packetId, QueueCancelledPacket.class);
 		Packet.registerPacket(ConnectionClosePacket.packetId, ConnectionClosePacket.class);
 		Packet.registerPacket(ConnectionKeepAlivePacket.packetId, ConnectionKeepAlivePacket.class);
 		Packet.registerPacket(ConnectionKeepAliveResultPacket.packetId, ConnectionKeepAliveResultPacket.class);

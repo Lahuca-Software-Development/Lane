@@ -4,18 +4,16 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.lahuca.lane.LanePlayer;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.InputPacket;
-import com.lahuca.lane.connection.packet.GameShutdownRequestPacket;
-import com.lahuca.lane.connection.packet.InstanceJoinPacket;
-import com.lahuca.lane.connection.packet.InstanceUpdatePlayerPacket;
-import com.lahuca.lane.connection.packet.PartyPacket;
+import com.lahuca.lane.connection.packet.*;
 import com.lahuca.lane.connection.request.RequestPacket;
 import com.lahuca.lane.connection.request.ResponseError;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.result.VoidResultPacket;
-import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.events.LaneEvent;
+import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.records.PartyRecord;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.laneinstance.events.QueueCancelledEvent;
 import com.lahuca.laneinstance.events.party.*;
 import com.lahuca.laneinstance.game.InstanceGame;
 import net.kyori.adventure.text.Component;
@@ -227,6 +225,9 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                     }
                 }
             }
+            case QueueCancelledPacket(UUID player, QueueRequest queue, boolean disconnected) ->
+                    getPlayerManager().getInstancePlayer(player).ifPresent(current ->
+                            handleInstanceEvent(new QueueCancelledEvent(current, queue, disconnected)));
             case ResponsePacket<?> response -> {
                 if (!getConnection().retrieveResponse(response.getRequestId(), response.toObjectResponsePacket())) {
                     // TODO Handle output: failed response

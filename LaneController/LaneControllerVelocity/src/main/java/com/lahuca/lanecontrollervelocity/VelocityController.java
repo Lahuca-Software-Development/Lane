@@ -21,6 +21,7 @@ import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
 import com.lahuca.lane.MessagesResourceBundle;
 import com.lahuca.lane.connection.Connection;
+import com.lahuca.lane.connection.packet.QueueCancelledPacket;
 import com.lahuca.lane.connection.request.ResponsePacket;
 import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
@@ -33,10 +34,7 @@ import com.lahuca.lanecontroller.Controller;
 import com.lahuca.lanecontroller.ControllerGame;
 import com.lahuca.lanecontroller.ControllerPlayer;
 import com.lahuca.lanecontroller.ControllerPlayerState;
-import com.lahuca.lanecontroller.events.InstanceRegisterEvent;
-import com.lahuca.lanecontroller.events.InstanceUnregisterEvent;
-import com.lahuca.lanecontroller.events.QueueStageEvent;
-import com.lahuca.lanecontroller.events.QueueStageEventResult;
+import com.lahuca.lanecontroller.events.*;
 import com.lahuca.lanecontrollervelocity.commands.FriendCommand;
 import com.lahuca.lanecontrollervelocity.commands.HubCommand;
 import com.lahuca.lanecontrollervelocity.commands.PartyCommand;
@@ -365,6 +363,8 @@ public class VelocityController {
                             Component message = messageable.getMessage().orElse(Component.translatable("lane.controller.error.login.unavailable"));
                             event.getPlayer().disconnect(message); // TODO Will this actually work here?
                             event.setInitialServer(null);
+                            controller.handleControllerEvent(new QueueCancelledEvent(player, request, true));
+                            player.getInstanceId().ifPresent(id -> controller.getConnection().sendPacket(new QueueCancelledPacket(player.getUuid(), request, true), id));
                         }
                         case QueueStageEventResult.QueueStageEventJoinableResult joinable -> {
                             // Fetch instance ID and potential game ID
@@ -470,10 +470,14 @@ public class VelocityController {
                     player.handleQueueStage(stageEvent, false, false).get();
                     switch (stageEvent.getResult()) {
                         case QueueStageEventResult.None none -> {
+                            controller.handleControllerEvent(new QueueCancelledEvent(player, request, false));
+                            player.getInstanceId().ifPresent(id -> controller.getConnection().sendPacket(new QueueCancelledPacket(player.getUuid(), request, false), id));
                             Component message = none.getMessage().orElse(Component.translatable("lane.controller.error.queue.kicked.none")); // TODO Add more information: kick reason, what server, during join?
                             event.setResult(KickedFromServerEvent.Notify.create(message));
                         }
                         case QueueStageEventResult.Disconnect disconnect -> {
+                            controller.handleControllerEvent(new QueueCancelledEvent(player, request, false));
+                            player.getInstanceId().ifPresent(id -> controller.getConnection().sendPacket(new QueueCancelledPacket(player.getUuid(), request, false), id));
                             Component message = disconnect.getMessage().orElse(Component.translatable("lane.controller.error.queue.kicked.disconnect")); // TODO Add more information: kick reason, what server, during join?
                             event.setResult(KickedFromServerEvent.DisconnectPlayer.create(message));
                         }
