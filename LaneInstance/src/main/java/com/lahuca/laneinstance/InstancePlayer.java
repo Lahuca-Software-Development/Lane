@@ -11,6 +11,8 @@ import com.lahuca.lane.queue.QueueRequest;
 import com.lahuca.lane.queue.QueueRequestParameter;
 import com.lahuca.lane.queue.QueueType;
 import com.lahuca.lane.records.PlayerRecord;
+import com.lahuca.laneinstance.events.NickPreSetEvent;
+import com.lahuca.laneinstance.events.NickSetEvent;
 import com.lahuca.laneinstance.game.InstanceGame;
 import com.lahuca.laneinstance.scoreboard.PlayerScoreboard;
 import net.kyori.adventure.text.Component;
@@ -180,10 +182,24 @@ public class InstancePlayer implements LanePlayer {
         return Optional.ofNullable(nickname);
     }
 
+    /**
+     * Sets the nickname of the player.
+     * First calls the {@link NickPreSetEvent} and then sets the nickname if the event is not cancelled.
+     * After the nickname has been updated, the {@link NickSetEvent} is called.
+     * @param nickname the nickname to set
+     * @return {@link CompletableFuture} that completes when the nickname has been set or if it has been cancelled.
+     */
     @Override
     public CompletableFuture<Void> setNickname(String nickname) {
-
-        return LaneInstance.getInstance().setNickname(this, nickname);
+        NickPreSetEvent preSet = new NickPreSetEvent(this, nickname);
+        return LaneInstance.getInstance().handleInstanceEvent(preSet).thenCompose(preSetEvent -> {
+            if(preSetEvent.isCancelled()) return CompletableFuture.completedFuture(null);
+            return LaneInstance.getInstance().setNickname(this, nickname)
+                    .thenApply(set -> {
+                        LaneInstance.getInstance().handleInstanceEvent(new NickSetEvent(this, nickname));
+                        return null;
+                    });
+        });
     }
 
     @Override

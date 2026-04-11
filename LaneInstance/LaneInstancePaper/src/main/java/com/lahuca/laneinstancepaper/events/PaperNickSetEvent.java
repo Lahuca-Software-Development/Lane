@@ -13,7 +13,7 @@ public class PaperNickSetEvent extends PaperInstanceEvent<NickSetEvent> {
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperNickSetEvent(NickSetEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {
