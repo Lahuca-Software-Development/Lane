@@ -2,6 +2,7 @@ package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
 import com.lahuca.lane.data.*;
+import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
 import java.io.Closeable;
@@ -73,6 +74,39 @@ public class MySQLDataManager implements DataManager {
         return CompletableFuture.completedFuture(Optional.empty());
     }
 
+    private CompletableFuture<Optional<DataObject>> resultSetToDataObject(PermissionKey permissionKey, DataObjectId id, ResultSet resultSet) throws SQLException {
+        String readPermission = resultSet.getString("read_permission");
+        String writePermission = resultSet.getString("write_permission");
+        Timestamp lastUpdated = resultSet.getTimestamp("last_updated");
+        long removalTime = resultSet.getLong("removal_time");
+        int version = resultSet.getInt("version");
+        String typeString = resultSet.getString("type");
+        if(readPermission == null || writePermission == null || typeString == null) {
+            return empty();
+        }
+        try {
+            DataObjectType type = DataObjectType.valueOf(typeString);
+            String value = resultSet.getString("value");
+            if(value == null) return empty();
+            if(type == DataObjectType.STRING) {
+                value = gson.fromJson(value, String.class);
+            }
+            // Do permission logic and return correct value.
+            DataObject object = new DataObject(id, PermissionKey.fromString(readPermission),
+                    PermissionKey.fromString(writePermission), removalTime, version, type, value);
+            object.setLastUpdated(lastUpdated == null ? null : lastUpdated.getTime());
+            if(object.shouldRemove(startTime)) {
+                return removeDataObject(PermissionKey.CONTROLLER, id).thenApply(status -> Optional.empty());
+            }
+            boolean readAccess = object.hasReadAccess(permissionKey, true);
+            boolean writeAccess = object.hasWriteAccess(permissionKey, false);
+            object = object.shallowCopy(null, readAccess, writeAccess);
+            return CompletableFuture.completedFuture(Optional.of(object));
+        } catch(IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
     private CompletableFuture<Optional<DataObject>> readDataObject(PermissionKey permissionKey, DataObjectId id, boolean madeTable) {
         String tableName = getTableName(id);
         if(tableName == null || id.id() == null || id.id().isEmpty() || id.id().length() > 128)
@@ -91,36 +125,7 @@ public class MySQLDataManager implements DataManager {
             // Get result of query
             try(ResultSet resultSet = statement.executeQuery()) {
                 if(resultSet.next()) {
-                    String readPermission = resultSet.getString("read_permission");
-                    String writePermission = resultSet.getString("write_permission");
-                    Timestamp lastUpdated = resultSet.getTimestamp("last_updated");
-                    long removalTime = resultSet.getLong("removal_time");
-                    int version = resultSet.getInt("version");
-                    String typeString = resultSet.getString("type");
-                    if(readPermission == null || writePermission == null || typeString == null) {
-                        return empty();
-                    }
-                    try {
-                        DataObjectType type = DataObjectType.valueOf(typeString);
-                        String value = resultSet.getString("value");
-                        if(value == null) return empty();
-                        if(type == DataObjectType.STRING) {
-                            value = gson.fromJson(value, String.class);
-                        }
-                        // Do permission logic and return correct value.
-                        DataObject object = new DataObject(id, PermissionKey.fromString(readPermission),
-                                PermissionKey.fromString(writePermission), removalTime, version, type, value);
-                        object.setLastUpdated(lastUpdated == null ? null : lastUpdated.getTime());
-                        if(object.shouldRemove(startTime)) {
-                            return removeDataObject(PermissionKey.CONTROLLER, id).thenApply(status -> Optional.empty());
-                        }
-                        boolean readAccess = object.hasReadAccess(permissionKey, true);
-                        boolean writeAccess = object.hasWriteAccess(permissionKey, false);
-                        object = object.shallowCopy(null, readAccess, writeAccess);
-                        return CompletableFuture.completedFuture(Optional.of(object));
-                    } catch(IllegalArgumentException e) {
-                        return CompletableFuture.failedFuture(e);
-                    }
+                    return resultSetToDataObject(permissionKey, id, resultSet);
                 }
                 return empty();
             }
@@ -448,6 +453,80 @@ public class MySQLDataManager implements DataManager {
                     else ids.add(new DataObjectId(prefix.relationalId(), id));
                 }
                 return CompletableFuture.completedFuture(ids);
+            }
+        } catch(SQLException e) {
+            if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
+                return CompletableFuture.completedFuture(new ArrayList<>());
+            }
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Retrieves a list of DataObjects from the given table that match the version.
+     * This implementation on the MySQLDataManager improves upon the default implementation by requesting all data at once.
+     *
+     * @param prefix        the prefix ID. This cannot be null, its values can be null.
+     * @param permissionKey the permission key to use while reading and writing
+     * @param version       the version to match, null if no version is required
+     * @return a {@link CompletableFuture} with the array of DataObjects matching the version
+     */
+    @Override
+    public CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, Integer version) {
+        Objects.requireNonNull(prefix, "prefix cannot be null");
+        String tableName = getTableName(prefix);
+        if(tableName == null) {
+            return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
+        }
+        boolean idFalse = prefix.id() == null || prefix.id().isEmpty() || prefix.id().length() > 128;
+        try(Connection connection = dataSource.getConnection()) {
+            // Build select query
+            PreparedStatement statement;
+            if(prefix.isRelational()) {
+                if(prefix.relationalId().id() == null || prefix.relationalId().id().isEmpty()) {
+                    if(idFalse) {
+                        statement = connection.prepareStatement("SELECT * FROM " + tableName);
+                    } else {
+                        statement = connection.prepareStatement("SELECT * FROM " + tableName + " WHERE id LIKE ?");
+                        statement.setString(1, prefix.id() + "%");
+                    }
+                } else {
+                    statement = connection.prepareStatement("SELECT * FROM " + tableName + " WHERE relational_id = ? AND id LIKE ?");
+                    statement.setString(1, prefix.relationalId().id());
+                    statement.setString(2, prefix.id() + "%");
+                }
+            } else {
+                if(idFalse) {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName);
+                } else {
+                    statement = connection.prepareStatement("SELECT id FROM " + tableName + " WHERE id LIKE ?");
+                    statement.setString(1, prefix.id() + "%");
+                }
+            }
+            // Get result of query
+            try(ResultSet resultSet = statement.executeQuery()) {
+                ArrayList<CompletableFuture<?>> futures = new ArrayList<>();
+                ArrayList<DataObject> dataObjects = new ArrayList<>();
+                while(resultSet.next()) {
+                    String id = resultSet.getString("id");
+                    DataObjectId dataObjectId;
+                    if(prefix.isRelational()) dataObjectId = new DataObjectId(new RelationalId(prefix.relationalId().type(), resultSet.getString("relational_id")), id);
+                    else dataObjectId = new DataObjectId(prefix.relationalId(), id);
+                    CompletableFuture<Optional<DataObject>> mappedObjectFuture;
+                    try {
+                        mappedObjectFuture = resultSetToDataObject(permissionKey, dataObjectId, resultSet);
+                    } catch (SQLException e) {
+                        mappedObjectFuture = CompletableFuture.failedFuture(e);
+                    }
+                    futures.add(mappedObjectFuture.thenAccept(mappedObjectOpt -> mappedObjectOpt.ifPresent(dataObject -> {
+                        if (version != null) {
+                            if (dataObject.getVersion().isPresent() && !dataObject.getVersion().get().equals(version))
+                                return;
+                        }
+                        dataObjects.add(dataObject);
+                    })));
+                }
+                return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(val -> dataObjects);
             }
         } catch(SQLException e) {
             if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
