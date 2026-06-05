@@ -585,7 +585,7 @@ public class MySQLDataManager implements DataManager {
             for (DataOrder dataOrder : selector.order()) {
                 String path = dataOrder.path() == null ? "value" : "JSON_VALUE(value, '" + dataOrder.path() + "')";
                 String cast = switch (dataOrder.cast()) {
-                    case INTEGER, LONG, FLOAT, DOUBLE -> "DOUBLE";
+                    case INTEGER, LONG, FLOAT, DOUBLE, BOOLEAN -> "DOUBLE";
                     case DATE, TIME, TIMESTAMP -> "TIMESTAMP";
                     default -> null;
                 };

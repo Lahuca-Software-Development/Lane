@@ -7,7 +7,14 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 /**
- * Immutable selector for querying data. Use {@link #builder()} to create instances.
+ * Immutable selector for querying data. Use {@link #builder(DataObjectId)} to create instances.
+ * @param id tells whether the selector targets the singular table or a relational table,
+ *           and the provided relationalId and id are used according to their operations.
+ * @param relationalIdOperation tells how the relationalId is being used
+ * @param idOperation tells how the id is being used
+ * @param order the ordering of the data objects
+ * @param limit the maximum number of data objects to return
+ * @param offset the offset of the data objects to return
  */
 public record DataSelector(
         DataObjectId id,

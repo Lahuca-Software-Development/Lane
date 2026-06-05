@@ -282,6 +282,21 @@ public class FileDataManager implements DataManager {
                             }
                             yield Double.compare(casted1.doubleValue(), casted2.doubleValue());
                         }
+                        case BOOLEAN -> {
+                            Boolean casted1 = null;
+                            try {
+                                casted1 = (Boolean) value1;
+                            } catch (Exception e) {
+                                casted1 = false;
+                            }
+                            Boolean casted2 = null;
+                            try {
+                                casted2 = (Boolean) value2;
+                            } catch (Exception e) {
+                                casted2 = false;
+                            }
+                            yield Boolean.compare(casted1, casted2);
+                        }
                         default -> {
                             String casted1 = value1.toString();
                             String casted2 = value2.toString();
