@@ -43,8 +43,8 @@ public record DataSelector(
         return limit(limit).offset(offset);
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static Builder builder(DataObjectId id) {
+        return new Builder(id);
     }
 
     public static class Builder {
@@ -54,6 +54,10 @@ public record DataSelector(
         private DataOrder[] order;
         private Long limit;
         private Long offset;
+
+        public Builder(DataObjectId id) {
+            this.id = id;
+        }
 
         public Builder id(@NotNull DataObjectId id) {
             this.id = id;
