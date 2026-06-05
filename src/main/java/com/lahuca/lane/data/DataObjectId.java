@@ -16,6 +16,14 @@ public record DataObjectId(RelationalId relationalId, String id) {
         this(null, id);
     }
 
+    public DataObjectId() {
+        this(null, null);
+    }
+
+    public DataObjectId(RelationalId relationalId) {
+        this(relationalId, null);
+    }
+
     public boolean isRelational() {
         return relationalId != null && relationalId.type() != null && relationalId.id() != null;
     }

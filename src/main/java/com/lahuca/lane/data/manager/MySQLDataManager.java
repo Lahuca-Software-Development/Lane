@@ -2,6 +2,9 @@ package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
 import com.lahuca.lane.data.*;
+import com.lahuca.lane.data.selector.DataIdOperation;
+import com.lahuca.lane.data.selector.DataOrder;
+import com.lahuca.lane.data.selector.DataSelector;
 import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
@@ -525,6 +528,123 @@ public class MySQLDataManager implements DataManager {
                         }
                         dataObjects.add(dataObject);
                     })));
+                }
+                return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(val -> dataObjects);
+            }
+        } catch(SQLException e) {
+            if(e.getErrorCode() == 1051 || e.getErrorCode() == 1146) {
+                return CompletableFuture.completedFuture(new ArrayList<>());
+            }
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private String buildSelectQuery(@NotNull DataSelector selector) {
+        DataObjectId id = selector.getId();
+        String tableName = getTableName(id);
+        if(tableName == null) {
+            return null;
+        }
+        StringBuilder query = new StringBuilder("SELECT * FROM " + tableName);
+        ArrayList<String> where = new ArrayList<>();
+        // Build ID operations
+        if(id.isRelational()) {
+            // Relational ID operation
+            if(id.relationalId().id() != null && !id.relationalId().id().isEmpty() && selector.getRelationalIdOperation() != DataIdOperation.ANY) {
+                String clause = switch (selector.getRelationalIdOperation()) {
+                    case EXACT -> "relational_id = " + id.relationalId().id();
+                    case PREFIX -> "relational_id LIKE " + id.relationalId().id() + "%";
+                    default -> null;
+                };
+                if(clause != null) where.add(clause);
+            }
+        }
+        // ID operation
+        if(id.id() != null && !id.id().isEmpty() && selector.getIdOperation() != DataIdOperation.ANY) {
+            String clause = switch (selector.getIdOperation()) {
+                case EXACT -> "id = " + id.id();
+                case PREFIX -> "id LIKE " + id.id() + "%";
+                default -> null;
+            };
+            if(clause != null) where.add(clause);
+        }
+        // Append the operations to the query
+        if(!where.isEmpty()) {
+            query.append(" WHERE ");
+            boolean first = true;
+            for (String clause : where) {
+                if(!first) query.append(" AND ");
+                query.append(clause);
+                first = false;
+            }
+        }
+
+        // Order
+        ArrayList<String> order = new ArrayList<>();
+        if(selector.getOrder() != null) {
+            for (DataOrder dataOrder : selector.getOrder()) {
+                String path = dataOrder.path() == null ? "value" : "JSON_VALUE(value, '" + dataOrder.path() + "')";
+                String cast = switch (dataOrder.cast()) {
+                    case INTEGER, LONG, FLOAT, DOUBLE -> "DOUBLE";
+                    case DATE, TIME, TIMESTAMP -> "TIMESTAMP";
+                    default -> null;
+                };
+                String type = switch (dataOrder.type()) {
+                    case ASCENDING -> "ASC";
+                    case DESCENDING -> "DESC";
+                    default -> null;
+                };
+                String clause = cast == null ? path : "CAST(" + path + " AS " + cast + ")";
+                if(type != null) clause += " " + type;
+                order.add(clause);
+            }
+        }
+        if(!order.isEmpty()) {
+            query.append(" ORDER BY ");
+            boolean first = true;
+            for (String clause : order) {
+                if(!first) query.append(", ");
+                query.append(clause);
+                first = false;
+            }
+        }
+        if(selector.getLimit() != null) {
+            query.append(" LIMIT ");
+            query.append(selector.getLimit());
+        }
+        if(selector.getOffset() != null) {
+            query.append(" OFFSET ");
+            query.append(selector.getOffset());
+        }
+        return query.toString();
+    }
+
+    @Override
+    public CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
+        String tableName = getTableName(selector.getId());
+        if(tableName == null) {
+            return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
+        }
+        try(Connection connection = dataSource.getConnection()) {
+            // Build select query
+            PreparedStatement statement = connection.prepareStatement(buildSelectQuery(selector));
+            // Get result of query
+            try(ResultSet resultSet = statement.executeQuery()) {
+                ArrayList<CompletableFuture<?>> futures = new ArrayList<>();
+                ArrayList<DataObject> dataObjects = new ArrayList<>();
+                while(resultSet.next()) {
+                    String id = resultSet.getString("id");
+                    DataObjectId dataObjectId;
+                    if(selector.getId().isRelational()) dataObjectId = new DataObjectId(new RelationalId(selector.getId().relationalId().type(), resultSet.getString("relational_id")), id);
+                    else dataObjectId = new DataObjectId(selector.getId().relationalId(), id);
+                    CompletableFuture<Optional<DataObject>> mappedObjectFuture;
+                    try {
+                        mappedObjectFuture = resultSetToDataObject(permissionKey, dataObjectId, resultSet);
+                    } catch (SQLException e) {
+                        mappedObjectFuture = CompletableFuture.failedFuture(e);
+                    }
+                    futures.add(mappedObjectFuture.thenAccept(mappedObjectOpt ->
+                            mappedObjectOpt.ifPresent(dataObjects::add)));
                 }
                 return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(val -> dataObjects);
             }

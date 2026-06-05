@@ -59,7 +59,7 @@ The time the data object has lastly been updated is also saved: when it was crea
 
 For example, the locale of me (Laurenshup) is stored in the data object with rType PLAYERS, rID e8cfb5f7-3505-4bd5-b9c0-5ca9a6967daa & ID locale.
 
-<h2>Database structure</h4>
+<h2>Database structure</h2>
 Basically everything could be put in one table:
 - Relation type (null = singular)
 - Relation ID (null = singular)
@@ -69,3 +69,49 @@ Basically everything could be put in one table:
 - Removal date
 - Version
 - Contents
+
+<h2>Data Manager</h2>
+We have the following methods implemented:
+- readDataObject: reading
+- writeDataObject: writing
+- removeDataObject: removing
+- updateDataObject: read + optional write
+- listDataObjectIds: reads all data object ids at some prefix
+- listDataObjects: read all data objects at some prefix and version
+- copyDataObject: read and copy at another location
+
+<h3>Listing Multiple Data Objects</h3>
+We want the following to be possible:
+
+<h4>Relational table:</h4>
+lane_relational_profiles (RelationalID, ID).
+We want the following operations to be possible:
+- List all IDs given some relational ID
+- List the IDs with a shared prefix for some relational ID
+- List the IDs with a shared prefix
+- List all
+- List all relational IDs given some ID
+
+<h4>Singular table:</h4>
+lane_profiles (ID).
+We want the following operations to be possible:
+- List all
+- List with a shared prefix
+
+<h4>Sorting</h4>
+Sort on the value depending on the type.
+If the type is a number, sort on the CAST(value AS DOUBLE) value.
+If the type is a JSON, sort on the JSONPath value.
+Otherwise do the default lexicographical sort.
+
+<h4>Matching version</h4>
+Filter for the version of the data object.
+Either exact, min, max or minmax.
+
+<h4>Filter</h4>
+We can require certain values.
+This can be very dynamic and therefore very exhaustive.
+This would require adding AND, OR and NOT operators between the filters.
+A filter could be an exact match on the value or anything else.
+This could also work as JSONPath as well.
+This will be added later.

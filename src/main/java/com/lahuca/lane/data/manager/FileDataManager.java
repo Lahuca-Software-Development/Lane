@@ -5,11 +5,20 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
+import com.lahuca.lane.data.DataObjectType;
 import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.selector.DataIdOperation;
+import com.lahuca.lane.data.selector.DataOrder;
+import com.lahuca.lane.data.selector.DataOrderType;
+import com.lahuca.lane.data.selector.DataSelector;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Data Manager that uses the file system:
@@ -193,5 +202,105 @@ public class FileDataManager implements DataManager {
         }
         return CompletableFuture.completedFuture(ids);
     }
+
+    @Override
+    public CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
+        DataObjectId id = selector.getId();
+        ArrayList<File> folders = new ArrayList<>();
+        if(id.isRelational()) {
+            if(id.relationalId().id() != null && !id.relationalId().id().isEmpty()) {
+                File[] relationalFolders = new File(dataFolder, "relational" + File.separator + selector.getId().relationalId().type()).listFiles();
+                if(relationalFolders == null) return CompletableFuture.completedFuture(new ArrayList<>());
+                Function<String, Boolean> acceptFile = switch (selector.getRelationalIdOperation()) {
+                    case EXACT -> name -> name.equals(id.relationalId().id());
+                    case PREFIX -> name -> name.startsWith(id.relationalId().id());
+                    default -> name -> true;
+                };
+                for (File relationalFolder : relationalFolders) {
+                    if(acceptFile.apply(relationalFolder.getName())) folders.add(relationalFolder);
+                }
+            }
+        } else {
+            folders.add(new File(dataFolder, "singular"));
+        }
+        if(folders.isEmpty()) return CompletableFuture.completedFuture(new ArrayList<>());
+        ArrayList<DataObjectId> ids = new ArrayList<>();
+        for (File folder : folders) {
+            File[] files = folder.listFiles();
+            if(files == null) continue;
+            for (File file : files) {
+                String nameExtension = file.getName();
+                String name = nameExtension;
+                if (nameExtension.contains(".")) {
+                    name = name.substring(0, nameExtension.lastIndexOf("."));
+                }
+                Function<String, Boolean> acceptFile = switch (selector.getIdOperation()) {
+                    case EXACT -> current -> current.equals(id.relationalId().id());
+                    case PREFIX -> current -> current.startsWith(id.relationalId().id());
+                    default -> current -> true;
+                };
+                if(acceptFile.apply(name)) ids.add(new DataObjectId(id.relationalId(), name));
+            }
+        }
+        // We got the IDs, now read and sort
+        ArrayList<CompletableFuture<?>> futures = new ArrayList<>();
+        HashMap<DataObject, Object> unfiltered = new HashMap<>(); // Value is the value
+        for (DataObjectId dataObjectId : ids) {
+            futures.add(readDataObject(permissionKey, dataObjectId).thenAccept(opt -> opt.ifPresent(dataObject -> {
+                if(dataObject.getValue().isPresent()) unfiltered.put(dataObject, dataObject.getValue().get());
+            })));
+        }
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(val -> {
+            // We got the unfiltered data objects, try to sort them
+            if(selector.getOrder() == null || selector.getOrder().length == 0) {
+                return new ArrayList<>(unfiltered.keySet());
+            }
+            Comparator<Map.Entry<DataObject, Object>> comparator = null;
+            for (DataOrder dataOrder : selector.getOrder()) {
+                Comparator<Map.Entry<DataObject, Object>> current = (o1, o2) -> {
+                    Object value1 = o1.getValue();
+                    Object value2 = o2.getValue();
+                    if (dataOrder.path() != null) {
+                        throw new UnsupportedOperationException("JSONPath is not supported for file data manager due to the need of a JSONPath library.");
+                    }
+                    int multiplier = dataOrder.type() != null && dataOrder.type() == DataOrderType.DESCENDING ? -1 : 1;
+                    DataObjectType cast = dataOrder.cast();
+                    if (cast == null) cast = DataObjectType.DOUBLE;
+                    int comparison = switch (cast) {
+                        case INTEGER, LONG, FLOAT, DOUBLE -> {
+                            Number casted1 = null;
+                            try {
+                                casted1 = (Number) value1;
+                            } catch (Exception e) {
+                                casted1 = 0;
+                            }
+                            Number casted2 = null;
+                            try {
+                                casted2 = (Number) value2;
+                            } catch (Exception e) {
+                                casted2 = 0;
+                            }
+                            yield Double.compare(casted1.doubleValue(), casted2.doubleValue());
+                        }
+                        default -> {
+                            String casted1 = value1.toString();
+                            String casted2 = value2.toString();
+                            yield casted1.compareTo(casted2);
+                        }
+                    };
+                    return multiplier * comparison;
+                };
+                if (comparator == null) comparator = current;
+                else comparator = comparator.thenComparing(current);
+            }
+            // Run stream
+            Stream<Map.Entry<DataObject, Object>> stream = unfiltered.entrySet().stream();
+            if(comparator != null) stream = stream.sorted(comparator);
+            if(selector.getLimit() != null) stream = stream.limit(selector.getLimit());
+            if(selector.getOffset() != null) stream = stream.skip(selector.getOffset());
+            return stream.map(Map.Entry::getKey).collect(Collectors.toCollection(ArrayList::new));
+        });
+    }
+
 
 }

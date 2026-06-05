@@ -3,6 +3,7 @@ package com.lahuca.lane.data.manager;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
+import com.lahuca.lane.data.selector.DataSelector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -136,6 +137,14 @@ public interface DataManager {
             return writeDataObject(permissionKey, source.shallowCopy(targetId, true, true));
         });
     }
+
+    /**
+     * Selects data objects from the data manager based on the given selector.
+     * @param permissionKey the permission key to use while reading
+     * @param selector the selector to use
+     * @return a {@link CompletableFuture} with the array of found data objects
+     */
+    CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector);
 
     // TODO Order by, CompletableFuture<ArrayList<DataObject> readOrderBy(DataObjectId, DataSelector)
 
