@@ -11,6 +11,7 @@ import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
 import com.lahuca.lane.data.profile.ProfileData;
 import com.lahuca.lane.data.profile.ProfileType;
+import com.lahuca.lane.data.selector.DataSelector;
 import com.lahuca.lane.records.ProfileRecord;
 import org.jetbrains.annotations.NotNull;
 
@@ -90,7 +91,9 @@ public class InstanceDataManager {
      * </ul>
      * @param prefix the prefix ID. This cannot be null, its values can be null.
      * @return a {@link CompletableFuture} with the array of IDs with matching prefix
+     * @deprecated Please use {@link #selectDataObjects(PermissionKey, DataSelector)} instead as it allows for more options.
      */
+    @Deprecated(forRemoval = true)
     public @NotNull CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
         if(id() == null || prefix == null) return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<ArrayList<DataObjectId>>sendRequestPacket(requestId -> new DataObjectListIdsPacket(requestId, prefix), null).getResult();
@@ -103,7 +106,9 @@ public class InstanceDataManager {
      * @param permissionKey the permission key to use while reading and writing
      * @param version       the version to match, null if no version is required
      * @return a {@link CompletableFuture} with the array of DataObjects matching the version
+     * @deprecated Please use {@link #selectDataObjects(PermissionKey, DataSelector)} instead as it allows for more options.
      */
+    @Deprecated(forRemoval = true)
     public @NotNull CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, Integer version) {
         if(id() == null || prefix == null || permissionKey == null || !permissionKey.isFormattedCorrectly()) return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         return connection().<ArrayList<DataObject>>sendRequestPacket(requestId -> new DataObjectsListPacket(requestId, prefix, permissionKey, version), null).getResult();
@@ -122,6 +127,19 @@ public class InstanceDataManager {
             return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         }
         return connection().<Void>sendRequestPacket(requestId -> new DataObjectCopyPacket(requestId, permissionKey, sourceId, targetId), null).getResult();
+    }
+
+    /**
+     * Selects data objects from the data manager based on the given selector.
+     * @param permissionKey the permission key to use while reading
+     * @param selector the selector to use
+     * @return a {@link CompletableFuture} with the array of found data objects
+     */
+    CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
+        if (id() == null || permissionKey == null || !permissionKey.isFormattedCorrectly() || selector == null) {
+            return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
+        }
+        return connection().<ArrayList<DataObject>>sendRequestPacket(requestId -> new DataObjectsSelectPacket(requestId, permissionKey, selector), null).getResult();
     }
 
     /**

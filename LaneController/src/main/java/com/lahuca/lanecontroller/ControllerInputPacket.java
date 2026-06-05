@@ -380,6 +380,18 @@ public class ControllerInputPacket implements Consumer<InputPacket> {
                 });
             }
 
+            case DataObjectsSelectPacket packet -> {
+                dataManager.selectDataObjects(packet.permissionKey(), packet.selector())
+                        .whenComplete((object, ex) -> {
+                            if (ex != null) {
+                                // TODO Add more exceptions. To write and remove as well!
+                                getConnection().sendPacket(new DataObjectsResultPacket(packet.getRequestId(), new ResponseError(ex)), input.from());
+                            } else {
+                                getConnection().sendPacket(new DataObjectsResultPacket(packet.getRequestId(), object), input.from());
+                            }
+                        });
+            }
+
             case RequestInformationPacket.Player packet ->
                     getConnection().sendPacket(new RequestInformationPacket.PlayerResponse(packet.getRequestId(), null, getPlayer(packet.uuid()).map(ControllerPlayer::convertRecord).orElse(null)), input.from());
             case RequestInformationPacket.Players packet -> {
