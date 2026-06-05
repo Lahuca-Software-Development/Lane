@@ -10,6 +10,7 @@ import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.PermissionFailedException;
 import com.lahuca.lane.data.profile.ProfileData;
 import com.lahuca.lane.data.profile.ProfileType;
+import com.lahuca.lane.data.selector.DataSelector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -117,7 +118,9 @@ public class ControllerDataManager {
      *
      * @param prefix the prefix ID. This cannot be null, its values can be null.
      * @return a {@link CompletableFuture} with the array of IDs with matching prefix
+     * @deprecated Please use {@link #selectDataObjects(PermissionKey, DataSelector)} instead as it allows for more options.
      */
+    @Deprecated(forRemoval = true)
     public CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix) {
         return dataManager.listDataObjectIds(prefix);
     }
@@ -136,6 +139,16 @@ public class ControllerDataManager {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Permission key is not an individual permission key"));
         }
         return dataManager.copyDataObject(permissionKey, sourceId, targetId);
+    }
+
+    /**
+     * Selects data objects from the data manager based on the given selector.
+     * @param permissionKey the permission key to use while reading
+     * @param selector the selector to use
+     * @return a {@link CompletableFuture} with the array of found data objects
+     */
+    CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
+        return dataManager.selectDataObjects(permissionKey, selector);
     }
 
     /**
