@@ -540,7 +540,7 @@ public class MySQLDataManager implements DataManager {
     }
 
     private String buildSelectQuery(@NotNull DataSelector selector) {
-        DataObjectId id = selector.getId();
+        DataObjectId id = selector.id();
         String tableName = getTableName(id);
         if(tableName == null) {
             return null;
@@ -550,8 +550,8 @@ public class MySQLDataManager implements DataManager {
         // Build ID operations
         if(id.isRelational()) {
             // Relational ID operation
-            if(id.relationalId().id() != null && !id.relationalId().id().isEmpty() && selector.getRelationalIdOperation() != DataIdOperation.ANY) {
-                String clause = switch (selector.getRelationalIdOperation()) {
+            if(id.relationalId().id() != null && !id.relationalId().id().isEmpty() && selector.relationalIdOperation() != DataIdOperation.ANY) {
+                String clause = switch (selector.relationalIdOperation()) {
                     case EXACT -> "relational_id = " + id.relationalId().id();
                     case PREFIX -> "relational_id LIKE " + id.relationalId().id() + "%";
                     default -> null;
@@ -560,8 +560,8 @@ public class MySQLDataManager implements DataManager {
             }
         }
         // ID operation
-        if(id.id() != null && !id.id().isEmpty() && selector.getIdOperation() != DataIdOperation.ANY) {
-            String clause = switch (selector.getIdOperation()) {
+        if(id.id() != null && !id.id().isEmpty() && selector.idOperation() != DataIdOperation.ANY) {
+            String clause = switch (selector.idOperation()) {
                 case EXACT -> "id = " + id.id();
                 case PREFIX -> "id LIKE " + id.id() + "%";
                 default -> null;
@@ -581,8 +581,8 @@ public class MySQLDataManager implements DataManager {
 
         // Order
         ArrayList<String> order = new ArrayList<>();
-        if(selector.getOrder() != null) {
-            for (DataOrder dataOrder : selector.getOrder()) {
+        if(selector.order() != null) {
+            for (DataOrder dataOrder : selector.order()) {
                 String path = dataOrder.path() == null ? "value" : "JSON_VALUE(value, '" + dataOrder.path() + "')";
                 String cast = switch (dataOrder.cast()) {
                     case INTEGER, LONG, FLOAT, DOUBLE -> "DOUBLE";
@@ -608,20 +608,20 @@ public class MySQLDataManager implements DataManager {
                 first = false;
             }
         }
-        if(selector.getLimit() != null) {
+        if(selector.limit() != null) {
             query.append(" LIMIT ");
-            query.append(selector.getLimit());
+            query.append(selector.limit());
         }
-        if(selector.getOffset() != null) {
+        if(selector.offset() != null) {
             query.append(" OFFSET ");
-            query.append(selector.getOffset());
+            query.append(selector.offset());
         }
         return query.toString();
     }
 
     @Override
     public CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
-        String tableName = getTableName(selector.getId());
+        String tableName = getTableName(selector.id());
         if(tableName == null) {
             return CompletableFuture.completedFuture(new ArrayList<>()); // TODO Throw? OR Failed future?
         }
@@ -635,8 +635,8 @@ public class MySQLDataManager implements DataManager {
                 while(resultSet.next()) {
                     String id = resultSet.getString("id");
                     DataObjectId dataObjectId;
-                    if(selector.getId().isRelational()) dataObjectId = new DataObjectId(new RelationalId(selector.getId().relationalId().type(), resultSet.getString("relational_id")), id);
-                    else dataObjectId = new DataObjectId(selector.getId().relationalId(), id);
+                    if(selector.id().isRelational()) dataObjectId = new DataObjectId(new RelationalId(selector.id().relationalId().type(), resultSet.getString("relational_id")), id);
+                    else dataObjectId = new DataObjectId(selector.id().relationalId(), id);
                     CompletableFuture<Optional<DataObject>> mappedObjectFuture;
                     try {
                         mappedObjectFuture = resultSetToDataObject(permissionKey, dataObjectId, resultSet);

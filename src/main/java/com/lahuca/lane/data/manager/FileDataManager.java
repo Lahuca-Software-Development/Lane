@@ -205,13 +205,13 @@ public class FileDataManager implements DataManager {
 
     @Override
     public CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
-        DataObjectId id = selector.getId();
+        DataObjectId id = selector.id();
         ArrayList<File> folders = new ArrayList<>();
         if(id.isRelational()) {
             if(id.relationalId().id() != null && !id.relationalId().id().isEmpty()) {
-                File[] relationalFolders = new File(dataFolder, "relational" + File.separator + selector.getId().relationalId().type()).listFiles();
+                File[] relationalFolders = new File(dataFolder, "relational" + File.separator + selector.id().relationalId().type()).listFiles();
                 if(relationalFolders == null) return CompletableFuture.completedFuture(new ArrayList<>());
-                Function<String, Boolean> acceptFile = switch (selector.getRelationalIdOperation()) {
+                Function<String, Boolean> acceptFile = switch (selector.relationalIdOperation()) {
                     case EXACT -> name -> name.equals(id.relationalId().id());
                     case PREFIX -> name -> name.startsWith(id.relationalId().id());
                     default -> name -> true;
@@ -234,7 +234,7 @@ public class FileDataManager implements DataManager {
                 if (nameExtension.contains(".")) {
                     name = name.substring(0, nameExtension.lastIndexOf("."));
                 }
-                Function<String, Boolean> acceptFile = switch (selector.getIdOperation()) {
+                Function<String, Boolean> acceptFile = switch (selector.idOperation()) {
                     case EXACT -> current -> current.equals(id.relationalId().id());
                     case PREFIX -> current -> current.startsWith(id.relationalId().id());
                     default -> current -> true;
@@ -252,11 +252,11 @@ public class FileDataManager implements DataManager {
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(val -> {
             // We got the unfiltered data objects, try to sort them
-            if(selector.getOrder() == null || selector.getOrder().length == 0) {
+            if(selector.order() == null || selector.order().length == 0) {
                 return new ArrayList<>(unfiltered.keySet());
             }
             Comparator<Map.Entry<DataObject, Object>> comparator = null;
-            for (DataOrder dataOrder : selector.getOrder()) {
+            for (DataOrder dataOrder : selector.order()) {
                 Comparator<Map.Entry<DataObject, Object>> current = (o1, o2) -> {
                     Object value1 = o1.getValue();
                     Object value2 = o2.getValue();
@@ -296,8 +296,8 @@ public class FileDataManager implements DataManager {
             // Run stream
             Stream<Map.Entry<DataObject, Object>> stream = unfiltered.entrySet().stream();
             if(comparator != null) stream = stream.sorted(comparator);
-            if(selector.getLimit() != null) stream = stream.limit(selector.getLimit());
-            if(selector.getOffset() != null) stream = stream.skip(selector.getOffset());
+            if(selector.limit() != null) stream = stream.limit(selector.limit());
+            if(selector.offset() != null) stream = stream.skip(selector.offset());
             return stream.map(Map.Entry::getKey).collect(Collectors.toCollection(ArrayList::new));
         });
     }

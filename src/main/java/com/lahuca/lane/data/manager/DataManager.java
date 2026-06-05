@@ -90,7 +90,9 @@ public interface DataManager {
      *
      * @param prefix the prefix ID. This cannot be null, its values can be null.
      * @return a {@link CompletableFuture} with the array of IDs with matching prefix
+     * @deprecated Please use {@link #selectDataObjects(PermissionKey, DataSelector)} instead as it allows for more options.
      */
+    @Deprecated(forRemoval = true)
     CompletableFuture<ArrayList<DataObjectId>> listDataObjectIds(DataObjectId prefix);
 
     /**
@@ -100,7 +102,9 @@ public interface DataManager {
      * @param permissionKey the permission key to use while reading and writing
      * @param version       the version to match, null if no version is required
      * @return a {@link CompletableFuture} with the array of DataObjects matching the version
+     * @deprecated Please use {@link #selectDataObjects(PermissionKey, DataSelector)} instead as it allows for more options.
      */
+    @Deprecated(forRemoval = true)
     default CompletableFuture<ArrayList<DataObject>> listDataObjects(@NotNull DataObjectId prefix, PermissionKey permissionKey, Integer version) {
         Objects.requireNonNull(prefix, "prefix cannot be null");
         return listDataObjectIds(prefix).thenCompose(ids -> {
@@ -145,7 +149,5 @@ public interface DataManager {
      * @return a {@link CompletableFuture} with the array of found data objects
      */
     CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector);
-
-    // TODO Order by, CompletableFuture<ArrayList<DataObject> readOrderBy(DataObjectId, DataSelector)
 
 }
