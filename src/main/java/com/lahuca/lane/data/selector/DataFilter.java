@@ -32,6 +32,10 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
 
     }
 
+    static Selection Selection(String path, DataFilter filter) {
+        return new Selection(path, filter);
+    }
+
     /**
      * Determines the interface for our logical data filters.
      * Logical data filters combine data filters.
@@ -54,6 +58,10 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
 
     }
 
+    static And And(DataFilter... filters) {
+        return new And(filters);
+    }
+
     /**
      * Combines multiple data filters in an OR fashion.
      * @param filters the filters to combine
@@ -70,6 +78,10 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
 
     }
 
+    static Or Or(DataFilter... filters) {
+        return new Or(filters);
+    }
+
     /**
      * Negates a data filter.
      * @param filter the filter to negate
@@ -81,6 +93,10 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
             return !filter.filter(selection, object);
         }
 
+    }
+
+    static Not Not(DataFilter filter) {
+        return new Not(filter);
     }
 
     sealed interface DataFilterNumerical extends DataFilter permits Equals, LowerThan, LowerThanEquals, GreaterThan, GreaterThanEquals, Between {
@@ -110,10 +126,22 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
 
         @Override
         public boolean filter(String selection, Object object) {
-            // TODO Use selection!
+            // TODO Use selection! Probably we want a function that maps the selection
             return object instanceof Number number && number.doubleValue() == value.doubleValue();
         }
 
+    }
+
+    static Equals Equals(String path, Number value) {
+        return new Equals(path, value);
+    }
+
+    static Equals Equals(Number value) {
+        return new Equals(value);
+    }
+
+    static Equals Equals(boolean value) {
+        return new Equals(value);
     }
 
     /**
@@ -185,6 +213,14 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
 
     }
 
+    static LowerThan LowerThan(String path, Number value) {
+        return new LowerThan(path, value);
+    }
+
+    static LowerThan LowerThan(Number value) {
+        return new LowerThan(value);
+    }
+
     /**
      * Filters on the path: the value at the path must be lower than or equal the provided value.
      * @param path the JSON path to filter on, null for the value itself or the selection
@@ -201,6 +237,14 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
             return object instanceof Number number && number.doubleValue() <= value.doubleValue();
         }
 
+    }
+
+    static LowerThanEquals LowerThanEquals(String path, Number value) {
+        return new LowerThanEquals(path, value);
+    }
+
+    static LowerThanEquals LowerThanEquals(Number value) {
+        return new LowerThanEquals(value);
     }
 
     /**
@@ -221,6 +265,14 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
 
     }
 
+    static GreaterThan GreaterThan(String path, Number value) {
+        return new GreaterThan(path, value);
+    }
+
+    static GreaterThan GreaterThan(Number value) {
+        return new GreaterThan(value);
+    }
+
     /**
      * Filters on the path: the value at the path must be greater than or equal the provided value.
      * @param path the JSON path to filter on, null for the value itself or the selection
@@ -237,6 +289,14 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
             return object instanceof Number number && number.doubleValue() >= value.doubleValue();
         }
 
+    }
+
+    static GreaterThanEquals GreaterThanEquals(String path, Number value) {
+        return new GreaterThanEquals(path, value);
+    }
+
+    static GreaterThanEquals GreaterThanEquals(Number value) {
+        return new GreaterThanEquals(value);
     }
 
     /**
@@ -256,6 +316,14 @@ public sealed interface DataFilter permits DataFilter.Selection, DataFilter.Data
             return object instanceof Number number && lower.doubleValue() <= number.doubleValue() && number.doubleValue() <= upper.doubleValue();
         }
 
+    }
+
+    static Between Between(String path, Number lower, Number upper) {
+        return new Between(path, lower, upper);
+    }
+
+    static Between Between(Number lower, Number upper) {
+        return new Between(lower, upper);
     }
 
 }
