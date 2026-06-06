@@ -60,6 +60,7 @@ public interface Packet {
         Packet.registerPacket(DataObjectIdsResultPacket.packetId, DataObjectIdsResultPacket.class); //TODO keep it?
         Packet.registerPacket(DataObjectsResultPacket.packetId, DataObjectsResultPacket.class); //TODO keep it?
 		Packet.registerPacket(DataObjectResultPacket.packetId, DataObjectResultPacket.class);
+		Packet.registerPacket(DataObjectsSelectPacket.packetId, DataObjectsSelectPacket.class);
 		Packet.registerPacket(ProfileRecordResultPacket.packetId, ProfileRecordResultPacket.class);
 
 		Packet.registerPacket(QueueFinishedPacket.packetId, QueueFinishedPacket.class);
