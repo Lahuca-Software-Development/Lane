@@ -539,7 +539,7 @@ public class MySQLDataManager implements DataManager {
         }
     }
 
-    private String buildSelectQuery(@NotNull DataSelector selector) {
+    private PreparedStatement buildSelectQuery(@NotNull Connection connection, @NotNull DataSelector selector) throws SQLException {
         DataObjectId id = selector.id();
         String tableName = getTableName(id);
         if(tableName == null) {
@@ -547,13 +547,20 @@ public class MySQLDataManager implements DataManager {
         }
         StringBuilder query = new StringBuilder("SELECT * FROM " + tableName);
         ArrayList<String> where = new ArrayList<>();
+        ArrayList<String> parameters = new ArrayList<>();
         // Build ID operations
         if(id.isRelational()) {
             // Relational ID operation
             if(id.relationalId().id() != null && !id.relationalId().id().isEmpty() && selector.relationalIdOperation() != DataIdOperation.ANY) {
                 String clause = switch (selector.relationalIdOperation()) {
-                    case EXACT -> "relational_id = '" + id.relationalId().id() + "'";
-                    case PREFIX -> "relational_id LIKE '" + id.relationalId().id() + "%'";
+                    case EXACT -> {
+                        parameters.add(id.relationalId().id());
+                        yield "relational_id = ?";
+                    }
+                    case PREFIX -> {
+                        parameters.add(id.relationalId().id() + "%");
+                        yield "relational_id LIKE ?";
+                    }
                     default -> null;
                 };
                 if(clause != null) where.add(clause);
@@ -562,8 +569,14 @@ public class MySQLDataManager implements DataManager {
         // ID operation
         if(id.id() != null && !id.id().isEmpty() && selector.idOperation() != DataIdOperation.ANY) {
             String clause = switch (selector.idOperation()) {
-                case EXACT -> "id = '" + id.id() + "'";
-                case PREFIX -> "id LIKE '" + id.id() + "%'";
+                case EXACT -> {
+                    parameters.add(id.id());
+                    yield "id = ?";
+                }
+                case PREFIX -> {
+                    parameters.add(id.id() + "%");
+                    yield "id LIKE ?";
+                }
                 default -> null;
             };
             if(clause != null) where.add(clause);
@@ -616,7 +629,11 @@ public class MySQLDataManager implements DataManager {
             query.append(" OFFSET ");
             query.append(selector.offset());
         }
-        return query.toString();
+        PreparedStatement statement = connection.prepareStatement(query.toString());
+        for (int i = 1; i <= parameters.size(); i++) {
+            statement.setObject(i, parameters.get(i));
+        }
+        return statement;
     }
 
     @Override
@@ -627,7 +644,10 @@ public class MySQLDataManager implements DataManager {
         }
         try(Connection connection = dataSource.getConnection()) {
             // Build select query
-            PreparedStatement statement = connection.prepareStatement(buildSelectQuery(selector));
+            PreparedStatement statement = buildSelectQuery(connection, selector);
+            if(statement == null) {
+                return CompletableFuture.completedFuture(new ArrayList<>());
+            }
             // Get result of query
             try(ResultSet resultSet = statement.executeQuery()) {
                 ArrayList<CompletableFuture<?>> futures = new ArrayList<>();
