@@ -115,3 +115,20 @@ This would require adding AND, OR and NOT operators between the filters.
 A filter could be an exact match on the value or anything else.
 This could also work as JSONPath as well.
 This will be added later.
+
+<h4>Filters</h4>
+We need these:
+
+- int < num
+- int > num
+- int = num
+
+Optional:
+- Optional: int in [interval]
+- String.startsWith
+- String.equals
+- String.contains
+- String.endsWith
+
+<h5>Implementation</h5>
+Records: BoolAnd(Filter.LowerThan("$.statistics.deaths", 5), Filter.GreaterThan("$.statistics.coins", 10))

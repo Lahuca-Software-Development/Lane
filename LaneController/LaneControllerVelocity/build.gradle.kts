@@ -25,6 +25,7 @@ dependencies {
     api(project(":LaneController"))
     implementation("com.zaxxer:HikariCP:6.3.0")
     implementation("com.mysql:mysql-connector-j:9.2.0")
+    implementation("com.google.code.gson:gson-extras:2.13.2-rc1")
 }
 
 tasks.test {
@@ -42,5 +43,6 @@ tasks.shadowJar {
         include(dependency(":LaneController"))
         include(dependency("com.zaxxer:HikariCP:6.3.0"))
         include(dependency("com.mysql:mysql-connector-j:9.2.0"))
+        include(dependency("com.google.code.gson:gson-extras:2.13.2-rc1"))
     }
 }

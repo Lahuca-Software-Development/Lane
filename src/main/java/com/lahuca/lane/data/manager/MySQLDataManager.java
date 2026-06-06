@@ -2,6 +2,7 @@ package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
 import com.lahuca.lane.data.*;
+import com.lahuca.lane.data.selector.DataFilter;
 import com.lahuca.lane.data.selector.DataIdOperation;
 import com.lahuca.lane.data.selector.DataOrder;
 import com.lahuca.lane.data.selector.DataSelector;
@@ -11,10 +12,7 @@ import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -539,6 +537,87 @@ public class MySQLDataManager implements DataManager {
         }
     }
 
+    private record SelectFilterQuery(String query, ArrayList<Object> parameters) {
+
+        private SelectFilterQuery(String query, Object... parameters) {
+            this(query, new ArrayList<>(List.of(parameters)));
+        }
+
+    }
+
+    /**
+     * Constructs the select filter query.
+     * Recursively builds the query.
+     * @param selection the selection path that is being used whenever path is equal to null.
+     * @param filter the filter to access now
+     * @param versionFilter whether we are building the query for the version filter
+     * @return the query and its parameters
+     */
+    private SelectFilterQuery buildSelectFilterQuery(String selection, DataFilter filter, boolean versionFilter) {
+        switch (filter) {
+            case DataFilter.Selection(String path, DataFilter child) -> {
+                return buildSelectFilterQuery(path, child, versionFilter);
+            }
+            case DataFilter.DataFilterLogical logical -> {
+                switch (logical) {
+                    case DataFilter.And(DataFilter[] filters) -> {
+                        StringJoiner query = new StringJoiner(") AND (", "(", ")");
+                        ArrayList<Object> parameters = new ArrayList<>();
+                        for (DataFilter dataFilter : filters) {
+                            SelectFilterQuery subQuery = buildSelectFilterQuery(selection, dataFilter, versionFilter);
+                            query.add(subQuery.query());
+                            parameters.addAll(subQuery.parameters());
+                        }
+                        return new SelectFilterQuery(query.toString(), parameters);
+                    }
+                    case DataFilter.Or(DataFilter[] filters) -> {
+                        StringJoiner query = new StringJoiner(") OR (", "(", ")");
+                        ArrayList<Object> parameters = new ArrayList<>();
+                        for (DataFilter dataFilter : filters) {
+                            SelectFilterQuery subQuery = buildSelectFilterQuery(selection, dataFilter, versionFilter);
+                            query.add(subQuery.query());
+                            parameters.addAll(subQuery.parameters());
+                        }
+                        return new SelectFilterQuery(query.toString(), parameters);
+                    }
+                    case DataFilter.Not(DataFilter child) -> {
+                        SelectFilterQuery subQuery = buildSelectFilterQuery(selection, child, versionFilter);
+                        return new SelectFilterQuery("NOT (" + subQuery.query() + ")", subQuery.parameters());
+                    }
+                }
+            }
+            case DataFilter.DataFilterNumerical numerical -> {
+                String path;
+                if(versionFilter) path = "version";
+                else if(numerical.path() == null && selection == null) path = "value";
+                else {
+                    String jsonPath = numerical.path() == null ? selection : numerical.path();
+                    path = "JSON_VALUE(value, '" + jsonPath + "')";
+                }
+                switch (numerical) {
+                    case DataFilter.Equals(var ignored, Number value) -> {
+                        return new SelectFilterQuery(path + " = ?", value);
+                    }
+                    case DataFilter.LowerThan(var ignored, Number value) -> {
+                        return new SelectFilterQuery(path + " < ?", value);
+                    }
+                    case DataFilter.LowerThanEquals(var ignored, Number value) -> {
+                        return new SelectFilterQuery(path + " <= ?", value);
+                    }
+                    case DataFilter.GreaterThan(var ignored, Number value) -> {
+                        return new SelectFilterQuery(path + " > ?", value);
+                    }
+                    case DataFilter.GreaterThanEquals(var ignored, Number value) -> {
+                        return new SelectFilterQuery(path + " >= ?", value);
+                    }
+                    case DataFilter.Between(var ignored, Number lower, Number upper) -> {
+                        return new SelectFilterQuery(path + " BETWEEN ? AND ?", lower, upper);
+                    }
+                }
+            }
+        }
+    }
+
     private PreparedStatement buildSelectQuery(@NotNull Connection connection, @NotNull DataSelector selector) throws SQLException {
         DataObjectId id = selector.id();
         String tableName = getTableName(id);
@@ -547,7 +626,7 @@ public class MySQLDataManager implements DataManager {
         }
         StringBuilder query = new StringBuilder("SELECT * FROM " + tableName);
         ArrayList<String> where = new ArrayList<>();
-        ArrayList<String> parameters = new ArrayList<>();
+        ArrayList<Object> parameters = new ArrayList<>();
         // Build ID operations
         if(id.isRelational()) {
             // Relational ID operation
@@ -581,15 +660,30 @@ public class MySQLDataManager implements DataManager {
             };
             if(clause != null) where.add(clause);
         }
+        // Add version filter and normal filter clauses
+        DataFilter versionFilter = selector.versionFilter();
+        if(versionFilter != null) {
+            SelectFilterQuery filterQuery = buildSelectFilterQuery(null, versionFilter, true);
+            where.add(filterQuery.query());
+            parameters.addAll(filterQuery.parameters());
+        }
+        DataFilter filter = selector.filter();
+        if(filter != null) {
+            SelectFilterQuery filterQuery = buildSelectFilterQuery(null, filter, false);
+            where.add(filterQuery.query());
+            parameters.addAll(filterQuery.parameters());
+        }
+
         // Append the operations to the query
         if(!where.isEmpty()) {
-            query.append(" WHERE ");
+            query.append(" WHERE (");
             boolean first = true;
             for (String clause : where) {
-                if(!first) query.append(" AND ");
+                if(!first) query.append(") AND (");
                 query.append(clause);
                 first = false;
             }
+            query.append(")");
         }
 
         // Order

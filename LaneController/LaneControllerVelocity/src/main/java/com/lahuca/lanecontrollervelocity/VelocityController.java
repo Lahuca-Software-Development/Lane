@@ -16,6 +16,7 @@
 package com.lahuca.lanecontrollervelocity;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.inject.Inject;
 import com.lahuca.lane.LanePlayerState;
 import com.lahuca.lane.LaneStateProperty;
@@ -28,6 +29,7 @@ import com.lahuca.lane.connection.socket.server.ServerSocketConnection;
 import com.lahuca.lane.data.manager.DataManager;
 import com.lahuca.lane.data.manager.FileDataManager;
 import com.lahuca.lane.data.manager.MySQLDataManager;
+import com.lahuca.lane.data.selector.DataFilter;
 import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.lane.queue.*;
 import com.lahuca.lanecontroller.Controller;
@@ -96,7 +98,12 @@ public class VelocityController {
     private static VelocityController instance;
 
     public static final int port = 7766;
-    public static final Gson gson = GsonComponentSerializer.builder().editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false)).build().serializer();
+    public static final Gson gson = GsonComponentSerializer.builder()
+            .editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false))
+            .build().populator().apply(
+                    new GsonBuilder()
+                            .disableHtmlEscaping() // to be consistent with vanilla
+            ).registerTypeAdapterFactory(DataFilter.FACTORY).create();
     public static final boolean useSSL = false;
 
     private final ProxyServer server;

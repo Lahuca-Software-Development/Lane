@@ -12,6 +12,8 @@ import java.util.Objects;
  *           and the provided relationalId and id are used according to their operations.
  * @param relationalIdOperation tells how the relationalId is being used
  * @param idOperation tells how the id is being used
+ * @param versionFilter the version filter, the path will always be set to the value
+ * @param filter the filter, the path defaults to the value
  * @param order the ordering of the data objects
  * @param limit the maximum number of data objects to return
  * @param offset the offset of the data objects to return
@@ -20,6 +22,8 @@ public record DataSelector(
         DataObjectId id,
         DataIdOperation relationalIdOperation,
         DataIdOperation idOperation,
+        DataFilter versionFilter,
+        DataFilter filter,
         DataOrder[] order,
         Long limit,
         Long offset) {
@@ -34,16 +38,24 @@ public record DataSelector(
         idOperation = Objects.requireNonNullElse(idOperation, DataIdOperation.ANY);
     }
 
+    public DataSelector versionFilter(DataFilter versionFilter) {
+        return new DataSelector(id, relationalIdOperation, idOperation, versionFilter, filter, order, limit, offset);
+    }
+
+    public DataSelector filter(DataFilter filter) {
+        return new DataSelector(id, relationalIdOperation, idOperation, versionFilter, filter, order, limit, offset);
+    }
+
     public DataSelector order(DataOrder... order) {
-        return new DataSelector(id, relationalIdOperation, idOperation, order, limit, offset);
+        return new DataSelector(id, relationalIdOperation, idOperation, versionFilter, filter, order, limit, offset);
     }
 
     public DataSelector limit(Long limit) {
-        return new DataSelector(id, relationalIdOperation, idOperation, this.order, limit, offset);
+        return new DataSelector(id, relationalIdOperation, idOperation, versionFilter, filter, this.order, limit, offset);
     }
 
     public DataSelector offset(Long offset) {
-        return new DataSelector(id, relationalIdOperation, idOperation, this.order, limit, offset);
+        return new DataSelector(id, relationalIdOperation, idOperation, versionFilter, filter, this.order, limit, offset);
     }
 
     public DataSelector limitOffset(Long limit, Long offset) {
@@ -58,6 +70,8 @@ public record DataSelector(
         private DataObjectId id;
         private DataIdOperation relationalIdOperation;
         private DataIdOperation idOperation;
+        private DataFilter versionFilter;
+        private DataFilter filter;
         private DataOrder[] order;
         private Long limit;
         private Long offset;
@@ -78,6 +92,16 @@ public record DataSelector(
 
         public Builder idOperation(@NotNull DataIdOperation idOperation) {
             this.idOperation = idOperation;
+            return this;
+        }
+
+        public Builder versionFilter(@NotNull DataFilter versionFilter) {
+            this.versionFilter = versionFilter;
+            return this;
+        }
+
+        public Builder filter(@NotNull DataFilter filter) {
+            this.filter = filter;
             return this;
         }
 
@@ -107,6 +131,8 @@ public record DataSelector(
                     Objects.requireNonNullElse(this.id, new DataObjectId()),
                     Objects.requireNonNullElse(this.relationalIdOperation, DataIdOperation.ANY),
                     Objects.requireNonNullElse(this.idOperation, DataIdOperation.ANY),
+                    this.versionFilter,
+                    this.filter,
                     this.order,
                     this.limit,
                     this.offset

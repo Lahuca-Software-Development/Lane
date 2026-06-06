@@ -16,10 +16,12 @@
 package com.lahuca.laneinstancepaper;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.lahuca.lane.ReconnectConnection;
 import com.lahuca.lane.connection.socket.client.ClientSocketConnection;
 import com.lahuca.lane.data.ordered.OrderedData;
 import com.lahuca.lane.data.ordered.OrderedDataComponents;
+import com.lahuca.lane.data.selector.DataFilter;
 import com.lahuca.lane.events.LaneEvent;
 import com.lahuca.laneinstance.InstanceInstantiationException;
 import com.lahuca.laneinstance.LaneInstance;
@@ -64,7 +66,12 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
 //    public static final String id = "survival";
 //    public static final String ip = "mc.slux.cz";
 //    public static final int port = 776;
-    public static final Gson gson = GsonComponentSerializer.builder().editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false)).build().serializer();
+    public static final Gson gson = GsonComponentSerializer.builder()
+            .editOptions(b -> b.value(JSONOptions.EMIT_HOVER_SHOW_ENTITY_ID_AS_INT_ARRAY, false))
+            .build().populator().apply(
+                    new GsonBuilder()
+                            .disableHtmlEscaping() // to be consistent with vanilla
+            ).registerTypeAdapterFactory(DataFilter.FACTORY).create();
     private static final Logger log = LoggerFactory.getLogger(LaneInstancePaper.class);
 //    public static final boolean joinable = true;
 //    public static final boolean nonPlayable = false;

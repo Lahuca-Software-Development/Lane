@@ -242,19 +242,32 @@ public class FileDataManager implements DataManager {
                 if(acceptFile.apply(name)) ids.add(new DataObjectId(id.relationalId(), name));
             }
         }
-        // We got the IDs, now read and sort
+        // We got the IDs, now read, filter and sort
         ArrayList<CompletableFuture<?>> futures = new ArrayList<>();
-        HashMap<DataObject, Object> unfiltered = new HashMap<>(); // Value is the value
+        HashMap<DataObject, Object> unsorted = new HashMap<>(); // Value is the value
         for (DataObjectId dataObjectId : ids) {
             futures.add(readDataObject(permissionKey, dataObjectId).thenAccept(opt -> opt.ifPresent(dataObject -> {
-                if(dataObject.getValue().isPresent()) unfiltered.put(dataObject, dataObject.getValue().get());
+                if(dataObject.getValue().isPresent()) {
+                    // We got a value, so we are legit
+                    if(selector.versionFilter() != null) {
+                        // We need to filter on version
+                        if(dataObject.getVersion().isEmpty() || !selector.versionFilter().filter(null, dataObject.getVersion().get())) {
+                            // We do not have a version, or we do not match the filter.
+                            return;
+                        }
+                    }
+                    if(selector.filter() != null) {
+                        if(!selector.filter().filter(null, dataObject)) {
+                            // We got a filter but it does not match the object.
+                            return;
+                        }
+                    }
+                    unsorted.put(dataObject, dataObject.getValue().get());
+                }
             })));
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(val -> {
-            // We got the unfiltered data objects, try to sort them
-            if(selector.order() == null || selector.order().length == 0) {
-                return new ArrayList<>(unfiltered.keySet());
-            }
+            // We got the unsorted data objects, try to sort them
             Comparator<Map.Entry<DataObject, Object>> comparator = null;
             for (DataOrder dataOrder : selector.order()) {
                 Comparator<Map.Entry<DataObject, Object>> current = (o1, o2) -> {
@@ -309,7 +322,7 @@ public class FileDataManager implements DataManager {
                 else comparator = comparator.thenComparing(current);
             }
             // Run stream
-            Stream<Map.Entry<DataObject, Object>> stream = unfiltered.entrySet().stream();
+            Stream<Map.Entry<DataObject, Object>> stream = unsorted.entrySet().stream();
             if(comparator != null) stream = stream.sorted(comparator);
             if(selector.limit() != null) stream = stream.limit(selector.limit());
             if(selector.offset() != null) stream = stream.skip(selector.offset());

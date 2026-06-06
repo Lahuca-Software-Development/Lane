@@ -18,7 +18,8 @@ repositories {
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    compileOnly("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.google.code.gson:gson-extras:2.13.2-rc1")
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     api(project(":"))
     api(project(":LaneInstance"))
@@ -39,5 +40,6 @@ tasks.shadowJar {
         include(dependency(":"))
         include(dependency(":LaneInstance"))
         include(dependency("com.github.ben-manes.caffeine:caffeine:3.2.0"))
+        include(dependency("com.google.code.gson:gson-extras:2.13.2-rc1"))
     }
 }

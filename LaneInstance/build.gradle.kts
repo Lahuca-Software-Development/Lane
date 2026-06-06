@@ -13,7 +13,8 @@ repositories {
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    compileOnly("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.google.code.gson:gson-extras:2.13.2-rc1")
     api(project(":"))
     compileOnly("net.kyori:adventure-api:4.19.0")
     compileOnly("net.kyori:adventure-text-serializer-gson:4.19.0")
