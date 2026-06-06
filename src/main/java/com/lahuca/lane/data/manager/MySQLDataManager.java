@@ -552,8 +552,8 @@ public class MySQLDataManager implements DataManager {
             // Relational ID operation
             if(id.relationalId().id() != null && !id.relationalId().id().isEmpty() && selector.relationalIdOperation() != DataIdOperation.ANY) {
                 String clause = switch (selector.relationalIdOperation()) {
-                    case EXACT -> "relational_id = " + id.relationalId().id();
-                    case PREFIX -> "relational_id LIKE " + id.relationalId().id() + "%";
+                    case EXACT -> "relational_id = '" + id.relationalId().id() + "'";
+                    case PREFIX -> "relational_id LIKE '" + id.relationalId().id() + "%'";
                     default -> null;
                 };
                 if(clause != null) where.add(clause);
@@ -562,8 +562,8 @@ public class MySQLDataManager implements DataManager {
         // ID operation
         if(id.id() != null && !id.id().isEmpty() && selector.idOperation() != DataIdOperation.ANY) {
             String clause = switch (selector.idOperation()) {
-                case EXACT -> "id = " + id.id();
-                case PREFIX -> "id LIKE " + id.id() + "%";
+                case EXACT -> "id = '" + id.id() + "'";
+                case PREFIX -> "id LIKE '" + id.id() + "%'";
                 default -> null;
             };
             if(clause != null) where.add(clause);
