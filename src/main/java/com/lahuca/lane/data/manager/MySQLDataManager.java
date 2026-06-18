@@ -725,7 +725,7 @@ public class MySQLDataManager implements DataManager {
         }
         PreparedStatement statement = connection.prepareStatement(query.toString());
         for (int i = 1; i <= parameters.size(); i++) {
-            statement.setObject(i, parameters.get(i));
+            statement.setObject(i, parameters.get(i - 1));
         }
         return statement;
     }

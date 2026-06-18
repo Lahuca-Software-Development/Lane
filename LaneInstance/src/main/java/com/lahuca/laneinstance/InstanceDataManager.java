@@ -4,8 +4,6 @@ import com.lahuca.lane.connection.Connection;
 import com.lahuca.lane.connection.packet.ProfilePacket;
 import com.lahuca.lane.connection.packet.data.*;
 import com.lahuca.lane.connection.request.ResponseError;
-import com.lahuca.lane.connection.request.ResponsePacket;
-import com.lahuca.lane.connection.request.ResponseErrorException;
 import com.lahuca.lane.data.DataObject;
 import com.lahuca.lane.data.DataObjectId;
 import com.lahuca.lane.data.PermissionKey;
@@ -135,7 +133,7 @@ public class InstanceDataManager {
      * @param selector the selector to use
      * @return a {@link CompletableFuture} with the array of found data objects
      */
-    CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
+    public CompletableFuture<ArrayList<DataObject>> selectDataObjects(@NotNull PermissionKey permissionKey, @NotNull DataSelector selector) {
         if (id() == null || permissionKey == null || !permissionKey.isFormattedCorrectly() || selector == null) {
             return ResponseError.ILLEGAL_ARGUMENT.failedFuture();
         }
