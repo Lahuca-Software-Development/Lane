@@ -1,6 +1,7 @@
 package com.lahuca.lane.data.manager;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.LazilyParsedNumber;
 import com.lahuca.lane.data.*;
 import com.lahuca.lane.data.selector.DataFilter;
 import com.lahuca.lane.data.selector.DataIdOperation;
@@ -11,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -725,7 +727,11 @@ public class MySQLDataManager implements DataManager {
         }
         PreparedStatement statement = connection.prepareStatement(query.toString());
         for (int i = 1; i <= parameters.size(); i++) {
-            statement.setObject(i, parameters.get(i - 1));
+            Object obj = parameters.get(i - 1);
+            if (obj instanceof LazilyParsedNumber lpn) {
+                obj = new BigDecimal(lpn.toString());
+            }
+            statement.setObject(i, obj);
         }
         return statement;
     }
