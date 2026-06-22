@@ -9,7 +9,7 @@ import java.util.UUID;
  * @date 19.03.2024
  **/
 
-public record PartyRecord(long partyId, UUID owner, HashSet<UUID> players, boolean invitationsOnly,
+public record PartyRecord(long partyId, UUID owner, HashSet<UUID> players, boolean invitationsOnly, Integer playerLimit,
                           long creationTimestamp, Set<UUID> unmodifiableInvitations) {
 
 }

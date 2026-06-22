@@ -27,6 +27,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
     private UUID owner;
     private final HashSet<UUID> players = new HashSet<>();
     private boolean invitationsOnly = true;
+    private Integer playerLimit = null;
 
     private final Cache<@NotNull UUID, String> invitations;
     private final long creationTimestamp;
@@ -100,9 +101,30 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
     public void setInvitationsOnly(boolean invitationsOnly) {
         boolean old = this.invitationsOnly;
         this.invitationsOnly = invitationsOnly;
-        if(old != invitationsOnly) {
+        if (old != invitationsOnly) {
             Controller.getInstance().handleControllerEvent(new PartySetInvitationsOnlyEvent(this, invitationsOnly));
             Controller.getInstance().getConnection().sendPacket(getReplicatedSubscribers(), new PartyPacket.Event.SetInvitationsOnly(partyId, invitationsOnly, convertRecord()));
+        }
+    }
+
+    @Override
+    public Integer getPlayerLimit() {
+        return playerLimit;
+    }
+
+    /**
+     * Sets the player limit of this party.
+     * The limit determines how many players can join this party.
+     *
+     * @param playerLimit the player limit (positive, greater than one), null if no limit is present
+     */
+    public void setPlayerLimit(Integer playerLimit) {
+        if (playerLimit != null && playerLimit < 2) throw new IllegalArgumentException("playerLimit must be greater than one");
+        Integer old = this.playerLimit;
+        this.playerLimit = playerLimit;
+        if (!Objects.equals(old, playerLimit)) {
+            Controller.getInstance().handleControllerEvent(new PartySetPlayerLimitEvent(this, playerLimit));
+            Controller.getInstance().getConnection().sendPacket(getReplicatedSubscribers(), new PartyPacket.Event.SetPlayerLimit(partyId, playerLimit, convertRecord()));
         }
     }
 
@@ -118,7 +140,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
 
     @Override
     public PartyRecord convertRecord() {
-        return new PartyRecord(partyId, owner, players, invitationsOnly, creationTimestamp, getUnmodifiableInvitations());
+        return new PartyRecord(partyId, owner, players, invitationsOnly, playerLimit, creationTimestamp, getUnmodifiableInvitations());
     }
 
     @Override
@@ -128,6 +150,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
                 .add("owner=" + owner)
                 .add("players=" + players)
                 .add("invitationsOnly=" + invitationsOnly)
+                .add("playerLimit=" + playerLimit)
                 .add("invitations=" + invitations)
                 .add("creationTimestamp=" + creationTimestamp)
                 .add("replicatedSubscribers=" + replicatedSubscribers)
@@ -170,7 +193,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
 
     /**
      * Invites the given player to this party.
-     * This only works when the party is in invitation-only mode, and they have not yet received an invitation to this party.
+     * This only works when the party is in invitation-only mode, they have not yet received an invitation to this party, and the party is not full.
      *
      * @param player the player
      * @return {@code true} if the player was invited, otherwise {@code false}
@@ -179,7 +202,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
     public boolean addInvitation(ControllerPlayer player) {
         if (player == null)
             throw new IllegalArgumentException("player is null"); // TODO Check this in the whole codebase!
-        if (!isInvitationsOnly() || hasInvitation(player) || containsPlayer(player)) return false;
+        if (!isInvitationsOnly() || hasInvitation(player) || containsPlayer(player) || isFull()) return false;
         invitations.put(player.getUuid(), player.getUsername());
         Controller.getInstance().handleControllerEvent(new PartyAddInvitationEvent(this, player));
         Controller.getInstance().getConnection().sendPacket(getReplicatedSubscribers(), new PartyPacket.Event.AddInvitation(partyId, player.getUuid(), convertRecord()));
@@ -188,7 +211,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
 
     /**
      * Accepts the invitation of the given player.
-     * This only works when the party is in invitation-only mode, and they have received an invitation.
+     * This only works when the party is in invitation-only mode, they have received an invitation, and the party is not full.
      * The given player should not be in another party.
      *
      * @param player the player
@@ -197,7 +220,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
      */
     public boolean acceptInvitation(ControllerPlayer player) {
         if (player == null) throw new IllegalArgumentException("player is null");
-        if (!isInvitationsOnly() || !hasInvitation(player) || containsPlayer(player)) return false;
+        if (!isInvitationsOnly() || !hasInvitation(player) || containsPlayer(player) || isFull()) return false;
         if (player.getParty().isPresent()) return false;
         invitations.invalidate(player.getUuid());
         players.add(player.getUuid());
@@ -227,7 +250,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
 
     /**
      * Joins the party for the given player.
-     * This only works when the party is not in invitation-only mode, i.e., everyone can join freely.
+     * This only works when the party is not in invitation-only mode, i.e. everyone can join freely and the party is not full.
      * The given player should not be in another party.
      *
      * @param player the player
@@ -236,7 +259,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
      */
     public boolean joinPlayer(ControllerPlayer player) {
         if (player == null) throw new IllegalArgumentException("player is null");
-        if (isInvitationsOnly() || containsPlayer(player)) return false;
+        if (isInvitationsOnly() || containsPlayer(player) || isFull()) return false;
         if (player.getParty().isPresent()) return false;
         players.add(player.getUuid());
         player.setPartyId(partyId);
@@ -267,7 +290,7 @@ public class ControllerParty implements LaneParty, AuthoritativeObject<Long, Par
         }
         players.remove(player.getUuid());
         player.setPartyId(null);
-        if(!clearSoloParty()) {
+        if (!clearSoloParty()) {
             Controller.getInstance().handleControllerEvent(new PartyRemovePlayerEvent(this, player));
             Controller.getInstance().getConnection().sendPacket(getReplicatedSubscribers(), new PartyPacket.Event.RemovePlayer(partyId, player.getUuid(), convertRecord()));
         }

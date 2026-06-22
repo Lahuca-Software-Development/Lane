@@ -26,6 +26,7 @@ public interface PartyPacket {
         Packet.registerPacket(Event.JoinPlayer.packetId, Event.JoinPlayer.class);
         Packet.registerPacket(Event.RemovePlayer.packetId, Event.RemovePlayer.class);
         Packet.registerPacket(Event.SetInvitationsOnly.packetId, Event.SetInvitationsOnly.class);
+        Packet.registerPacket(Event.SetPlayerLimit.packetId, Event.SetPlayerLimit.class);
         Packet.registerPacket(Event.SetOwner.packetId, Event.SetOwner.class);
         Packet.registerPacket(Event.Warp.packetId, Event.Warp.class);
 
@@ -43,6 +44,7 @@ public interface PartyPacket {
         Packet.registerPacket(Operations.JoinPlayer.packetId, Operations.JoinPlayer.class);
         Packet.registerPacket(Operations.RemovePlayer.packetId, Operations.RemovePlayer.class);
         Packet.registerPacket(Operations.SetInvitationsOnly.packetId, Operations.SetInvitationsOnly.class);
+        Packet.registerPacket(Operations.SetPlayerLimit.packetId, Operations.SetPlayerLimit.class);
         Packet.registerPacket(Operations.SetOwner.packetId, Operations.SetOwner.class);
         Packet.registerPacket(Operations.Warp.packetId, Operations.Warp.class);
     }
@@ -145,6 +147,17 @@ public interface PartyPacket {
         record SetInvitationsOnly(long partyId, boolean invitationsOnly, PartyRecord value) implements Packet, Event, PartyUpdatePacket {
 
             public static final String packetId = "partyEventSetInvitationsOnly";
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+        }
+
+        record SetPlayerLimit(long partyId, Integer playerLimit, PartyRecord value) implements Packet, Event, PartyUpdatePacket {
+
+            public static final String packetId = "partyEventSetPlayerLimit";
 
             @Override
             public String getPacketId() {
@@ -481,6 +494,24 @@ public interface PartyPacket {
         record SetInvitationsOnly(long requestId, long partyId, boolean invitationsOnly) implements RequestPacket, Operations {
 
             public static final String packetId = "partyOperationsSetInvitationsOnly";
+
+
+            @Override
+            public String getPacketId() {
+                return packetId;
+            }
+
+        }
+
+        /**
+         * Packet for setting the player limit of a party.
+         * @param requestId the request ID
+         * @param partyId the party ID
+         * @param playerLimit the value to set
+         */
+        record SetPlayerLimit(long requestId, long partyId, Integer playerLimit) implements RequestPacket, Operations {
+
+            public static final String packetId = "partyOperationsSetPlayerLimit";
 
 
             @Override

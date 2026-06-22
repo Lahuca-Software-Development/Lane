@@ -236,6 +236,11 @@ public class ControllerInputPacket implements Consumer<InputPacket> {
                         party.setInvitationsOnly(packet.invitationsOnly());
                         getConnection().sendPacket(new VoidResultPacket(packet.getRequestId()), input.from());
                     }, () -> getConnection().sendPacket(new VoidResultPacket(packet.getRequestId(), ResponseError.INVALID_ID), input.from()));
+            case PartyPacket.Operations.SetPlayerLimit packet ->
+                    getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party -> {
+                        party.setPlayerLimit(packet.playerLimit());
+                        getConnection().sendPacket(new VoidResultPacket(packet.getRequestId()), input.from());
+                    }, () -> getConnection().sendPacket(new VoidResultPacket(packet.getRequestId(), ResponseError.INVALID_ID), input.from()));
             case PartyPacket.Operations.SetOwner packet ->
                     getPartyManager().getParty(packet.partyId()).ifPresentOrElse(party ->
                                     getPlayerManager().getPlayer(packet.player()).ifPresentOrElse(player ->

@@ -161,6 +161,10 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.add.alreadyInvited"));
                 return Command.SINGLE_SUCCESS;
             }
+            if (party.isFull()) { // Check if target already invited
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.add.full"));
+                return Command.SINGLE_SUCCESS;
+            }
             if (!party.addInvitation(actors.target.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.add.unknown"));
                 return Command.SINGLE_SUCCESS;
@@ -208,6 +212,10 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             }
             if (!party.hasInvitation(actors.executor.cPlayer())) {
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.noInvitation"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (party.isFull()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.accept.full"));
                 return Command.SINGLE_SUCCESS;
             }
             if (!party.acceptInvitation(actors.executor.cPlayer())) {
@@ -295,6 +303,10 @@ public class PartyCommand { // TODO Probably want to set it to final, sealed, no
             if (party.isInvitationsOnly()) {
                 // Do not leak if player has party, show a general message
                 executor.sendMessage(Component.translatable("lane.controller.commands.party.join.unavailable"));
+                return Command.SINGLE_SUCCESS;
+            }
+            if (party.isFull()) {
+                executor.sendMessage(Component.translatable("lane.controller.commands.party.join.full"));
                 return Command.SINGLE_SUCCESS;
             }
             if (!party.joinPlayer(actors.executor.cPlayer())) {

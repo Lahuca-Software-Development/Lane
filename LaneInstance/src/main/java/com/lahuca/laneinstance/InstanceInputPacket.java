@@ -200,6 +200,13 @@ public class InstanceInputPacket implements Consumer<InputPacket> {
                             handleInstanceEvent(new PartySetInvitationsOnlyEvent(party, invitationsOnly));
 
                         }
+                        case PartyPacket.Event.SetPlayerLimit(
+                                long partyId, Integer playerLimit, PartyRecord value
+                        ) -> {
+                            party.applyRecord(value);
+                            handleInstanceEvent(new PartySetPlayerLimitEvent(party, playerLimit));
+
+                        }
                         case PartyPacket.Event.SetOwner(long partyId, UUID player, PartyRecord value) -> {
                             party.applyRecord(value);
                             getPlayerManager().getInstancePlayer(player).ifPresent(current -> {

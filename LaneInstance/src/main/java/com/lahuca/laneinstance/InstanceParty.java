@@ -22,6 +22,7 @@ public class InstanceParty implements LaneParty, ReplicaObject<Long, PartyRecord
     private UUID owner;
     private HashSet<UUID> players;
     private boolean invitationsOnly;
+    private Integer playerLimit;
     private long creationTimestamp;
     private Set<UUID> unmodifiableInvitations;
 
@@ -70,6 +71,7 @@ public class InstanceParty implements LaneParty, ReplicaObject<Long, PartyRecord
         this.owner = record.owner();
         this.players = record.players();
         this.invitationsOnly = record.invitationsOnly();
+        this.playerLimit = record.playerLimit();
         this.creationTimestamp = record.creationTimestamp();
         this.unmodifiableInvitations = record.unmodifiableInvitations();
     }
@@ -95,6 +97,11 @@ public class InstanceParty implements LaneParty, ReplicaObject<Long, PartyRecord
     }
 
     @Override
+    public Integer getPlayerLimit() {
+        return playerLimit;
+    }
+
+    @Override
     public long getCreationTimestamp() {
         return creationTimestamp;
     }
@@ -113,6 +120,19 @@ public class InstanceParty implements LaneParty, ReplicaObject<Long, PartyRecord
      */
     public CompletableFuture<Void> setInvitationsOnly(boolean invitationsOnly) {
         return LaneInstance.getInstance().getConnection().<Void>sendRequestPacket(id -> new PartyPacket.Operations.SetInvitationsOnly(id, partyId, invitationsOnly), null).getResult();
+    }
+
+    /**
+     * Sets the player limit of this party.
+     * The limit determines how many players can join this party.
+     * When the request is successful, the value in this object is changed.
+     *
+     * @param playerLimit the player limit (positive, greater than one), null if no limit is present
+     * @return a {@link CompletableFuture} that is completed when it is successfully updated
+     */
+    public CompletableFuture<Void> setPlayerLimit(Integer playerLimit) {
+        if(playerLimit != null && playerLimit < 2) throw new IllegalArgumentException("playerLimit must be greater than one");
+        return LaneInstance.getInstance().getConnection().<Void>sendRequestPacket(id -> new PartyPacket.Operations.SetPlayerLimit(id, partyId, playerLimit), null).getResult();
     }
 
     /**
