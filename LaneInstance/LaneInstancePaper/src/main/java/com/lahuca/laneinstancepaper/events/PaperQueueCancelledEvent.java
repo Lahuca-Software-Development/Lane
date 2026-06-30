@@ -10,7 +10,7 @@ public class PaperQueueCancelledEvent extends PaperInstanceEvent<QueueCancelledE
     private static final HandlerList HANDLER_LIST = new HandlerList();
 
     public PaperQueueCancelledEvent(QueueCancelledEvent instanceEvent) {
-        super(instanceEvent);
+        super(true, instanceEvent);
     }
 
     public static HandlerList getHandlerList() {
