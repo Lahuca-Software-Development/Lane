@@ -33,12 +33,20 @@ public class OrderedDataComponents extends GroupedOrderedDataMap<Component> impl
 
     @Override
     public @NotNull Component asComponent() {
-        Component result = Component.empty();
         List<List<OrderedData<Component>>> groups = sortedGroups();
 
-        for(int i = 0; i < groups.size(); i++) {
-            result = result.append(buildGroupComponent(groups.get(i)));
-            if(i < groups.size() - 1) result = result.append(Component.space());
+        Component result = Component.empty();
+        boolean first = false;
+
+        for(List<OrderedData<Component>> group : groups) {
+            Component groupComponent = buildGroupComponent(group);
+
+            if(groupComponent.equals(Component.empty())) continue;
+
+            if(first) result = result.appendSpace();
+            else first = true;
+
+            result = result.append(groupComponent);
         }
 
         return result;
@@ -67,8 +75,8 @@ public class OrderedDataComponents extends GroupedOrderedDataMap<Component> impl
         Component result = Component.empty();
 
         boolean first = true;
-        for(int i = 0; i < group.size(); i++) {
-            Component append = group.get(i).getData();
+        for(OrderedData<Component> componentOrderedData : group) {
+            Component append = componentOrderedData.getData();
             if(append != null && !append.equals(Component.empty())) {
                 if(first) {
                     first = false;
