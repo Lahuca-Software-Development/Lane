@@ -171,12 +171,12 @@ public class VelocityControllerConfiguration {
     public static class Commands {
 
         private final boolean friend;
-        private final boolean party;
+        private final Party party;
         private final boolean hub;
 
         public Commands() {
             friend = true;
-            party = true;
+            party = new Party();
             hub = true;
         }
 
@@ -184,13 +184,33 @@ public class VelocityControllerConfiguration {
             return friend;
         }
 
-        public boolean isParty() {
+        public Party getParty() {
             return party;
         }
 
         public boolean isHub() {
             return hub;
         }
+
+        public static class Party {
+
+            private final boolean enabled;
+            private final String publicPermission;
+
+            public Party() {
+                this.enabled = true;
+                this.publicPermission = "slux.warden";
+            }
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public String getPublicPermission() {
+                return publicPermission;
+            }
+        }
+
     }
 
 }

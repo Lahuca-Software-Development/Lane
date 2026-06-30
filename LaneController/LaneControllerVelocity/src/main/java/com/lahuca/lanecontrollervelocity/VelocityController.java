@@ -128,6 +128,10 @@ public class VelocityController {
         return server;
     }
 
+    public VelocityControllerConfiguration getConfiguration() {
+        return configuration;
+    }
+
     public Logger getLogger() {
         return logger;
     }
@@ -233,7 +237,7 @@ public class VelocityController {
         if(configuration.getCommands().isFriend()) {
             commandManager.register(commandManager.metaBuilder("friend").aliases("f", "friends").plugin(this).build(), new FriendCommand(this, controller, dataManager, gson).createBrigadierCommand());
         }
-        if(configuration.getCommands().isParty()) {
+        if(configuration.getCommands().getParty().isEnabled()) {
             commandManager.register(commandManager.metaBuilder("party").aliases("p").plugin(this).build(), new PartyCommand(this, controller).createBrigadierCommand());
         }
         if(configuration.getCommands().isHub()) {
