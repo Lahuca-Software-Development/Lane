@@ -49,6 +49,8 @@ prefix = "lane"
 [commands]
 # The following values define whether the default implementation for the /friend and /party commands should be used.
 friend = true
-party.enabled = true
-party.publicPermission = "slux.warden"
 hub = true
+
+[commands.party]
+enabled = true
+publicPermission = "slux.warden"

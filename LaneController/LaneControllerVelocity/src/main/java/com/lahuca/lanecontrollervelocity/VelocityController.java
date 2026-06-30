@@ -287,7 +287,8 @@ public class VelocityController {
         try {
             Toml toml = new Toml().read(file);
             configuration = toml.to(VelocityControllerConfiguration.class);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            e.printStackTrace(); // TODO Print
             configuration = new VelocityControllerConfiguration();
         }
     }
