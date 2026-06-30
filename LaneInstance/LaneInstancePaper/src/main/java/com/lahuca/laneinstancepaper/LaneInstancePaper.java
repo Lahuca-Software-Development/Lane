@@ -216,6 +216,7 @@ public class LaneInstancePaper extends JavaPlugin implements Listener {
                 case PartyJoinPlayerEvent obj -> new PaperPartyJoinPlayerEvent(obj);
                 case PartyRemovePlayerEvent obj -> new PaperPartyRemovePlayerEvent(obj);
                 case PartySetInvitationsOnlyEvent obj -> new PaperPartySetInvitationsOnlyEvent(obj);
+                case PartySetPlayerLimitEvent obj -> new PaperPartySetPlayerLimitEvent(obj);
                 case PartySetOwnerEvent obj -> new PaperPartySetOwnerEvent(obj);
                 case PartyWarpEvent obj -> new PaperPartyWarpEvent(obj);
                 case NickPreSetEvent obj -> new PaperNickPreSetEvent(obj);
