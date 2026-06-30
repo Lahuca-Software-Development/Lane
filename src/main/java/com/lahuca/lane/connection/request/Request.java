@@ -31,7 +31,7 @@ import java.util.function.Function;
  */
 public class Request<T> {
 
-    private static final int DEFAULT_TIMEOUT_SECONDS = 3;
+    private static final int DEFAULT_TIMEOUT_SECONDS = 10;
 
     private final long requestId;
     private final long scheduledAt;
