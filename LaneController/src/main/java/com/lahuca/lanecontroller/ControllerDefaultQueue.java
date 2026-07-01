@@ -179,7 +179,7 @@ public class ControllerDefaultQueue {
         if (gameType == null && gameMap == null && gameMode == null) {
             return Optional.empty();
         }
-        for (ControllerGame game : Controller.getInstance().getGames()) {
+        for (ControllerGame game : Controller.getInstance().getGames().stream().sorted(Comparator.comparingInt((ControllerGame game) -> game.getQueueTypeList(queueType).size()).reversed()).toArray(ControllerGame[]::new)) {
             if (game.isPrivate()) continue;
             if (excludeInstances.contains(game.getInstanceId())) continue;
             if (excludeGames.contains(game.getGameId())) continue;
@@ -207,7 +207,7 @@ public class ControllerDefaultQueue {
     }
 
     private static Optional<ControllerLaneInstance> findByInstanceType(String instanceType, HashSet<String> excludeInstances, QueueType queueType, Map<UUID, Integer> slots, boolean allowKick) {
-        for (ControllerLaneInstance instance : Controller.getInstance().getInstances()) {
+        for (ControllerLaneInstance instance : Controller.getInstance().getInstances().stream().sorted(Comparator.comparingInt((ControllerLaneInstance game) -> game.getQueueTypeList(queueType).size())).toArray(ControllerLaneInstance[]::new)) {
             if (instance.isPrivate()) continue;
             if (excludeInstances.contains(instance.getId())) continue;
             if (instance.getType().isEmpty()) continue;

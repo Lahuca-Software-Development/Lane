@@ -19,6 +19,14 @@ public interface Slottable {
 
     HashSet<UUID> getPlaying(); // Only the actual playing players = players - spectators/viewers
 
+    default HashSet<UUID> getQueueTypeList(QueueType queueType) {
+        return switch (queueType) {
+            case ONLINE -> getOnline();
+            case PLAYERS -> getPlayers();
+            case PLAYING -> getPlaying();
+        };
+    }
+
     boolean isOnlineJoinable();
 
     boolean isPlayersJoinable();
@@ -30,6 +38,14 @@ public interface Slottable {
     int getMaxPlayersSlots();
 
     int getMaxPlayingSlots();
+
+    default int getMaxSlots(QueueType queueType) {
+        return switch (queueType) {
+            case ONLINE -> getMaxOnlineSlots();
+            case PLAYERS -> getMaxPlayersSlots();
+            case PLAYING -> getMaxPlayingSlots();
+        };
+    }
 
     boolean isOnlineKickable();
 
@@ -52,6 +68,14 @@ public interface Slottable {
     default int getAvailablePlayingSlots() {
         if (getMaxPlayingSlots() <= 0) return Integer.MAX_VALUE;
         return getMaxPlayingSlots() - getPlaying().size();
+    }
+
+    default int getAvailableSlots(QueueType queueType) {
+        return switch (queueType) {
+            case ONLINE -> getAvailableOnlineSlots();
+            case PLAYERS -> getAvailablePlayersSlots();
+            case PLAYING -> getAvailablePlayingSlots();
+        };
     }
 
     default boolean isQueueJoinable(QueueType queueType) {
