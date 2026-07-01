@@ -175,3 +175,19 @@ first receives the switch in the onSwitchQueueType method; after which the **Ins
    It is undefined what happens when doing any more work than needed on the InstancePlayer object itself.
    Data object identified by their IDs work as usual.
 2. During the PlayerQuitEvent, the **InstanceQuitEvent** and respectively **InstanceQuitGameEvent** is also called.
+
+# Paper Events
+Player is joining only an instance:
+- Player was not online on the instance: InstanceJoinEvent
+- Player was already on the instance, but not playing a game: InstanceSwitchQueueTypeEvent if queue type is **different**, else nothing
+- Player was already on the instance, and already playing a game: InstanceQuitGameEvent
+
+Player is joining a game:
+- Player was not online on the instance: InstanceJoinEvent & InstanceJoinGameEvent
+- Player was already on the instance, but not playing a game: InstanceSwitchQueueTypeEvent if queue type is **different**, InstanceJoinGameEvent
+- Player was already on the instance, and already playing a different game: InstanceQuitGameEvent, InstanceSwitchQueueTypeEvent if queue type is **different**, InstanceJoinGameEvent
+- Player was already on the instance, and already playing the same game: InstanceSwitchQueueTypeEvent if queue type is **different**, InstanceSwitchGameQueueTypeEvent if queue type is **different**
+
+Player is quitting the instance:
+- Player was playing a game: InstanceQuitGameEvent & InstanceQuitEvent
+- Player was not playing a game: InstanceQuitEvent
